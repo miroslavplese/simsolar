@@ -103,6 +103,8 @@ PLANETS = {
     },
     "Uranus": {"id": "799", "step": "80 d", "encounters": ["1986-01-24"]},
     "Neptune": {"id": "899", "step": "80 d", "encounters": ["1989-08-25"]},
+    "Pluto": {"id": "999", "step": "80 d", "encounters": ["2015-07-14"]},
+    "Charon": {"id": "901", "step": "80 d", "encounters": ["2015-07-14"]},
 }
 
 COMETS = {

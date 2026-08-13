@@ -6,6 +6,82 @@
   const AU_KM=1.495978707e8;
   const GM_SUN_KM=1.32712440018e11;
   const GM_SUN_AU_DAY=GM_SUN_KM*86400*86400/(AU_KM*AU_KM*AU_KM);
+  const DEG=Math.PI/180;
+
+  function solveKeplerElliptical(M,e){
+    let E=e>0.8 ? Math.PI : M;
+    for(let i=0;i<50;i++){
+      const delta=(E-e*Math.sin(E)-M)/(1-e*Math.cos(E));
+      E-=delta;
+      if(Math.abs(delta)<1e-12) break;
+    }
+    return E;
+  }
+
+  function solveKeplerHyperbolic(M,e){
+    let H=Math.sign(M||1)*Math.log(2*Math.abs(M)/e+1.8);
+    for(let i=0;i<60;i++){
+      const delta=(e*Math.sinh(H)-H-M)/(e*Math.cosh(H)-1);
+      H-=delta;
+      if(Math.abs(delta)<1e-12) break;
+    }
+    return H;
+  }
+
+  function orbitalRotation(obj){
+    if(obj._rotation) return obj._rotation;
+    const O=obj.Omega*DEG, I=obj.i*DEG, W=obj.omega*DEG;
+    const cO=Math.cos(O), sO=Math.sin(O), cI=Math.cos(I), sI=Math.sin(I);
+    const cW=Math.cos(W), sW=Math.sin(W);
+    obj._rotation={
+      xx:cO*cW-sO*sW*cI,
+      xy:-cO*sW-sO*cW*cI,
+      yx:sO*cW+cO*sW*cI,
+      yy:-sO*sW+cO*cW*cI,
+      zx:sW*sI,
+      zy:cW*sI
+    };
+    return obj._rotation;
+  }
+
+  function orbitalToEcliptic(obj,xp,yp){
+    const m=orbitalRotation(obj);
+    return {
+      x:m.xx*xp+m.xy*yp,
+      y:m.yx*xp+m.yy*yp,
+      z:m.zx*xp+m.zy*yp
+    };
+  }
+
+  function bodyPosition(obj,tDays){
+    const dt=tDays-(obj.epochDays||0);
+    let M=(obj.M0+obj.n*dt)*DEG;
+    let r,nu;
+    if(obj.e<1){
+      M%=2*Math.PI;
+      if(M<0) M+=2*Math.PI;
+      const E=solveKeplerElliptical(M,obj.e);
+      nu=2*Math.atan2(
+        Math.sqrt(1+obj.e)*Math.sin(E/2),
+        Math.sqrt(1-obj.e)*Math.cos(E/2)
+      );
+      r=obj.a*(1-obj.e*Math.cos(E));
+    } else {
+      const H=solveKeplerHyperbolic(M,obj.e);
+      nu=2*Math.atan2(
+        Math.sqrt(obj.e+1)*Math.sinh(H/2),
+        Math.sqrt(obj.e-1)*Math.cosh(H/2)
+      );
+      r=obj.a*(1-obj.e*Math.cosh(H));
+    }
+    const pos=orbitalToEcliptic(obj,r*Math.cos(nu),r*Math.sin(nu));
+    return {x:pos.x,y:pos.y,z:pos.z,r,nu};
+  }
+
+  function orbitalSpeedKmS(obj,rAu){
+    const aKm=obj.a*AU_KM, rKm=rAu*AU_KM;
+    return Math.sqrt(GM_SUN_KM*(2/rKm-1/aKm));
+  }
 
   function trajectorySegment(points,tDays){
     let lo=0, hi=points.length-1;
@@ -125,7 +201,8 @@
   }
 
   return {
-    AU_KM,GM_SUN_AU_DAY,trajectorySegment,interpolateTrajectory,
-    sampledStateAt,propagateState
+    AU_KM,GM_SUN_AU_DAY,solveKeplerElliptical,solveKeplerHyperbolic,
+    orbitalToEcliptic,bodyPosition,orbitalSpeedKmS,trajectorySegment,
+    interpolateTrajectory,sampledStateAt,propagateState
   };
 });

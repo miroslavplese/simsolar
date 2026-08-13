@@ -6,7 +6,7 @@ validation.
 
 ## Current state
 
-- **Phase:** Functional prototype
+- **Phase:** Functional prototype; hybrid gravity planned
 - **Deployment:** Standalone static HTML
 - **Dependencies:** None
 - **Automated tests:** Numerical and mission-navigation regression suite
@@ -15,7 +15,8 @@ validation.
 
 ## Priority 0 - Correctness and measurement
 
-- [ ] Add deterministic tests for elliptical and hyperbolic Kepler solvers.
+- [x] 2026-08-13 - Extract orbital calculations and add deterministic tests for
+  elliptical and hyperbolic Kepler solvers.
   - Validate residual error after solving.
   - Cover eccentricities near zero, near one, and greater than one.
 - [x] 2026-08-12 - Add ephemeris interpolation, propagation, launch, flyby, and
@@ -28,7 +29,7 @@ validation.
   interpolation while preserving dense flyby samples.
 - [x] 2026-08-12 - Anchor post-ephemeris propagation to the final JPL state so
   spacecraft markers remain connected to their paths.
-- [ ] Add a small frame-time profiler or browser performance baseline.
+- [x] 2026-08-13 - Add a rolling in-app frame-time profiler for each view preset.
   - Record average and 95th-percentile frame time at each view preset.
 
 ## Priority 1 - Rendering performance
@@ -81,9 +82,24 @@ introduced.
 - [ ] Show uncertainty or approximation indicators for spacecraft.
 - [x] 2026-08-12 - Add launch/flyby timeline navigation, UTC date input,
   event-specific zoom, and spacecraft follow mode.
+- [ ] Add a future-only Newtonian N-body simulation.
+  - Define a fixed JPL-backed cutover epoch and barycentric initial state.
+  - Add masses and pairwise acceleration for planets, Pluto, and Charon.
+  - Integrate massive bodies with a deterministic symplectic timestep.
+  - Treat spacecraft and comets as massless test particles initially.
+  - Cache checkpoints so future date jumps do not restart from the epoch.
+  - Keep historical navigation on bundled ephemerides.
+  - Validate continuity, energy and momentum drift, and deterministic replay.
+- [ ] Move long-running future integration into a Web Worker after the
+  synchronous reference implementation is validated.
+- [ ] Add optional hypothetical massive bodies initialized at the cutover epoch.
+- [ ] Investigate adaptive close-encounter integration and relativistic
+  corrections as a later, separate capability.
 
 ## Completed
 
+- [x] 2026-08-13 - Added Pluto, Charon, and their New Horizons encounter using
+  matching NASA/JPL Horizons state vectors.
 - [x] 2026-08-12 - Added baseline project, design, and roadmap documentation.
 - [x] 2026-08-12 - Added Halley, Hale-Bopp, Encke, 67P, and NEOWISE with
   generated ephemerides, paths, markers, tails, cards, and legend controls.

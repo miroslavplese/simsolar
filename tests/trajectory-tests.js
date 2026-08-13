@@ -4,6 +4,9 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {
   GM_SUN_AU_DAY,
+  solveKeplerElliptical,
+  solveKeplerHyperbolic,
+  bodyPosition,
   sampledStateAt,
   propagateState
 }=require('../src/trajectory-math.js');
@@ -51,6 +54,50 @@ const planets=loadGenerated('data/planet-ephemerides.js','PLANET_EPHEMERIDES').e
 const comets=loadGenerated('data/comet-ephemerides.js','COMET_EPHEMERIDES').ephemerides;
 
 let assertions=0;
+
+const ellipticalCases=[
+  [0,0],
+  [0.2,1e-12],
+  [1.7,0.5],
+  [Math.PI,0.999999],
+  [1e-6,0.999999]
+];
+for(const [meanAnomaly,eccentricity] of ellipticalCases){
+  const eccentricAnomaly=solveKeplerElliptical(meanAnomaly,eccentricity);
+  close(
+    eccentricAnomaly-eccentricity*Math.sin(eccentricAnomaly),
+    meanAnomaly,
+    1e-11,
+    `elliptical Kepler residual at e=${eccentricity}`
+  );
+  assertions++;
+}
+
+const hyperbolicCases=[
+  [0,1.000001],
+  [1e-6,1.000001],
+  [-2.5,1.2],
+  [10,3.7]
+];
+for(const [meanAnomaly,eccentricity] of hyperbolicCases){
+  const hyperbolicAnomaly=solveKeplerHyperbolic(meanAnomaly,eccentricity);
+  close(
+    eccentricity*Math.sinh(hyperbolicAnomaly)-hyperbolicAnomaly,
+    meanAnomaly,
+    1e-11,
+    `hyperbolic Kepler residual at e=${eccentricity}`
+  );
+  assertions++;
+}
+
+const circularBody={
+  a:1,e:0,i:0,Omega:0,omega:0,M0:0,n:1,epochDays:0
+};
+const circularPosition=bodyPosition(circularBody,90);
+close(circularPosition.r,1,1e-12,'circular orbit radius');
+close(Math.hypot(circularPosition.x,circularPosition.y),1,1e-12,'circular orbit plane distance');
+assert.ok(Number.isFinite(circularPosition.z),'circular orbit z position must be finite');
+assertions+=3;
 
 for(const [name,record] of Object.entries({...spacecraft,...planets,...comets})){
   const points=record.points;
@@ -106,6 +153,8 @@ const flybys=[
   ['Pioneer 11','Jupiter','1974-12-03',0.03],
   ['Pioneer 11','Saturn','1979-09-01',0.03],
   ['New Horizons','Jupiter','2007-02-28',0.03],
+  ['New Horizons','Pluto','2015-07-14',0.001],
+  ['New Horizons','Charon','2015-07-14',0.001],
   ['Parker Solar Probe','Venus','2024-11-06',0.03]
 ];
 

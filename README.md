@@ -12,12 +12,13 @@ web server is required.
 ## Features
 
 - Elliptical and hyperbolic Kepler solvers
-- Eight planets and six spacecraft
+- Eight planets, Pluto and Charon, and six spacecraft
 - Five iconic comets with JPL-derived paths and Sun-facing tails
 - Animated simulation clock with adjustable speed and direction
 - Mission timeline with launch/flyby jumps and UTC date navigation
 - Spacecraft follow camera with event-specific automatic zoom
-- Pan, wheel zoom, touch pinch zoom, and view presets
+- Rolling average and p95 frame-time profiler for each view preset
+- Pointer orbit rotation, Space-drag or two-finger pan, pinch/wheel zoom, and view presets
 - Selection cards with orbital information
 - Planet and spacecraft trajectory hit testing
 
@@ -33,15 +34,20 @@ web server is required.
 | `docs/ROADMAP.md` | Progress tracker and prioritized improvement backlog |
 | `src/trajectory-math.js` | Shared interpolation and two-body propagation module |
 | `src/mission-timeline.js` | Shared mission navigation helpers |
+| `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
+| `src/view-transform.js` | Camera rotation and view-space transformation helpers |
 | `tests/trajectory-tests.js` | Dependency-free numerical regression suite |
 | `tools/fetch-trajectories.py` | Reproducible Horizons data generator |
 
 ## Current limitations
 
+- SimSolar is not currently an N-body simulation. Analytic orbits and
+  post-ephemeris spacecraft continuation use the Sun as the only gravitating
+  body; rendered bodies do not perturb one another.
 - Historical spacecraft positions and flybys use bundled NASA/JPL Horizons
   vectors through the date recorded in the generated data file.
-- Planet markers use matching NASA/JPL Horizons state vectors from 1970 through
-  2035 so they align with historical launches and flybys.
+- Planet, Pluto, and Charon markers use matching NASA/JPL Horizons state vectors
+  from 1970 through 2035 so they align with historical launches and flybys.
 - Comet paths use Horizons state vectors from 1950 through 2080.
 - Dates beyond the bundled spacecraft vectors are propagated from the final JPL
   position and velocity under solar gravity, keeping markers connected to their
@@ -51,6 +57,15 @@ web server is required.
   animation frame.
 - Interaction and visual regression tests are not yet automated.
 - The interface has limited keyboard and screen-reader support.
+
+## Planned gravity model
+
+The next scientific phase is a future-only Newtonian N-body mode. Historical
+dates will continue using bundled JPL ephemerides. At a fixed reproducible
+cutover epoch, JPL position and velocity vectors will initialize a barycentric
+simulation; later dates will be integrated forward with cached checkpoints.
+Spacecraft and comets will initially be massless test particles. Relativistic
+effects and compact-object close encounters are explicitly deferred.
 
 ## Contributing
 
