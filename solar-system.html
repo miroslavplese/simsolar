@@ -67,18 +67,64 @@
   #legend div.item:hover{ background:rgba(255,255,255,0.06); }
   #legend div.item.off{ opacity:0.35; }
 
+  #missionPanel{
+    position:absolute; top:62px; left:20px; width:270px;
+    background:rgba(17,22,42,0.9); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+  #missionPanel .heading{ color:var(--accent); font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+  #missionPanel .controlRow{ display:flex; gap:6px; margin-bottom:7px; }
+  #missionPanel select, #missionPanel input{
+    min-width:0; height:28px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); font:9.5px var(--mono); padding:0 7px; outline:none;
+  }
+  #missionSelect{ flex:1; }
+  #dateInput{ flex:1; color-scheme:dark; }
+  .timelineBtn{
+    height:28px; border:1px solid var(--line); border-radius:7px; background:#161c34; color:var(--ink);
+    padding:0 8px; cursor:pointer; font:9px var(--mono); white-space:nowrap;
+  }
+  .timelineBtn:hover, .timelineBtn.active{ border-color:var(--accent); color:var(--accent); }
+  #eventList{ max-height:145px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+  #eventList .event{
+    border:0; border-radius:5px; background:transparent; color:var(--ink-dim);
+    padding:4px 5px; text-align:left; cursor:pointer; font:9px var(--mono);
+  }
+  #eventList .event:hover, #eventList .event.active{ background:rgba(255,255,255,.06); color:var(--ink); }
+  #eventList .event span{ color:var(--accent); margin-right:7px; }
+  #eventDetail{ min-height:25px; margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+
   #scaleNote{ position:absolute; bottom:80px; right:20px; font-family:var(--mono); font-size:9.5px; color:var(--ink-dim); text-align:right; max-width:190px; line-height:1.5; }
+  @media (max-width:760px){
+    #missionPanel{ width:230px; max-height:35vh; }
+    #eventList{ max-height:80px; }
+  }
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="sky"></canvas>
+  <canvas id="orbits"></canvas>
   <canvas id="scene"></canvas>
 
-  <div id="title">Orrery <b>·</b> Solar System &amp; Spacecraft<br>True Keplerian dynamics · 3D projection</div>
+  <div id="title">Orrery <b>·</b> Solar System &amp; Spacecraft<br>JPL ephemerides · 3D projection</div>
   <div id="datebox"><span class="yy" id="yearOut">2026</span><span id="dateOut">01 Jan</span></div>
 
   <div id="legend"></div>
+  <div id="missionPanel">
+    <div class="heading">Mission timeline</div>
+    <div class="controlRow">
+      <select id="missionSelect" aria-label="Spacecraft mission"></select>
+      <button class="timelineBtn" id="followBtn" type="button">FOLLOW</button>
+    </div>
+    <div class="controlRow">
+      <button class="timelineBtn" id="prevEventBtn" type="button" title="Previous mission event">‹ EVENT</button>
+      <input id="dateInput" type="date" aria-label="Simulation date">
+      <button class="timelineBtn" id="nextEventBtn" type="button" title="Next mission event">EVENT ›</button>
+    </div>
+    <div id="eventList"></div>
+    <div id="eventDetail">Choose an event to jump to its date and follow the spacecraft.</div>
+  </div>
   <div id="scaleNote">True 3D orbits, real scale (AU). Planet sizes exaggerated for visibility. Spacecraft shown as markers with orbital paths — see notes on precision in each card.</div>
 
   <div id="card">
@@ -115,19 +161,27 @@
   </div>
 </div>
 
+<script src="data/planet-ephemerides.js"></script>
+<script src="data/spacecraft-trajectories.js"></script>
+<script src="data/comet-ephemerides.js"></script>
+<script src="src/trajectory-math.js"></script>
+<script src="src/mission-timeline.js"></script>
 <script>
 (function(){
   const sky = document.getElementById('sky');
+  const orbits = document.getElementById('orbits');
   const scene = document.getElementById('scene');
   const skyCtx = sky.getContext('2d');
+  const orbitCtx = orbits.getContext('2d');
   const ctx = scene.getContext('2d');
 
   let W, H, cx, cy;
   function resize(){
-    W = sky.width = scene.width = window.innerWidth;
-    H = sky.height = scene.height = window.innerHeight;
+    W = sky.width = orbits.width = scene.width = window.innerWidth;
+    H = sky.height = orbits.height = scene.height = window.innerHeight;
     cx = W/2; cy = H/2;
     drawStars();
+    invalidateProjection();
   }
 
   let stars = [];
@@ -146,6 +200,8 @@
   const J2000 = Date.UTC(2000,0,1,12,0,0);
   const AU_KM = 1.495978707e8;
   const GM_SUN_KM = 1.32712440018e11; // km^3/s^2
+  const {interpolateTrajectory,sampledStateAt,propagateState}=window.TrajectoryMath;
+  const {zoomForTarget,findRelativeEvent}=window.MissionTimeline;
 
   function daysSinceJ2000(dateMs){ return (dateMs - J2000)/86400000; }
 
@@ -167,6 +223,30 @@
     return E;
   }
 
+  function orbitalRotation(obj){
+    if(obj._rotation) return obj._rotation;
+    const O = obj.Omega*DEG, I = obj.i*DEG, W = obj.omega*DEG;
+    const cO=Math.cos(O), sO=Math.sin(O), cI=Math.cos(I), sI=Math.sin(I), cW=Math.cos(W), sW=Math.sin(W);
+    obj._rotation = {
+      xx:cO*cW - sO*sW*cI,
+      xy:-cO*sW - sO*cW*cI,
+      yx:sO*cW + cO*sW*cI,
+      yy:-sO*sW + cO*cW*cI,
+      zx:sW*sI,
+      zy:cW*sI
+    };
+    return obj._rotation;
+  }
+
+  function orbitalToEcliptic(obj, xp, yp){
+    const m = orbitalRotation(obj);
+    return {
+      x:m.xx*xp + m.xy*yp,
+      y:m.yx*xp + m.yy*yp,
+      z:m.zx*xp + m.zy*yp
+    };
+  }
+
   // ---------- Orbital elements -> ecliptic 3D position (AU) ----------
   function bodyPosition(obj, tDays){
     const dt = tDays - (obj.epochDays||0);
@@ -184,12 +264,8 @@
       r = obj.a*(1 - obj.e*Math.cosh(E));
     }
     const xp = r*Math.cos(nu), yp = r*Math.sin(nu);
-    const O = obj.Omega*DEG, I = obj.i*DEG, W = obj.omega*DEG;
-    const cO=Math.cos(O), sO=Math.sin(O), cI=Math.cos(I), sI=Math.sin(I), cW=Math.cos(W), sW=Math.sin(W);
-    const x = (cO*cW - sO*sW*cI)*xp + (-cO*sW - sO*cW*cI)*yp;
-    const y = (sO*cW + cO*sW*cI)*xp + (-sO*sW + cO*cW*cI)*yp;
-    const z = (sW*sI)*xp + (cW*sI)*yp;
-    return {x,y,z,r,nu};
+    const pos = orbitalToEcliptic(obj, xp, yp);
+    return {x:pos.x,y:pos.y,z:pos.z,r,nu};
   }
 
   function orbitalSpeedKmS(obj, r_au){
@@ -234,7 +310,7 @@
      launch:'1977-08-20', notes:'Post-Neptune (1989) orbit shape from fitted NSSDC tracking data; position calibrated to a reported distance of 136.2 AU on 2024-04-03. Steep inclination is real -- a result of the final Neptune flyby geometry.'},
     {kind:'spacecraft', name:'Pioneer 10', color:'#8fd8a0', icon:'diamond',
      a:-6.942, e:1.727, i:3.14, Omega:-28.57, omega:-13.45, M0:995.375, n:19.700/365.25, epochDays:8858.50,
-     launch:'1972-03-02', notes:'Post-Jupiter (1973) orbit shape from fitted NSSDC tracking data; position calibrated to a reported distance of 136.2 AU on 2024-04-03. Silent since 2003 -- position shown is the coasted ballistic path.'},
+     launch:'1972-03-03', notes:'Post-Jupiter (1973) orbit shape from fitted NSSDC tracking data; position calibrated to a reported distance of 136.2 AU on 2024-04-03. Silent since 2003 -- position shown is the coasted ballistic path.'},
     {kind:'spacecraft', name:'Pioneer 11', color:'#a0c8ff', icon:'diamond',
      a:-8.059, e:2.161, i:16.63, Omega:160.40, omega:12.81, M0:523.950, n:15.668/365.25, epochDays:4634.50,
      launch:'1973-04-06', notes:'Post-Saturn (1979) orbit shape from fitted NSSDC tracking data; position calibrated to a reported distance of 86.4 AU on 2012-09-09. Silent since 1995 -- position shown is the coasted ballistic path.'},
@@ -245,7 +321,141 @@
      a:0.38793, e:0.8818, i:3.4, Omega:76.7, omega:90, M0:0, n:360/88.24, epochDays:daysSinceJ2000(Date.UTC(2024,11,24)),
      launch:'2018-08-12', notes:'Final orbit after 7th Venus flyby (Nov 2024): true perihelion 9.86 solar radii, aphelion ~0.73 AU, 88.2-day period. Orbit orientation approximated near Venus\'s orbital plane.'},
   ];
-  const allBodies = [...planets, ...spacecraft];
+  const comets = [
+    {kind:'comet', name:'Halley', color:'#7ee7ff', e:0.967, i:162.26, period:27510, q:0.586, perihelion:'1986-02-09',
+     notes:'The best-known periodic comet; its retrograde orbit returns it to the inner solar system roughly every 75 years.'},
+    {kind:'comet', name:'Hale-Bopp', color:'#b8a6ff', e:0.995, i:89.4, period:925000, q:0.914, perihelion:'1997-04-01',
+     notes:'A long-period comet that remained visible to the unaided eye for a record 18 months around its 1997 apparition.'},
+    {kind:'comet', name:'Encke', color:'#73e6b1', e:0.848, i:11.8, period:1204, q:0.339, perihelion:'2023-10-22',
+     notes:'A short-period comet with the shortest known orbital period of a bright periodic comet, about 3.3 years.'},
+    {kind:'comet', name:'67P/Churyumov-Gerasimenko', color:'#ff9f80', e:0.641, i:7.04, period:2352, q:1.21, perihelion:'2015-08-13',
+     notes:'Destination of ESA\'s Rosetta mission and the Philae lander.'},
+    {kind:'comet', name:'NEOWISE', color:'#ffe28a', e:0.9992, i:128.9, period:2460000, q:0.295, perihelion:'2020-07-03',
+     notes:'A long-period comet that became a prominent naked-eye object in July 2020.'},
+  ];
+  const flybys = {
+    'Voyager 1': [['Jupiter','1979-03-05'],['Saturn','1980-11-12']],
+    'Voyager 2': [['Jupiter','1979-07-09'],['Saturn','1981-08-26'],['Uranus','1986-01-24'],['Neptune','1989-08-25']],
+    'Pioneer 10': [['Jupiter','1973-12-04']],
+    'Pioneer 11': [['Jupiter','1974-12-03'],['Saturn','1979-09-01']],
+    'New Horizons': [['Jupiter','2007-02-28'],['Pluto','2015-07-14'],['Arrokoth','2019-01-01']],
+    'Parker Solar Probe': [
+      ['Venus 1','2018-10-03'],['Venus 2','2019-12-26'],['Venus 3','2020-07-11'],
+      ['Venus 4','2021-02-20'],['Venus 5','2021-10-16'],['Venus 6','2023-08-21'],['Venus 7','2024-11-06']
+    ]
+  };
+  const trajectoryBundle = window.SPACECRAFT_TRAJECTORIES;
+  const trajectoryData = trajectoryBundle ? trajectoryBundle.trajectories : {};
+  const planetBundle = window.PLANET_EPHEMERIDES;
+  const planetData = planetBundle ? planetBundle.ephemerides : {};
+  const cometBundle = window.COMET_EPHEMERIDES;
+  const cometData = cometBundle ? cometBundle.ephemerides : {};
+  for(const s of spacecraft){
+    const trajectory = trajectoryData[s.name];
+    s._trajectoryPoints = trajectory ? trajectory.points : null;
+    s.flybys = flybys[s.name] || [];
+  }
+  for(const p of planets){
+    const ephemeris = planetData[p.name];
+    p._ephemerisPoints = ephemeris ? ephemeris.points : null;
+  }
+  for(const comet of comets){
+    const ephemeris=cometData[comet.name];
+    comet._trajectoryPoints=ephemeris ? ephemeris.points : null;
+  }
+  const missionEvents = [];
+  for(const craft of spacecraft){
+    missionEvents.push({
+      craft, date:craft.launch,
+      days:craft._trajectoryPoints ? craft._trajectoryPoints[0][0] : daysSinceJ2000(Date.parse(craft.launch+'T12:00:00Z')),
+      title:'Launch', target:'Earth', description:craft.name+' launches from Earth.'
+    });
+    for(const [target,date] of craft.flybys){
+      missionEvents.push({
+        craft, date, days:daysSinceJ2000(Date.parse(date+'T12:00:00Z')),
+        title:target+' flyby', target:target.replace(/\s+\d+$/,''),
+        description:craft.name+' encounters '+target.replace(/\s+\d+$/,'')+'.'
+      });
+    }
+  }
+  missionEvents.sort((a,b)=>a.days-b.days);
+
+  function trajectoryPointAt(obj, tDays){
+    return sampledStateAt(obj._trajectoryPoints,tDays);
+  }
+
+  function continuationOrigin(obj){
+    if(!obj._continuationOrigin){
+      const last=obj._trajectoryPoints[obj._trajectoryPoints.length-1];
+      obj._continuationOrigin={
+        t:last[0],x:last[1],y:last[2],z:last[3],
+        vx:last[4],vy:last[5],vz:last[6]
+      };
+    }
+    return obj._continuationOrigin;
+  }
+
+  function ensureContinuation(obj,tDays){
+    const origin=continuationOrigin(obj);
+    const span=Math.max(0,tDays-origin.t);
+    const preferredStep=obj.name==='Parker Solar Probe' ? 0.5 : 20;
+    const step=preferredStep*Math.max(1,Math.ceil(span/(preferredStep*5000)));
+    if(!obj._continuationPoints || obj._continuationStep!==step){
+      obj._continuationPoints=[origin];
+      obj._continuationStep=step;
+    }
+    const points=obj._continuationPoints;
+    while(points[points.length-1].t+step<tDays){
+      const nextT=points[points.length-1].t+step;
+      points.push(propagateState(origin,nextT-origin.t));
+    }
+    return points;
+  }
+
+  function continuationPointAt(obj,tDays){
+    const origin=continuationOrigin(obj);
+    const state=propagateState(origin,tDays-origin.t);
+    return {
+      x:state.x,y:state.y,z:state.z,r:Math.hypot(state.x,state.y,state.z),
+      speedKmS:Math.hypot(state.vx,state.vy,state.vz)*AU_KM/86400,
+      sampled:false,propagated:true
+    };
+  }
+
+  function smoothTrajectoryPoints(points){
+    const smoothed=[];
+    const totalSpan=points[points.length-1][0]-points[0][0];
+    const MAX_RENDER_STEP_DAYS=Math.max(2,totalSpan/4000);
+    for(let i=0;i<points.length-1;i++){
+      const start=points[i][0], span=points[i+1][0]-start;
+      const steps=Math.max(1,Math.ceil(span/MAX_RENDER_STEP_DAYS));
+      for(let step=0;step<steps;step++){
+        const t=start+span*(step/steps);
+        const p=interpolateTrajectory(points,i,t);
+        smoothed.push({t,x:p.x,y:p.y,z:p.z});
+      }
+    }
+    const last=points[points.length-1];
+    smoothed.push({t:last[0],x:last[1],y:last[2],z:last[3]});
+    return smoothed;
+  }
+
+  function positionForBody(obj, tDays){
+    if(obj.kind==='planet' && obj._ephemerisPoints){
+      const ephemeris=sampledStateAt(obj._ephemerisPoints,tDays);
+      if(ephemeris) return ephemeris;
+    }
+    if(obj.kind==='comet' && obj._trajectoryPoints){
+      return trajectoryPointAt(obj,tDays);
+    }
+    if(obj.kind==='spacecraft' && obj._trajectoryPoints){
+      if(tDays < obj._trajectoryPoints[0][0]) return null;
+      const sampled = trajectoryPointAt(obj,tDays);
+      if(sampled) return sampled;
+      return continuationPointAt(obj,tDays);
+    }
+    return bodyPosition(obj,tDays);
+  }
 
   // ---------- Clock & view state ----------
   let simDaysSinceJ2000 = daysSinceJ2000(Date.now());
@@ -259,7 +469,43 @@
   let selected = null;
   let hovered = null;
   let showSpacecraft = true;
+  let showComets = true;
+  let followTarget = null;
+  let activeMissionEvent = null;
   let panX = 0, panY = 0; // screen-pixel pan offset, independent of zoom
+  let projectionRevision = 0;
+  let orbitLayerDirty = true;
+
+  function invalidateProjection(){
+    projectionRevision++;
+    orbitLayerDirty = true;
+  }
+
+  function setFollowTarget(target){
+    followTarget = target && target.kind==='spacecraft' ? target : null;
+    document.getElementById('followBtn').classList.toggle('active', !!followTarget);
+    document.getElementById('followBtn').textContent = followTarget ? 'FOLLOWING' : 'FOLLOW';
+  }
+
+  function updateFollowCamera(){
+    if(!followTarget) return;
+    const pos=positionForBody(followTarget,simDaysSinceJ2000);
+    if(!pos) return;
+    const targetPanX=-pos.x*AU_PX*zoom;
+    const targetPanY=-(pos.y*cosTilt-pos.z*sinTilt)*AU_PX*zoom;
+    if(Math.abs(targetPanX-panX)>0.2 || Math.abs(targetPanY-panY)>0.2){
+      panX=targetPanX;
+      panY=targetPanY;
+      invalidateProjection();
+    }
+  }
+
+  function visibleBodies(){
+    const bodies=[...planets];
+    if(showSpacecraft) bodies.push(...spacecraft);
+    if(showComets) bodies.push(...comets);
+    return bodies;
+  }
 
   // ---------- Projection ----------
   function project(x,y,z){
@@ -276,9 +522,10 @@
     zoom = newZoom;
     panX = anchorX - cx - preX*zoom;
     panY = anchorY - cy - preY*zoom;
+    invalidateProjection();
   }
 
-  function orbitPathPoints(obj, nuFrom, nuTo, steps){
+  function orbitWorldPoints(obj, nuFrom, nuTo, steps){
     const p = obj.a*(1 - obj.e*obj.e);
     const pts = [];
     steps = steps || 220;
@@ -286,12 +533,8 @@
       const nu = nuFrom + (nuTo-nuFrom)*(i/steps);
       const r = p/(1+obj.e*Math.cos(nu));
       const xp = r*Math.cos(nu), yp = r*Math.sin(nu);
-      const O=obj.Omega*DEG, I=obj.i*DEG, W=obj.omega*DEG;
-      const cO=Math.cos(O), sO=Math.sin(O), cI=Math.cos(I), sI=Math.sin(I), cW=Math.cos(W), sW=Math.sin(W);
-      const x = (cO*cW - sO*sW*cI)*xp + (-cO*sW - sO*cW*cI)*yp;
-      const y = (sO*cW + cO*sW*cI)*xp + (-sO*sW + cO*cW*cI)*yp;
-      const z = (sW*sI)*xp + (cW*sI)*yp;
-      pts.push(project(x,y,z));
+      const pos = orbitalToEcliptic(obj, xp, yp);
+      pts.push({x:pos.x,y:pos.y,z:pos.z,nu});
     }
     return pts;
   }
@@ -299,6 +542,82 @@
     if(obj.e < 1) return [-Math.PI, Math.PI];
     const nuInf = Math.acos(-1/obj.e)*0.985;
     return [-nuInf, nuInf];
+  }
+
+  function getOrbitWorldPoints(obj){
+    if(!obj._orbitWorldPoints){
+      if(obj._trajectoryPoints){
+        obj._orbitWorldPoints = smoothTrajectoryPoints(obj._trajectoryPoints);
+      } else {
+        const [nuMin, nuMax] = fullNuRange(obj);
+        obj._orbitWorldPoints = orbitWorldPoints(obj, nuMin, nuMax);
+      }
+    }
+    return obj._orbitWorldPoints;
+  }
+
+  function getProjectedOrbitPoints(obj){
+    if(obj._projectedRevision !== projectionRevision){
+      const pts = getOrbitWorldPoints(obj).map(p=>project(p.x,p.y,p.z));
+      let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+      for(const p of pts){
+        minX=Math.min(minX,p.x); minY=Math.min(minY,p.y);
+        maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y);
+      }
+      obj._pathPts = pts;
+      obj._pathBounds = {minX,minY,maxX,maxY};
+      obj._projectedRevision = projectionRevision;
+    }
+    return obj._pathPts;
+  }
+
+  function strokePath(targetCtx, pts){
+    targetCtx.beginPath();
+    pts.forEach((pt,idx)=> idx===0 ? targetCtx.moveTo(pt.x,pt.y) : targetCtx.lineTo(pt.x,pt.y));
+    targetCtx.stroke();
+  }
+
+  function drawOrbitLayer(){
+    orbitCtx.clearRect(0,0,W,H);
+    const drawList = visibleBodies();
+    for(const b of drawList){
+      const isHi = b===hovered || b===selected;
+      const pts = getProjectedOrbitPoints(b);
+      if(b.kind==='spacecraft'){
+        orbitCtx.strokeStyle = hexToRgba(b.color, isHi?0.4:0.14);
+        orbitCtx.lineWidth = isHi ? 1.1 : 0.8;
+        orbitCtx.setLineDash([2,4]);
+      } else if(b.kind==='comet'){
+        orbitCtx.strokeStyle = hexToRgba(b.color,isHi?0.8:0.32);
+        orbitCtx.lineWidth = isHi ? 1.6 : 1;
+        orbitCtx.setLineDash([6,4]);
+      } else {
+        orbitCtx.strokeStyle = isHi ? 'rgba(242,181,68,0.55)' : 'rgba(140,150,190,0.16)';
+        orbitCtx.lineWidth = isHi ? 1.4 : 1;
+        orbitCtx.setLineDash([]);
+      }
+      strokePath(orbitCtx, pts);
+
+      if(b.kind==='spacecraft' && (isHi || zoom>0.8)){
+        orbitCtx.setLineDash([]);
+        for(const [name,date] of b.flybys){
+          const pos=trajectoryPointAt(b,daysSinceJ2000(Date.parse(date+'T00:00:00Z')));
+          if(!pos) continue;
+          const marker=project(pos.x,pos.y,pos.z);
+          orbitCtx.beginPath();
+          orbitCtx.fillStyle=b.color;
+          orbitCtx.arc(marker.x,marker.y,isHi?3.2:2.2,0,Math.PI*2);
+          orbitCtx.fill();
+          if(isHi){
+            orbitCtx.font='9px "SF Mono", Consolas, monospace';
+            orbitCtx.fillStyle=hexToRgba(b.color,0.85);
+            orbitCtx.fillText(name,marker.x+6,marker.y-5);
+          }
+        }
+      }
+    }
+    orbitCtx.setLineDash([]);
+    orbitLayerDirty = false;
   }
 
   function sizeForRadius(km, isSun){
@@ -314,56 +633,53 @@
   }
 
   function draw(){
+    updateFollowCamera();
     ctx.clearRect(0,0,W,H);
+    if(orbitLayerDirty) drawOrbitLayer();
 
-    const drawList = showSpacecraft ? allBodies : planets;
+    const drawList = visibleBodies();
 
     // positions first, so spacecraft trails can end exactly at the marker
-    const withPos = drawList.map(b=>{
-      const pos = bodyPosition(b, simDaysSinceJ2000);
+    const withPos = [];
+    for(const b of drawList){
+      const pos = positionForBody(b, simDaysSinceJ2000);
+      if(!pos) continue;
       const scr = project(pos.x,pos.y,pos.z);
-      return {b,pos,scr};
-    });
+      withPos.push({b,pos,scr});
+    }
     const posByBody = new Map(withPos.map(w=>[w.b,w]));
     withPos.sort((A,B)=> A.scr.depth - B.scr.depth);
 
-    // orbit / trajectory paths
-    for(const b of drawList){
-      const isHi = b===hovered || b===selected;
-      const [nuMin, nuMax] = fullNuRange(b);
-
-      if(b.kind==='spacecraft'){
-        // full path (past + future), very dim — kept for hit-testing across the whole line
-        const fullPts = orbitPathPoints(b, nuMin, nuMax);
-        b._pathPts = fullPts;
-        ctx.beginPath();
-        fullPts.forEach((pt,idx)=> idx===0 ? ctx.moveTo(pt.x,pt.y) : ctx.lineTo(pt.x,pt.y));
-        ctx.strokeStyle = hexToRgba(b.color, isHi?0.4:0.14);
-        ctx.lineWidth = isHi ? 1.1 : 0.8;
-        ctx.setLineDash([2,4]);
-        ctx.stroke();
-
-        // traveled trail — brighter, ends exactly at the current-position marker
-        const curNu = posByBody.get(b).pos.nu;
-        const travelPts = orbitPathPoints(b, nuMin, curNu, 140);
-        ctx.beginPath();
-        travelPts.forEach((pt,idx)=> idx===0 ? ctx.moveTo(pt.x,pt.y) : ctx.lineTo(pt.x,pt.y));
-        ctx.strokeStyle = hexToRgba(b.color, isHi?0.95:0.55);
-        ctx.lineWidth = isHi ? 1.6 : 1.1;
-        ctx.setLineDash([]);
-        ctx.stroke();
+    // traveled spacecraft trails remain dynamic; full paths are on the cached orbit layer
+    for(const b of spacecraft){
+      if(!showSpacecraft) break;
+      const current = posByBody.get(b);
+      if(!current) continue;
+      const worldPts = getOrbitWorldPoints(b);
+      const projectedPts = getProjectedOrbitPoints(b);
+      let end = 0;
+      if(b._trajectoryPoints){
+        while(end+1 < worldPts.length && worldPts[end+1].t <= simDaysSinceJ2000) end++;
       } else {
-        const pts = orbitPathPoints(b, nuMin, nuMax);
-        b._pathPts = pts;
-        ctx.beginPath();
-        pts.forEach((pt,idx)=> idx===0 ? ctx.moveTo(pt.x,pt.y) : ctx.lineTo(pt.x,pt.y));
-        ctx.strokeStyle = isHi ? 'rgba(242,181,68,0.55)' : 'rgba(140,150,190,0.16)';
-        ctx.lineWidth = isHi ? 1.4 : 1;
-        ctx.setLineDash([]);
-        ctx.stroke();
+        while(end+1 < worldPts.length && worldPts[end+1].nu <= current.pos.nu) end++;
       }
+      ctx.beginPath();
+      ctx.moveTo(projectedPts[0].x, projectedPts[0].y);
+      for(let i=1;i<=end;i++) ctx.lineTo(projectedPts[i].x, projectedPts[i].y);
+      if(b._trajectoryPoints && simDaysSinceJ2000 > worldPts[worldPts.length-1].t){
+        const continuation=ensureContinuation(b,simDaysSinceJ2000);
+        for(let i=1;i<continuation.length;i++){
+          if(continuation[i].t>=simDaysSinceJ2000) break;
+          const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
+          ctx.lineTo(p.x,p.y);
+        }
+      }
+      ctx.lineTo(current.scr.x, current.scr.y);
+      const isHi = b===hovered || b===selected;
+      ctx.strokeStyle = hexToRgba(b.color, isHi?0.95:0.55);
+      ctx.lineWidth = isHi ? 1.6 : 1.1;
+      ctx.stroke();
     }
-    ctx.setLineDash([]);
 
     // sun
     const sunP = project(0,0,0);
@@ -378,7 +694,7 @@
     ctx.beginPath(); ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2); ctx.fill();
 
     // bodies, depth sorted (far first)
-    for(const {b,scr} of withPos){
+    for(const {b,pos,scr} of withPos){
       const px=scr.x, py=scr.y;
       if(b.kind==='planet'){
         const r = sizeForRadius(b.radius,false);
@@ -393,6 +709,26 @@
           ctx.fillText(b.name, px+r+6, py+3);
         }
         b._screen = {x:px,y:py,r:Math.max(r,6)};
+      } else if(b.kind==='comet'){
+        const r=(b===selected||b===hovered)?5:3.5;
+        const tailX=px-sunP.x, tailY=py-sunP.y;
+        const tailLen=Math.hypot(tailX,tailY)||1;
+        const tailScale=Math.min(22,8+18/(pos.r+0.4));
+        const tx=tailX/tailLen*tailScale, ty=tailY/tailLen*tailScale;
+        const tail=ctx.createLinearGradient(px,py,px+tx,py+ty);
+        tail.addColorStop(0,hexToRgba(b.color,0.8));
+        tail.addColorStop(1,hexToRgba(b.color,0));
+        ctx.strokeStyle=tail;
+        ctx.lineWidth=r*0.9;
+        ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+tx,py+ty); ctx.stroke();
+        ctx.fillStyle=b.color;
+        ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
+        if(zoom>0.08 || b===selected || b===hovered){
+          ctx.font='9.5px "SF Mono", Consolas, monospace';
+          ctx.fillStyle=b===selected?b.color:'rgba(232,236,247,0.55)';
+          ctx.fillText(b.name,px+r+6,py+3);
+        }
+        b._screen={x:px,y:py,r:Math.max(r,7)};
       } else {
         const r = (b===selected||b===hovered) ? 5.5 : 4;
         ctx.save();
@@ -417,23 +753,45 @@
   function updateDateUI(){
     const ms = J2000 + simDaysSinceJ2000*86400000;
     const d = new Date(ms);
-    document.getElementById('yearOut').textContent = d.getUTCFullYear();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    document.getElementById('dateOut').textContent = String(d.getUTCDate()).padStart(2,'0')+' '+months[d.getUTCMonth()];
+    const year = String(d.getUTCFullYear());
+    const date = String(d.getUTCDate()).padStart(2,'0')+' '+months[d.getUTCMonth()];
+    const yearOut = document.getElementById('yearOut');
+    const dateOut = document.getElementById('dateOut');
+    if(yearOut.textContent !== year) yearOut.textContent = year;
+    if(dateOut.textContent !== date) dateOut.textContent = date;
+    const dateInput=document.getElementById('dateInput');
+    const iso=d.toISOString().slice(0,10);
+    if(document.activeElement!==dateInput && dateInput.value!==iso) dateInput.value=iso;
   }
 
   function fmtPeriod(days){ return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years'; }
 
   function updateCard(){
-    const pos = bodyPosition(selected, simDaysSinceJ2000);
-    document.getElementById('cardKind').textContent = selected.kind==='planet' ? 'Planet' : 'Spacecraft';
+    const pos = positionForBody(selected, simDaysSinceJ2000);
+    const kindLabel=selected.kind==='planet'?'Planet':selected.kind==='comet'?'Comet':'Spacecraft';
+    document.getElementById('cardKind').textContent = kindLabel;
     document.getElementById('cardName').textContent = selected.name;
+    if(!pos){
+      document.getElementById('cardDist').textContent = selected.kind==='comet'?'Outside data range':'Not launched';
+      document.getElementById('cardSpeed').textContent = '—';
+      document.getElementById('cardEcc').textContent = selected.e.toFixed(3);
+      document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
+      document.getElementById('rowPeriod').style.display='none';
+      const noteEl = document.getElementById('cardNote');
+      noteEl.style.display='';
+      noteEl.textContent=selected.kind==='comet'
+        ? 'Bundled comet ephemerides cover 1950 through 2080.'
+        : 'Launch date: '+selected.launch+'.';
+      return;
+    }
     document.getElementById('cardDist').textContent = pos.r.toFixed(3)+' AU';
-    document.getElementById('cardSpeed').textContent = orbitalSpeedKmS(selected,pos.r).toFixed(2)+' km/s';
+    const speed = pos.speedKmS == null ? orbitalSpeedKmS(selected,pos.r) : pos.speedKmS;
+    document.getElementById('cardSpeed').textContent = speed.toFixed(2)+' km/s';
     document.getElementById('cardEcc').textContent = selected.e.toFixed(3) + (selected.e>1?' (hyperbolic)':'');
     document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
     const rowPeriod = document.getElementById('rowPeriod');
-    if(selected.kind==='planet'){
+    if(selected.kind==='planet' || selected.kind==='comet'){
       rowPeriod.style.display='';
       document.getElementById('cardPeriod').textContent = fmtPeriod(selected.period);
     } else {
@@ -441,8 +799,21 @@
       if(selected.e<1) document.getElementById('cardPeriod').textContent = (360/selected.n).toFixed(1)+' days';
     }
     const noteEl = document.getElementById('cardNote');
-    if(selected.kind==='spacecraft'){ noteEl.style.display=''; noteEl.textContent = 'Launched '+selected.launch+'. '+selected.notes; }
-    else { noteEl.style.display='none'; }
+    if(selected.kind==='spacecraft'){
+      noteEl.style.display='';
+      const source = pos.sampled ? ' Position and prior path use NASA/JPL Horizons vectors.' :
+        ' Position is beyond the bundled Horizons range and is propagated from the final JPL state under solar gravity.';
+      noteEl.textContent = 'Launched '+selected.launch+'.'+source+' '+selected.notes;
+    } else if(selected.kind==='comet'){
+      noteEl.style.display='';
+      noteEl.textContent='Perihelion '+selected.perihelion+' at '+selected.q.toFixed(3)+' AU. Position uses NASA/JPL Horizons state vectors. '+selected.notes;
+    }
+    else if(pos.ephemeris){
+      noteEl.style.display='';
+      noteEl.textContent='Position and speed use NASA/JPL Horizons state vectors.';
+    } else {
+      noteEl.style.display='none';
+    }
   }
 
   // ---------- Legend ----------
@@ -457,7 +828,7 @@
       el.appendChild(row);
     }
     const sLabel = document.createElement('div'); sLabel.className='grp-label'; sLabel.textContent='Spacecraft (click to toggle all)'; sLabel.style.cursor='pointer';
-    sLabel.addEventListener('click', ()=>{ showSpacecraft = !showSpacecraft; buildLegend(); });
+    sLabel.addEventListener('click', ()=>{ showSpacecraft = !showSpacecraft; orbitLayerDirty=true; buildLegend(); });
     el.appendChild(sLabel);
     for(const s of spacecraft){
       const row = document.createElement('div'); row.className='item' + (showSpacecraft?'':' off');
@@ -465,9 +836,114 @@
       row.addEventListener('click', ()=>{ selected = (selected===s)? null : s; toggleCard(); });
       el.appendChild(row);
     }
+    const cLabel=document.createElement('div');
+    cLabel.className='grp-label';
+    cLabel.textContent='Comets (click to toggle all)';
+    cLabel.style.cursor='pointer';
+    cLabel.addEventListener('click',()=>{ showComets=!showComets; orbitLayerDirty=true; buildLegend(); });
+    el.appendChild(cLabel);
+    for(const comet of comets){
+      const row=document.createElement('div');
+      row.className='item'+(showComets?'':' off');
+      row.innerHTML=`<span class="dot" style="background:${comet.color}"></span>${comet.name}`;
+      row.addEventListener('click',()=>{ selected=(selected===comet)?null:comet; toggleCard(); });
+      el.appendChild(row);
+    }
   }
-  function toggleCard(){ document.getElementById('card').classList.toggle('show', !!selected); }
+  function toggleCard(){
+    orbitLayerDirty = true;
+    document.getElementById('card').classList.toggle('show', !!selected);
+  }
   document.getElementById('cardClose').addEventListener('click', ()=>{ selected=null; toggleCard(); });
+
+  // ---------- Mission timeline ----------
+  function zoomForEvent(event){
+    return zoomForTarget(event.target);
+  }
+
+  function missionEventsForSelection(){
+    const name=document.getElementById('missionSelect').value;
+    return missionEvents.filter(event=>event.craft.name===name);
+  }
+
+  function renderMissionEvents(){
+    const list=document.getElementById('eventList');
+    list.innerHTML='';
+    for(const event of missionEventsForSelection()){
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='event'+(event===activeMissionEvent?' active':'');
+      button.innerHTML=`<span>${event.date}</span>${event.title}`;
+      button.addEventListener('click',()=>goToMissionEvent(event));
+      list.appendChild(button);
+    }
+  }
+
+  function goToMissionEvent(event){
+    activeMissionEvent=event;
+    simDaysSinceJ2000=event.days;
+    playing=false;
+    playBtn.textContent='▶';
+    selected=event.craft;
+    showSpacecraft=true;
+    zoom=zoomForEvent(event);
+    panX=0; panY=0;
+    document.getElementById('missionSelect').value=event.craft.name;
+    document.getElementById('eventDetail').textContent=event.date+' · '+event.description;
+    setFollowTarget(event.craft);
+    updateFollowCamera();
+    invalidateProjection();
+    buildLegend();
+    toggleCard();
+    renderMissionEvents();
+  }
+
+  function jumpRelativeEvent(direction){
+    const events=missionEventsForSelection();
+    const event=findRelativeEvent(events,simDaysSinceJ2000,direction);
+    if(event) goToMissionEvent(event);
+  }
+
+  function buildMissionTimeline(){
+    const select=document.getElementById('missionSelect');
+    for(const craft of spacecraft){
+      const option=document.createElement('option');
+      option.value=craft.name;
+      option.textContent=craft.name;
+      select.appendChild(option);
+    }
+    select.value='Voyager 1';
+    select.addEventListener('change',()=>{
+      activeMissionEvent=null;
+      document.getElementById('eventDetail').textContent='Choose an event to jump to its date and follow the spacecraft.';
+      renderMissionEvents();
+    });
+    document.getElementById('prevEventBtn').addEventListener('click',()=>jumpRelativeEvent(-1));
+    document.getElementById('nextEventBtn').addEventListener('click',()=>jumpRelativeEvent(1));
+    document.getElementById('followBtn').addEventListener('click',()=>{
+      if(followTarget){
+        setFollowTarget(null);
+      } else {
+        const craft=spacecraft.find(item=>item.name===select.value);
+        selected=craft;
+        showSpacecraft=true;
+        buildLegend();
+        toggleCard();
+        setFollowTarget(craft);
+      }
+    });
+    document.getElementById('dateInput').addEventListener('change',(e)=>{
+      if(!e.target.value) return;
+      const [year,month,day]=e.target.value.split('-').map(Number);
+      simDaysSinceJ2000=daysSinceJ2000(Date.UTC(year,month-1,day,12));
+      playing=false;
+      playBtn.textContent='▶';
+      activeMissionEvent=null;
+      renderMissionEvents();
+      document.getElementById('eventDetail').textContent='Showing '+e.target.value+' UTC.';
+    });
+    renderMissionEvents();
+  }
 
   // ---------- Interaction: mouse hover + unified pointer drag/pinch/tap ----------
   function distToSegment(px,py,x1,y1,x2,y2){
@@ -479,15 +955,18 @@
     return Math.hypot(px-ex, py-ey);
   }
   function hitTest(mx,my){
-    const list = showSpacecraft ? allBodies : planets;
+    const list = visibleBodies();
     const marker = list.find(b=> b._screen && Math.hypot(mx-b._screen.x, my-b._screen.y) < b._screen.r+5);
     if(marker) return marker;
     // fall back to proximity to the trajectory line itself
     const LINE_TOL = 9;
     let best = null, bestDist = LINE_TOL;
     for(const b of list){
-      const pts = b._pathPts;
+      const pts = getProjectedOrbitPoints(b);
       if(!pts) continue;
+      const bounds = b._pathBounds;
+      if(mx < bounds.minX-LINE_TOL || mx > bounds.maxX+LINE_TOL ||
+         my < bounds.minY-LINE_TOL || my > bounds.maxY+LINE_TOL) continue;
       for(let i=0;i<pts.length-1;i++){
         const d = distToSegment(mx,my, pts[i].x,pts[i].y, pts[i+1].x,pts[i+1].y);
         if(d < bestDist){ bestDist = d; best = b; }
@@ -498,7 +977,8 @@
 
   scene.addEventListener('mousemove', (e)=>{
     if(activePointers.size>0) return; // dragging/pinching takes priority
-    hovered = hitTest(e.clientX, e.clientY);
+    const nextHovered = hitTest(e.clientX, e.clientY);
+    if(nextHovered !== hovered){ hovered = nextHovered; orbitLayerDirty=true; }
     scene.style.cursor = hovered ? 'pointer' : 'grab';
   });
 
@@ -534,9 +1014,13 @@
 
     if(dragMode==='pan' && activePointers.size===1){
       const dx = e.clientX - dragStartInfo.x, dy = e.clientY - dragStartInfo.y;
-      if(Math.hypot(dx,dy) > 6) dragMoved = true;
+      if(Math.hypot(dx,dy) > 6){
+        dragMoved = true;
+        setFollowTarget(null);
+      }
       panX = dragStartInfo.panX + dx;
       panY = dragStartInfo.panY + dy;
+      invalidateProjection();
     } else if(dragMode==='pinch' && activePointers.size===2){
       const [a,b] = pointersArray();
       const newDist = dist(a,b);
@@ -549,8 +1033,10 @@
       zoom = newZoom;
       panX = mid.x - cx - preX*zoom;
       panY = mid.y - cy - preY*zoom;
+      invalidateProjection();
     } else {
-      hovered = hitTest(e.clientX, e.clientY);
+      const nextHovered = hitTest(e.clientX, e.clientY);
+      if(nextHovered !== hovered){ hovered = nextHovered; orbitLayerDirty=true; }
     }
   });
 
@@ -572,14 +1058,25 @@
   }
   scene.addEventListener('pointerup', endPointer);
   scene.addEventListener('pointercancel', endPointer);
-  scene.addEventListener('pointerleave', (e)=>{ if(e.pointerType==='mouse' && activePointers.size===0) hovered=null; });
+  scene.addEventListener('pointerleave', (e)=>{
+    if(e.pointerType==='mouse' && activePointers.size===0 && hovered){
+      hovered=null;
+      orbitLayerDirty=true;
+    }
+  });
 
   // ---------- Controls ----------
   const playBtn = document.getElementById('playBtn');
+  playBtn.textContent = '⏸';
   playBtn.addEventListener('click', ()=>{ playing = !playing; playBtn.textContent = playing ? '⏸' : '▶'; });
   document.getElementById('rewBtn').addEventListener('click', ()=>{ simDaysSinceJ2000 -= 30; });
   document.getElementById('fwdBtn').addEventListener('click', ()=>{ simDaysSinceJ2000 += 30; });
-  document.getElementById('todayBtn').addEventListener('click', ()=>{ simDaysSinceJ2000 = daysSinceJ2000(Date.now()); panX=0; panY=0; });
+  document.getElementById('todayBtn').addEventListener('click', ()=>{
+    simDaysSinceJ2000 = daysSinceJ2000(Date.now());
+    panX=0; panY=0;
+    setFollowTarget(null);
+    invalidateProjection();
+  });
 
   const speedSlider = document.getElementById('speedSlider');
   const speedVal = document.getElementById('speedVal');
@@ -598,9 +1095,17 @@
   document.getElementById('zoomOutBtn').addEventListener('click', ()=>{ applyZoom(zoom/1.35, cx, cy); });
   scene.addEventListener('wheel', (e)=>{ e.preventDefault(); applyZoom(zoom*(e.deltaY<0?1.1:0.9), e.clientX, e.clientY); }, {passive:false});
 
-  document.getElementById('viewInner').addEventListener('click', ()=>{ zoom = 4.5; panX=0; panY=0; });
-  document.getElementById('viewOuter').addEventListener('click', ()=>{ zoom = 0.28; panX=0; panY=0; showSpacecraft=true; buildLegend(); });
-  document.getElementById('viewDeep').addEventListener('click', ()=>{ zoom = 0.045; panX=0; panY=0; showSpacecraft=true; buildLegend(); });
+  document.getElementById('viewInner').addEventListener('click', ()=>{ zoom = 4.5; panX=0; panY=0; setFollowTarget(null); invalidateProjection(); });
+  document.getElementById('viewOuter').addEventListener('click', ()=>{
+    zoom = 0.28; panX=0; panY=0; showSpacecraft=true;
+    setFollowTarget(null);
+    invalidateProjection(); buildLegend();
+  });
+  document.getElementById('viewDeep').addEventListener('click', ()=>{
+    zoom = 0.045; panX=0; panY=0; showSpacecraft=true;
+    setFollowTarget(null);
+    invalidateProjection(); buildLegend();
+  });
 
   window.addEventListener('keydown', (e)=>{
     if(e.code==='Space'){ e.preventDefault(); playing=!playing; playBtn.textContent = playing?'⏸':'▶'; }
@@ -616,6 +1121,7 @@
     requestAnimationFrame(loop);
   }
 
+  buildMissionTimeline();
   buildLegend();
   resize();
   window.addEventListener('resize', resize);

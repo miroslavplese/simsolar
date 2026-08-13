@@ -1,0 +1,7 @@
+{
+  "name": "simsolar",
+  "private": true,
+  "scripts": {
+    "test": "node tests/trajectory-tests.js"
+  }
+}
