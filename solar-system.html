@@ -24,6 +24,7 @@
 
   #datebox{ position:absolute; top:14px; right:20px; font-family:var(--mono); font-size:12px; color:var(--ink); text-align:right; pointer-events:none; }
   #datebox .yy{ font-size:20px; font-weight:600; color:var(--accent); display:block; }
+  #modelOut{ display:block; margin-top:3px; color:var(--ink-dim); font-size:8px; letter-spacing:.05em; }
 
   #dock{
     position:absolute; left:50%; bottom:20px; transform:translateX(-50%);
@@ -127,7 +128,7 @@
   <canvas id="scene"></canvas>
 
   <div id="title">Orrery <b>·</b> Solar System &amp; Spacecraft<br>JPL ephemerides · 3D projection</div>
-  <div id="datebox"><span class="yy" id="yearOut">2026</span><span id="dateOut">01 Jan</span></div>
+  <div id="datebox"><span class="yy" id="yearOut">2026</span><span id="dateOut">01 Jan</span><span id="modelOut">JPL EPHEMERIS</span></div>
 
   <div id="legend"></div>
   <div id="missionPanel">
@@ -138,7 +139,7 @@
     </div>
     <div class="controlRow">
       <button class="timelineBtn" id="prevEventBtn" type="button" title="Previous mission event">‹ EVENT</button>
-      <input id="dateInput" type="date" aria-label="Simulation date">
+      <input id="dateInput" type="date" max="2100-01-01" aria-label="Simulation date">
       <button class="timelineBtn" id="nextEventBtn" type="button" title="Next mission event">EVENT ›</button>
     </div>
     <div id="eventList"></div>
@@ -205,6 +206,7 @@
 <script src="src/mission-timeline.js"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js"></script>
+<script src="src/nbody-simulation.js"></script>
 <script>
 (function(){
   const sky = document.getElementById('sky');
@@ -242,6 +244,9 @@
   }=window.TrajectoryMath;
   const {zoomForTarget,findRelativeEvent}=window.MissionTimeline;
   const {viewCoordinates,rotationFromDrag}=window.ViewTransform;
+  const {
+    GM_BY_BODY,createBarycentricState,createSimulator,heliocentricState
+  }=window.NBodySimulation;
   const profilerViews=['Current','Inner','Outer','Deep'];
   const frameProfiler=window.FrameProfiler.createFrameProfiler(profilerViews,300);
 
@@ -341,6 +346,98 @@
     const ephemeris=cometData[comet.name];
     comet._trajectoryPoints=ephemeris ? ephemeris.points : null;
   }
+  const HYBRID_EPOCH_DAYS=daysSinceJ2000(Date.parse(trajectoryBundle.through+'T00:00:00Z'));
+  const HYBRID_EPOCH_DATE=trajectoryBundle.through;
+
+  function stateVectorAtEpoch(points){
+    const sampled=sampledStateAt(points,HYBRID_EPOCH_DAYS);
+    if(sampled) return sampled;
+    const last=points[points.length-1];
+    if(HYBRID_EPOCH_DAYS<last[0]){
+      throw new Error('Hybrid epoch precedes the available state-vector range.');
+    }
+    return propagateState({
+      t:last[0],x:last[1],y:last[2],z:last[3],
+      vx:last[4],vy:last[5],vz:last[6]
+    },HYBRID_EPOCH_DAYS-last[0]);
+  }
+
+  const massiveDefinitions=[
+    {
+      name:'Sun',mu:GM_BY_BODY.Sun,
+      state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}
+    },
+    ...planets.map(body=>({
+      name:body.name,
+      mu:GM_BY_BODY[body.name],
+      state:stateVectorAtEpoch(body._ephemerisPoints)
+    }))
+  ];
+  const particleDefinitions=[
+    ...spacecraft.map(body=>({
+      name:body.name,
+      adaptiveFactor:body.name==='Parker Solar Probe' ? 300 : undefined,
+      state:stateVectorAtEpoch(body._trajectoryPoints)
+    })),
+    ...comets.map(body=>({
+      name:body.name,
+      state:stateVectorAtEpoch(body._trajectoryPoints)
+    }))
+  ];
+  const hybridInitialState=createBarycentricState(
+    HYBRID_EPOCH_DAYS,massiveDefinitions,particleDefinitions
+  );
+  const hybridSimulator=createSimulator(hybridInitialState,{
+    stepDays:0.25,particleStepDays:0.03125,checkpointDays:8
+  });
+  const HYBRID_MAX_DAYS=daysSinceJ2000(Date.parse('2100-01-01T00:00:00Z'));
+  const hybridSnapshotCache=new Map();
+  const hybridTrailCache=new Map();
+
+  function hybridSnapshotAt(tDays){
+    if(hybridSnapshotCache.has(tDays)) return hybridSnapshotCache.get(tDays);
+    const snapshot=hybridSimulator.stateAt(tDays);
+    hybridSnapshotCache.set(tDays,snapshot);
+    if(hybridSnapshotCache.size>512){
+      hybridSnapshotCache.delete(hybridSnapshotCache.keys().next().value);
+    }
+    return snapshot;
+  }
+
+  function hybridPositionForBody(obj,tDays){
+    if(tDays<HYBRID_EPOCH_DAYS) return null;
+    const state=heliocentricState(hybridSnapshotAt(tDays),obj.name);
+    if(!state) return null;
+    return {
+      ...state,
+      r:Math.hypot(state.x,state.y,state.z),
+      speedKmS:Math.hypot(state.vx,state.vy,state.vz)*AU_KM/86400,
+      sampled:false,nbody:true
+    };
+  }
+
+  function ensureHybridTrail(obj,tDays){
+    const span=Math.max(0,tDays-HYBRID_EPOCH_DAYS);
+    const preferredStep=obj.name==='Parker Solar Probe' ? 0.5 : 2;
+    const step=span>365
+      ? 8*Math.max(1,Math.ceil(span/(8*1000)))
+      : preferredStep;
+    let cache=hybridTrailCache.get(obj);
+    if(!cache || cache.step!==step || tDays<cache.points[cache.points.length-1].t){
+      const origin=hybridPositionForBody(obj,HYBRID_EPOCH_DAYS);
+      cache={
+        step,
+        points:[{t:HYBRID_EPOCH_DAYS,x:origin.x,y:origin.y,z:origin.z}]
+      };
+      hybridTrailCache.set(obj,cache);
+    }
+    while(cache.points[cache.points.length-1].t+step<tDays){
+      const nextT=cache.points[cache.points.length-1].t+step;
+      const state=hybridPositionForBody(obj,nextT);
+      cache.points.push({t:nextT,x:state.x,y:state.y,z:state.z});
+    }
+    return cache.points;
+  }
   const missionEvents = [];
   for(const craft of spacecraft){
     missionEvents.push({
@@ -419,6 +516,8 @@
   }
 
   function positionForBody(obj, tDays){
+    const integrated=hybridPositionForBody(obj,tDays);
+    if(integrated) return integrated;
     if(obj.kind==='planet' && obj._ephemerisPoints){
       const ephemeris=sampledStateAt(obj._ephemerisPoints,tDays);
       if(ephemeris) return ephemeris;
@@ -438,6 +537,7 @@
   // ---------- Clock & view state ----------
   let simDaysSinceJ2000 = daysSinceJ2000(Date.now());
   let playing = true;
+  let dateNavigationRevision=0;
   let speedExp = 1.7;
   let direction = 1;
   function speedDaysPerSec(){ return Math.pow(10, speedExp); }
@@ -582,7 +682,15 @@
         orbitCtx.lineWidth = isHi ? 1.4 : 1;
         orbitCtx.setLineDash([]);
       }
-      strokePath(orbitCtx, pts);
+      let visiblePath=pts;
+      if(b._trajectoryPoints){
+        const worldPoints=getOrbitWorldPoints(b);
+        let cutoff=0;
+        while(cutoff+1<worldPoints.length &&
+          worldPoints[cutoff+1].t<=HYBRID_EPOCH_DAYS) cutoff++;
+        visiblePath=pts.slice(0,cutoff+1);
+      }
+      strokePath(orbitCtx,visiblePath);
 
       if(b.kind==='spacecraft' && (isHi || zoom>0.8)){
         orbitCtx.setLineDash([]);
@@ -660,14 +768,21 @@
       const projectedPts = getProjectedOrbitPoints(b);
       let end = 0;
       if(b._trajectoryPoints){
-        while(end+1 < worldPts.length && worldPts[end+1].t <= simDaysSinceJ2000) end++;
+        const historicalEnd=Math.min(simDaysSinceJ2000,HYBRID_EPOCH_DAYS);
+        while(end+1 < worldPts.length && worldPts[end+1].t <= historicalEnd) end++;
       } else {
         while(end+1 < worldPts.length && worldPts[end+1].nu <= current.pos.nu) end++;
       }
       ctx.beginPath();
       ctx.moveTo(projectedPts[0].x, projectedPts[0].y);
       for(let i=1;i<=end;i++) ctx.lineTo(projectedPts[i].x, projectedPts[i].y);
-      if(b._trajectoryPoints && simDaysSinceJ2000 > worldPts[worldPts.length-1].t){
+      if(simDaysSinceJ2000>HYBRID_EPOCH_DAYS){
+        const continuation=ensureHybridTrail(b,simDaysSinceJ2000);
+        for(let i=0;i<continuation.length;i++){
+          const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
+          ctx.lineTo(p.x,p.y);
+        }
+      } else if(b._trajectoryPoints && simDaysSinceJ2000 > worldPts[worldPts.length-1].t){
         const continuation=ensureContinuation(b,simDaysSinceJ2000);
         for(let i=1;i<continuation.length;i++){
           if(continuation[i].t>=simDaysSinceJ2000) break;
@@ -680,6 +795,25 @@
       ctx.strokeStyle = hexToRgba(b.color, isHi?0.95:0.55);
       ctx.lineWidth = isHi ? 1.6 : 1.1;
       ctx.stroke();
+    }
+
+    if(showComets && simDaysSinceJ2000>HYBRID_EPOCH_DAYS){
+      for(const comet of comets){
+        const current=posByBody.get(comet);
+        if(!current) continue;
+        const continuation=ensureHybridTrail(comet,simDaysSinceJ2000);
+        ctx.beginPath();
+        for(let i=0;i<continuation.length;i++){
+          const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
+          if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+        }
+        ctx.lineTo(current.scr.x,current.scr.y);
+        ctx.setLineDash([6,4]);
+        ctx.strokeStyle=hexToRgba(comet.color,comet===selected||comet===hovered?0.9:0.48);
+        ctx.lineWidth=comet===selected||comet===hovered?1.6:1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
 
     // sun
@@ -772,7 +906,12 @@
     if(dateOut.textContent !== date) dateOut.textContent = date;
     const dateInput=document.getElementById('dateInput');
     const iso=d.toISOString().slice(0,10);
-    if(document.activeElement!==dateInput && dateInput.value!==iso) dateInput.value=iso;
+    if(!dateInput.disabled && document.activeElement!==dateInput && dateInput.value!==iso){
+      dateInput.value=iso;
+    }
+    const modelOut=document.getElementById('modelOut');
+    const model=simDaysSinceJ2000>=HYBRID_EPOCH_DAYS ? 'NEWTONIAN N-BODY' : 'JPL EPHEMERIS';
+    if(modelOut.textContent!==model) modelOut.textContent=model;
   }
 
   function fmtPeriod(days){ return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years'; }
@@ -812,12 +951,22 @@
     const noteEl = document.getElementById('cardNote');
     if(selected.kind==='spacecraft'){
       noteEl.style.display='';
-      const source = pos.sampled ? ' Position and prior path use NASA/JPL Horizons vectors.' :
+      const source = pos.nbody
+        ? ' Position uses Newtonian N-body integration from '+HYBRID_EPOCH_DATE+'.'
+        : pos.sampled ? ' Position and prior path use NASA/JPL Horizons vectors.' :
         ' Position is beyond the bundled Horizons range and is propagated from the final JPL state under solar gravity.';
       noteEl.textContent = 'Launched '+selected.launch+'.'+source+' '+selected.notes;
     } else if(selected.kind==='comet'){
       noteEl.style.display='';
-      noteEl.textContent='Perihelion '+selected.perihelion+' at '+selected.q.toFixed(3)+' AU. Position uses NASA/JPL Horizons state vectors. '+selected.notes;
+      const source=pos.nbody
+        ? 'Position uses Newtonian N-body integration from '+HYBRID_EPOCH_DATE+'. '
+        : 'Position uses NASA/JPL Horizons state vectors. ';
+      noteEl.textContent='Perihelion '+selected.perihelion+' at '+selected.q.toFixed(3)+' AU. '+source+selected.notes;
+    }
+    else if(pos.nbody){
+      noteEl.style.display='';
+      noteEl.textContent='Position and speed use Newtonian N-body integration from '+
+        HYBRID_EPOCH_DATE+'.'+(selected.notes?' '+selected.notes:'');
     }
     else if(pos.ephemeris){
       noteEl.style.display='';
@@ -909,6 +1058,7 @@
   }
 
   function goToMissionEvent(event){
+    cancelDateNavigation();
     activeMissionEvent=event;
     simDaysSinceJ2000=event.days;
     playing=false;
@@ -961,15 +1111,48 @@
         setFollowTarget(craft);
       }
     });
-    document.getElementById('dateInput').addEventListener('change',(e)=>{
+    document.getElementById('dateInput').addEventListener('change',async(e)=>{
       if(!e.target.value) return;
+      const requestedDate=e.target.value;
       const [year,month,day]=e.target.value.split('-').map(Number);
-      simDaysSinceJ2000=daysSinceJ2000(Date.UTC(year,month-1,day,12));
+      const targetDays=Math.min(
+        HYBRID_MAX_DAYS,
+        daysSinceJ2000(Date.UTC(year,month-1,day,12))
+      );
       playing=false;
       playBtn.textContent='▶';
       activeMissionEvent=null;
       renderMissionEvents();
-      document.getElementById('eventDetail').textContent='Showing '+e.target.value+' UTC.';
+      const revision=++dateNavigationRevision;
+      if(targetDays>=HYBRID_EPOCH_DAYS){
+        e.target.disabled=true;
+        const detail=document.getElementById('eventDetail');
+        detail.textContent='Preparing future N-body state for '+requestedDate+'…';
+        let prepared;
+        try{
+          prepared=await hybridSimulator.prepareTo(targetDays,{
+            chunkDays:180,
+            cancelled:()=>revision!==dateNavigationRevision,
+            onProgress:progress=>{
+              if(revision===dateNavigationRevision){
+                detail.textContent='Preparing future N-body state for '+requestedDate+
+                  '… '+Math.round(progress*100)+'%';
+              }
+            }
+          });
+        } catch(error){
+          if(revision===dateNavigationRevision){
+            e.target.disabled=false;
+            detail.textContent='Future integration failed: '+error.message;
+          }
+          console.error(error);
+          return;
+        }
+        if(revision!==dateNavigationRevision || !prepared) return;
+        e.target.disabled=false;
+      }
+      simDaysSinceJ2000=targetDays;
+      document.getElementById('eventDetail').textContent='Showing '+requestedDate+' UTC.';
     });
     renderMissionEvents();
   }
@@ -1115,10 +1298,29 @@
   // ---------- Controls ----------
   const playBtn = document.getElementById('playBtn');
   playBtn.textContent = '⏸';
-  playBtn.addEventListener('click', ()=>{ playing = !playing; playBtn.textContent = playing ? '⏸' : '▶'; });
-  document.getElementById('rewBtn').addEventListener('click', ()=>{ simDaysSinceJ2000 -= 30; });
-  document.getElementById('fwdBtn').addEventListener('click', ()=>{ simDaysSinceJ2000 += 30; });
+  function cancelDateNavigation(){
+    dateNavigationRevision++;
+    document.getElementById('dateInput').disabled=false;
+  }
+  playBtn.addEventListener('click', ()=>{
+    cancelDateNavigation();
+    playing=!playing;
+    playBtn.textContent=playing?'⏸':'▶';
+  });
+  document.getElementById('rewBtn').addEventListener('click', ()=>{
+    cancelDateNavigation();
+    simDaysSinceJ2000-=30;
+  });
+  document.getElementById('fwdBtn').addEventListener('click', ()=>{
+    cancelDateNavigation();
+    if(simDaysSinceJ2000+30>=HYBRID_MAX_DAYS){
+      stopAtHybridLimit();
+    } else {
+      simDaysSinceJ2000+=30;
+    }
+  });
   document.getElementById('todayBtn').addEventListener('click', ()=>{
+    cancelDateNavigation();
     simDaysSinceJ2000 = daysSinceJ2000(Date.now());
     panX=0; panY=0;
     setFollowTarget(null);
@@ -1137,6 +1339,14 @@
   }
   speedSlider.addEventListener('input', (e)=>{ speedExp = parseFloat(e.target.value); updateSpeedLabel(); });
   updateSpeedLabel();
+
+  function stopAtHybridLimit(){
+    simDaysSinceJ2000=HYBRID_MAX_DAYS;
+    playing=false;
+    playBtn.textContent='▶';
+    document.getElementById('eventDetail').textContent=
+      'Future N-body navigation currently ends at 2100-01-01.';
+  }
 
   document.getElementById('zoomInBtn').addEventListener('click', ()=>{ applyZoom(zoom*1.35, cx, cy); });
   document.getElementById('zoomOutBtn').addEventListener('click', ()=>{ applyZoom(zoom/1.35, cx, cy); });
@@ -1217,6 +1427,7 @@
     spaceHeld=false;
     spaceToggleArmed=false;
     if(!spaceDragOccurred && activePointers.size===0){
+      cancelDateNavigation();
       playing=!playing;
       playBtn.textContent=playing?'⏸':'▶';
     }
@@ -1237,7 +1448,12 @@
         lastProfilerUpdate=t;
       }
     }
-    if(playing) simDaysSinceJ2000 += direction * speedDaysPerSec() * dt;
+    if(playing){
+      simDaysSinceJ2000+=direction*speedDaysPerSec()*dt;
+      if(simDaysSinceJ2000>=HYBRID_MAX_DAYS){
+        stopAtHybridLimit();
+      }
+    }
     draw();
     requestAnimationFrame(loop);
   }

@@ -6,7 +6,7 @@ validation.
 
 ## Current state
 
-- **Phase:** Functional prototype; hybrid gravity planned
+- **Phase:** Functional prototype with synchronous hybrid gravity
 - **Deployment:** Standalone static HTML
 - **Dependencies:** None
 - **Automated tests:** Numerical and mission-navigation regression suite
@@ -82,7 +82,7 @@ introduced.
 - [ ] Show uncertainty or approximation indicators for spacecraft.
 - [x] 2026-08-12 - Add launch/flyby timeline navigation, UTC date input,
   event-specific zoom, and spacecraft follow mode.
-- [ ] Add a future-only Newtonian N-body simulation.
+- [x] 2026-08-13 - Add a future-only Newtonian N-body simulation.
   - Define a fixed JPL-backed cutover epoch and barycentric initial state.
   - Add masses and pairwise acceleration for planets, Pluto, and Charon.
   - Integrate massive bodies with a deterministic symplectic timestep.
@@ -92,6 +92,10 @@ introduced.
   - Validate continuity, energy and momentum drift, and deterministic replay.
 - [ ] Move long-running future integration into a Web Worker after the
   synchronous reference implementation is validated.
+  - Cooperative main-thread preparation currently yields between 180-day
+    integration chunks and reports progress.
+  - Remove or extend the temporary 2100 navigation cap once integration no
+    longer blocks the animation thread.
 - [ ] Add optional hypothetical massive bodies initialized at the cutover epoch.
 - [ ] Investigate adaptive close-encounter integration and relativistic
   corrections as a later, separate capability.

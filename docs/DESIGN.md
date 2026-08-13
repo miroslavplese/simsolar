@@ -85,35 +85,62 @@ perihelion samples.
 
 ## Gravity model
 
-The current runtime is not an N-body gravity solver:
+The runtime uses a hybrid historical/future model:
 
-- Analytic Kepler orbits assume a fixed Sun as the sole gravitating body.
-- Universal-variable spacecraft continuation applies solar gravity only.
-- Bundled Horizons vectors contain real historical perturbations implicitly,
-  but runtime interpolation does not calculate those interactions.
-- Display records do not currently carry mass, and rendered bodies exert no
-  force on one another.
+- Before `2026-08-12 00:00:00 UTC`, positions come from bundled Horizons
+  vectors, with the existing solar-only continuation filling short spacecraft
+  gaps before the common cutover.
+- At the cutover, heliocentric Ecliptic J2000 states are shifted into a
+  barycentric frame using each massive body's gravitational parameter.
+- The Sun, eight planets, Pluto, and Charon then interact through pairwise
+  Newtonian gravity.
+- Spacecraft and comets feel every massive body's gravity but remain massless
+  test particles, so they do not perturb the massive system.
+- Rendering converts integrated states back to Sun-relative coordinates,
+  preserving the visualization's heliocentric presentation.
 
-The planned hybrid model preserves ephemerides through a fixed cutover epoch,
-then initializes a Newtonian barycentric simulation from JPL position and
-velocity vectors. Massive bodies will interact pairwise; spacecraft and comets
-will initially be massless test particles. A fixed-step symplectic integrator
-will run independently from rendering, with deterministic checkpoints used for
-future date jumps. Relativistic corrections, accretion, and close-encounter
-regularization are outside the first implementation.
+`src/nbody-simulation.js` uses velocity Verlet with a fixed 0.25-day massive-body
+timestep. Massless particles use 0.03125-day substeps while the massive-body
+positions are interpolated across each main step. Parker Solar Probe selects
+smaller deterministic substeps near massive bodies according to the local
+dynamical timescale so its near-Sun passages remain resolved. Eight-day
+checkpoints make future date queries deterministic and bound replay work;
+queries between main integration steps run a deterministic partial step rather
+than discarding particle substep accuracy. Spacecraft and comet future trails
+are sampled from the same integrated solution as their markers.
+
+Long future jumps extend checkpoints in 180-day chunks and yield to the browser
+between chunks so progress remains visible. Navigation is capped at 2100 to
+bound total work and checkpoint memory; moving integration to a Web Worker
+remains the next performance phase.
+
+Gravitational parameters are stored in km³/s² from standard NASA/JPL Solar
+System Dynamics values and converted once to AU³/day². Earth's value includes
+the Moon because the Moon is not yet represented separately. Spacecraft whose
+last bundled sample precedes the cutover are advanced to it with the prior
+solar-only universal-variable propagator, preserving positional continuity.
+Daily Pluto and Charon samples around the cutover prevent their 6.387-day binary
+orbit from being aliased by the normal sparse outer-system sampling cadence.
+
+Relativistic corrections, collisions, maneuvers, comet outgassing,
+close-encounter regularization, and adaptive timesteps are outside this first
+implementation. The synchronous reference integrator is intentionally
+validated before moving equivalent work to a Web Worker.
 
 ## Rendering lifecycle
 
 The animation loop:
 
 1. Advances simulated time when playback is active.
-2. Computes positions for all visible bodies.
-3. Reuses cached world-space and projected orbit geometry.
-4. Redraws the static orbit layer only when the camera, visibility, or
+2. Selects ephemeris interpolation or checkpointed N-body integration based on
+   the current date.
+3. Computes positions for all visible bodies.
+4. Reuses cached world-space and projected orbit geometry.
+5. Redraws the static orbit layer only when the camera, visibility, or
    highlighting changes.
-5. Draws dynamic spacecraft trails, the Sun, markers, labels, and selection
+6. Draws dynamic spacecraft trails, the Sun, markers, labels, and selection
    state.
-6. Updates the date and selected-object card.
+7. Updates the date, active gravity model, and selected-object card.
 
 The star field is rendered to a separate canvas only on resize. Full orbit paths
 use a second cached canvas, while the dynamic scene is redrawn with
@@ -169,6 +196,8 @@ Record material design decisions here so later changes retain their rationale.
 | 2026-08-13 | Add Pluto and Charon using matching Horizons vectors. | New Horizons' Pluto-system encounter should align with both bodies while keeping Charon individually selectable. |
 | 2026-08-13 | Use a future-only hybrid N-body model. | Preserve authoritative history while allowing hypothetical massive bodies to affect future motion deterministically. |
 | 2026-08-13 | Defer relativistic compact-object physics. | Newtonian gravity is sufficient for the first interactive implementation; close black-hole encounters need specialized integration. |
+| 2026-08-13 | Cut over to N-body gravity at 2026-08-12 UTC. | All massive bodies and test particles have a reproducible JPL-backed or continuity-preserving state at this shared boundary. |
+| 2026-08-13 | Use velocity Verlet at a fixed 0.25-day step. | A symplectic method provides bounded long-term energy error and deterministic replay at interactive solar-system scale. |
 
 ## Change checklist
 

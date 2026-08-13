@@ -14,6 +14,7 @@ web server is required.
 - Elliptical and hyperbolic Kepler solvers
 - Eight planets, Pluto and Charon, and six spacecraft
 - Five iconic comets with JPL-derived paths and Sun-facing tails
+- Future-only Newtonian N-body gravity initialized from JPL state vectors
 - Animated simulation clock with adjustable speed and direction
 - Mission timeline with launch/flyby jumps and UTC date navigation
 - Spacecraft follow camera with event-specific automatic zoom
@@ -36,36 +37,43 @@ web server is required.
 | `src/mission-timeline.js` | Shared mission navigation helpers |
 | `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
 | `src/view-transform.js` | Camera rotation and view-space transformation helpers |
+| `src/nbody-simulation.js` | Barycentric Newtonian integration and checkpoint replay |
 | `tests/trajectory-tests.js` | Dependency-free numerical regression suite |
+| `tests/nbody-tests.js` | Conservation, continuity, and deterministic replay tests |
 | `tools/fetch-trajectories.py` | Reproducible Horizons data generator |
 
 ## Current limitations
 
-- SimSolar is not currently an N-body simulation. Analytic orbits and
-  post-ephemeris spacecraft continuation use the Sun as the only gravitating
-  body; rendered bodies do not perturb one another.
+- Historical dates use ephemerides rather than recomputing past gravitational
+  interactions.
 - Historical spacecraft positions and flybys use bundled NASA/JPL Horizons
   vectors through the date recorded in the generated data file.
 - Planet, Pluto, and Charon markers use matching NASA/JPL Horizons state vectors
   from 1970 through 2035 so they align with historical launches and flybys.
 - Comet paths use Horizons state vectors from 1950 through 2080.
 - Dates beyond the bundled spacecraft vectors are propagated from the final JPL
-  position and velocity under solar gravity, keeping markers connected to their
-  trajectories.
+  position and velocity under solar gravity only until the common N-body
+  cutover epoch.
+- Future gravity is Newtonian. Relativistic effects, close-encounter
+  regularization, collisions, maneuvers, and comet outgassing are not modeled.
+- Earth's Moon is not a separate body; its mass is combined with Earth.
 - Planet and spacecraft data is embedded in the application.
 - Dynamic body positions and spacecraft traveled trails are still rendered every
   animation frame.
 - Interaction and visual regression tests are not yet automated.
 - The interface has limited keyboard and screen-reader support.
 
-## Planned gravity model
+## Hybrid gravity model
 
-The next scientific phase is a future-only Newtonian N-body mode. Historical
-dates will continue using bundled JPL ephemerides. At a fixed reproducible
-cutover epoch, JPL position and velocity vectors will initialize a barycentric
-simulation; later dates will be integrated forward with cached checkpoints.
-Spacecraft and comets will initially be massless test particles. Relativistic
-effects and compact-object close encounters are explicitly deferred.
+Historical dates use bundled JPL ephemerides. At
+`2026-08-12 00:00:00 UTC`, JPL-backed position and velocity vectors initialize
+a barycentric Newtonian simulation. The Sun, planets, Pluto, and Charon
+interact pairwise; spacecraft and comets are massless test particles. A
+fixed-step velocity-Verlet integrator and eight-day checkpoints provide
+deterministic future date navigation. Long jumps are prepared in bounded chunks
+so the browser can repaint progress between them. Relativistic effects and
+compact-object close encounters remain deferred. The browser UI currently caps
+future navigation at 2100 to bound integration time and checkpoint memory.
 
 ## Contributing
 
@@ -82,8 +90,9 @@ npm test
 ```
 
 The dependency-free Node test suite validates source-sample interpolation,
-ephemeris endpoint continuity, long-range propagation, energy conservation,
-launch proximity, flyby alignment, and mission navigation helpers.
+ephemeris endpoint continuity, long-range propagation, N-body conservation and
+deterministic replay, launch proximity, flyby alignment, and mission navigation
+helpers.
 
 ## Refresh trajectory data
 
