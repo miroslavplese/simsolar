@@ -23,7 +23,7 @@ web server is required.
 - Pointer orbit rotation, Space-drag or two-finger pan, pinch/wheel zoom, movable panels, and view presets
 - Panel shortcuts: `M` mission timeline, `L` body/craft list, and `P` frame-time profiler
 - Selection cards with mass, orbital information, and Wikipedia links
-- Depth-aware solar occultation and close-view major-moon rendering
+- Sun-directed sphere lighting, depth-aware occultation, and shadowed planetary rings
 - Planet and spacecraft trajectory hit testing
 
 ## Repository layout
@@ -41,11 +41,17 @@ web server is required.
 | `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
 | `src/view-transform.js` | Camera rotation and view-space transformation helpers |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
+| `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
+| `src/body-lighting.js` | Lambert sphere lighting and geometric shadow tests |
 | `src/moon-system.js` | Parent-relative major-moon orbits and visibility thresholds |
+| `src/ring-system.js` | Physical ring bands and 3D equatorial-plane geometry |
 | `src/nbody-simulation.js` | Barycentric Newtonian integration and checkpoint replay |
 | `tests/trajectory-tests.js` | Dependency-free numerical regression suite |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
+| `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
+| `tests/body-lighting-tests.js` | Illumination and planet-shadow geometry tests |
 | `tests/moon-system-tests.js` | Moon orbit, visibility, and focus-zoom tests |
+| `tests/ring-system-tests.js` | Planetary ring dimensions and projection tests |
 | `tests/nbody-tests.js` | Conservation, continuity, and deterministic replay tests |
 | `tools/fetch-trajectories.py` | Reproducible Horizons data generator |
 

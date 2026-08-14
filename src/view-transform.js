@@ -26,5 +26,15 @@
     };
   }
 
-  return {MIN_TILT,MAX_TILT,viewCoordinates,rotationFromDrag};
+  function panForRotationPivot(anchorX,anchorY,pivot,yaw,tilt,pixelsPerUnit,centerX,centerY){
+    const view=viewCoordinates(pivot.x,pivot.y,pivot.z,yaw,tilt);
+    return {
+      panX:anchorX-centerX-view.x*pixelsPerUnit,
+      panY:anchorY-centerY-view.y*pixelsPerUnit
+    };
+  }
+
+  return {
+    MIN_TILT,MAX_TILT,viewCoordinates,rotationFromDrag,panForRotationPivot
+  };
 });

@@ -96,7 +96,8 @@
 
   function systemVisible(moons,parentName,zoom,auPixels,minPixels){
     const radius=outerRadiusAu(moons,parentName);
-    return radius>0 && radius*auPixels*zoom>=(minPixels||12);
+    const threshold=minPixels===undefined ? 50 : minPixels;
+    return radius>0 && radius*auPixels*zoom>=threshold;
   }
 
   function focusZoom(moons,parentName,auPixels,targetPixels,maxZoom){

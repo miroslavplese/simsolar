@@ -35,7 +35,8 @@ critical calculations to be tested without a browser.
 - Planet mean motion is derived as `360 / period` in degrees per day.
 - Positions are calculated in heliocentric ecliptic coordinates.
 - Mutable yaw and tilt angles project 3D coordinates onto the 2D canvas.
-- Planet radii and marker sizes are exaggerated for visibility.
+- Planet and moon sizes use visibility markers at system scale, then transition
+  smoothly to physical radii in sufficiently close views.
 
 ## Orbit calculation
 
@@ -80,12 +81,21 @@ as an exaggeration in Charon's detail card.
 Callisto, Rhea, Titan, Iapetus, Titania, Oberon, and Triton. These bodies use
 approximate parent-relative Keplerian elements rather than the solar-system
 integrator. A moon system is rendered only when its outer orbit spans at least
-12 screen pixels and its parent is near the viewport. Selecting a parent from
+50 screen pixels and its parent is near the viewport. Selecting a parent from
 the body list applies a close-view zoom that reveals its moons. Moon orbits,
 markers, selection cards, masses, and Wikipedia links then behave like the
 other visible bodies. Semimajor axes, periods, radii, and masses use standard
 published mean values in kilometers, days, and kilograms; orbital planes are
 simplified and phases at J2000 are illustrative rather than ephemeris-grade.
+
+`src/ring-system.js` defines physical ring bands for Jupiter, Saturn, Uranus,
+and Neptune. Inner and outer radii are stored in kilometers and projected in
+each planet's approximate equatorial plane. Rings appear with the
+physical-radius sphere rather than its wide-view marker. Their rear halves
+render before the planet sphere and front halves afterward, preserving sphere
+occlusion while keeping ring and moon scales consistent. Ring brightness follows solar
+incidence on the ring plane. Each segment is tested against the parent sphere
+along the direction to the Sun, producing a geometric planet-shadow wedge.
 
 Comet markers and paths use Horizons state vectors from 1950 through 2080.
 Velocity-aware interpolation smooths the sampled paths, while the rendered tail
@@ -178,6 +188,19 @@ The animation loop:
 
 Body markers are depth sorted. Markers behind the Sun are clipped against its
 opaque disk and fully occulted markers are excluded from pointer hit testing.
+`src/body-rendering.js` converts physical radii from kilometers through the same
+AU-to-pixel scale used by moon orbits. Wide views retain minimum-size markers;
+those marker radii remain constant in screen space while zooming and use solid,
+high-contrast colors. Once a moon system reaches 50 screen pixels, its parent
+and moons switch to true relative radii before the moons appear. Bodies without
+moon systems switch once their physical disk becomes large enough on screen.
+
+`src/body-lighting.js` transforms each body's current direction to the Sun into
+camera space. In close physical-radius views, cached raster sprites apply
+ambient-plus-Lambert illumination to the visible sphere surface, so the bright
+limb and terminator respond to both orbital position and camera rotation. Wide
+view markers remain unshaded. Ring shadows use parallel solar rays; the Sun's
+finite angular size and resulting narrow penumbra are not modeled.
 
 The star field is rendered to a separate canvas only on resize. Full orbit paths
 use a second cached canvas, while the dynamic scene is redrawn with
@@ -195,6 +218,9 @@ runtime dependency.
 
 - Mouse movement performs marker and trajectory hit testing.
 - One-pointer dragging rotates the view around the solar system.
+- When an object is selected, one-pointer rotation preserves that object's
+  screen position and uses it as the camera pivot; clearing selection restores
+  the Sun as the rotation pivot.
 - Space plus one-pointer dragging pans the projected scene.
 - Two pointers pan by midpoint movement and perform anchored pinch zoom.
 - Dragging any non-interactive area of a panel repositions that panel while
@@ -203,6 +229,8 @@ runtime dependency.
   with `M`, `L`, and `P`, respectively. Mission and profiler start hidden.
 - Wheel and buttons apply anchored zoom.
 - Legend entries and canvas markers toggle selection.
+- Close-view moon markers receive an expanded pointer target, and their dynamic
+  parent-relative orbit polylines participate in trajectory hit testing.
 - Selecting a body from the body/craft list applies a distance-aware zoom,
   centers the camera, and follows that body.
 - Selecting a spacecraft from the legend or canvas synchronizes the mission

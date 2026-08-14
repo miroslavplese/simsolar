@@ -34,6 +34,7 @@ assert.ok(absolute.orbitalSpeedKmS>0);
 
 assert.equal(outerRadiusAu(MAJOR_MOONS,'Jupiter'),1882700/AU_KM);
 assert.equal(systemVisible(MAJOR_MOONS,'Jupiter',1,46),false);
+assert.equal(systemVisible(MAJOR_MOONS,'Jupiter',80,46),false);
 assert.equal(systemVisible(MAJOR_MOONS,'Jupiter',100,46),true);
 assert.ok(focusZoom(MAJOR_MOONS,'Mars',46,70,20000)>9000);
 assert.equal(heliocentricPathsVisible(20),true);

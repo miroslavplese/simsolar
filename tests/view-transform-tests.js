@@ -3,7 +3,8 @@ const {
   MIN_TILT,
   MAX_TILT,
   viewCoordinates,
-  rotationFromDrag
+  rotationFromDrag,
+  panForRotationPivot
 }=require('../src/view-transform.js');
 
 const identity=viewCoordinates(1,2,3,0,0);
@@ -21,5 +22,11 @@ assert.ok(Math.abs(Math.hypot(projected.x,projected.y,projected.depth)-sourceLen
 assert.equal(rotationFromDrag(0,1,100,0).yaw,0.6);
 assert.equal(rotationFromDrag(0,1,0,-1000).tilt,MIN_TILT);
 assert.equal(rotationFromDrag(0,1,0,1000).tilt,MAX_TILT);
+
+const pivot={x:3,y:-2,z:1};
+const pivotPan=panForRotationPivot(420,260,pivot,0.8,1.2,50,400,300);
+const pivotView=viewCoordinates(pivot.x,pivot.y,pivot.z,0.8,1.2);
+assert.ok(Math.abs(400+pivotPan.panX+pivotView.x*50-420)<1e-12);
+assert.ok(Math.abs(300+pivotPan.panY+pivotView.y*50-260)<1e-12);
 
 console.log('View transform tests passed.');
