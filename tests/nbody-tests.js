@@ -4,6 +4,10 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {
   GM_BY_BODY,
+  MASS_KG,
+  massKgToMu,
+  cloneState,
+  recenterBarycentricState,
   createBarycentricState,
   createSimulator,
   heliocentricState,
@@ -12,6 +16,11 @@ const {
 const {AU_KM,sampledStateAt,propagateState}=require('../src/trajectory-math.js');
 
 const year=365.25;
+assert.equal(MASS_KG.Earth,5.97237e24);
+assert.equal(MASS_KG.Pluto,1.303e22);
+assert.equal(MASS_KG.Charon,1.586e21);
+assert.ok(Math.abs(massKgToMu(MASS_KG.Sun)-GM_BY_BODY.Sun)/GM_BY_BODY.Sun<1e-4);
+assert.throws(()=>massKgToMu(0),/positive finite/);
 const circularSpeed=Math.sqrt((GM_BY_BODY.Sun+GM_BY_BODY.Earth)/1);
 const initial=createBarycentricState(0,[
   {name:'Sun',mu:GM_BY_BODY.Sun,state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}},
@@ -57,6 +66,28 @@ const withoutParticle=createBarycentricState(0,[
 const massiveOnly=createSimulator(withoutParticle,{stepDays:0.25}).stateAt(50).massive;
 const withParticle=createSimulator(initial,{stepDays:0.25}).stateAt(50).massive;
 assert.deepEqual(withParticle,massiveOnly);
+
+const branchEpoch=20;
+const branchState=cloneState(simulator.stateAt(branchEpoch));
+const branchSun=branchState.massive.find(body=>body.name==='Sun');
+branchState.massive.push({
+  name:'Inserted planet',
+  mu:massKgToMu(MASS_KG.Jupiter),
+  x:branchSun.x+2,y:branchSun.y,z:branchSun.z,
+  vx:branchSun.vx,vy:branchSun.vy+Math.sqrt(GM_BY_BODY.Sun/2),vz:branchSun.vz
+});
+recenterBarycentricState(branchState);
+const branchMomentum=invariants(branchState).momentum;
+assert.ok(Math.hypot(branchMomentum.x,branchMomentum.y,branchMomentum.z)<1e-15);
+const branched=createSimulator(branchState,{stepDays:0.25}).stateAt(branchEpoch+20);
+const baseline=simulator.stateAt(branchEpoch+20);
+const branchedEarth=heliocentricState(branched,'Earth');
+const baselineEarth=heliocentricState(baseline,'Earth');
+assert.ok(Math.hypot(
+  branchedEarth.x-baselineEarth.x,
+  branchedEarth.y-baselineEarth.y,
+  branchedEarth.z-baselineEarth.z
+)>1e-10,'inserted massive body must perturb existing bodies');
 
 assert.throws(()=>simulator.stateAt(-1),/precedes the simulation epoch/);
 

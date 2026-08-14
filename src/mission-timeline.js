@@ -13,6 +13,11 @@
     return zoomByTarget[target]||1;
   }
 
+  function zoomForDistance(distanceAu){
+    if(!Number.isFinite(distanceAu) || distanceAu<0) return 1;
+    return Math.max(0.045,Math.min(4.5,5.5/Math.max(1,distanceAu)));
+  }
+
   function findRelativeEvent(events,currentDays,direction){
     const epsilon=0.01;
     return direction<0
@@ -20,5 +25,5 @@
       : events.find(event=>event.days>currentDays+epsilon)||null;
   }
 
-  return {zoomForTarget,findRelativeEvent};
+  return {zoomForTarget,zoomForDistance,findRelativeEvent};
 });

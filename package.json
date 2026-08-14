@@ -2,6 +2,6 @@
   "name": "simsolar",
   "private": true,
   "scripts": {
-    "test": "node tests/trajectory-tests.js && node tests/frame-profiler-tests.js && node tests/view-transform-tests.js && node tests/nbody-tests.js"
+    "test": "node tests/trajectory-tests.js && node tests/frame-profiler-tests.js && node tests/view-transform-tests.js && node tests/panel-drag-tests.js && node tests/moon-system-tests.js && node tests/nbody-tests.js"
   }
 }

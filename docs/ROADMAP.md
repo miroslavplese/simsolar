@@ -96,12 +96,17 @@ introduced.
     integration chunks and reports progress.
   - Remove or extend the temporary 2100 navigation cap once integration no
     longer blocks the animation thread.
-- [ ] Add optional hypothetical massive bodies initialized at the cutover epoch.
+- [x] 2026-08-13 - Add interactive ecliptic-plane insertion for configurable
+  stars, black holes, planets, and comets at the current future date.
+- [ ] Extend custom-body placement and velocity controls from the ecliptic plane
+  to full 3D.
 - [ ] Investigate adaptive close-encounter integration and relativistic
   corrections as a later, separate capability.
 
 ## Completed
 
+- [x] 2026-08-14 - Added close-view rendering, selection, and approximate
+  parent-relative orbits for 13 major planetary moons.
 - [x] 2026-08-13 - Added Pluto, Charon, and their New Horizons encounter using
   matching NASA/JPL Horizons state vectors.
 - [x] 2026-08-12 - Added baseline project, design, and roadmap documentation.

@@ -51,7 +51,7 @@
   .sep{ width:1px; height:26px; background:var(--line); }
 
   #card{
-    position:absolute; top:64px; right:20px; width:225px;
+    position:absolute; top:390px; right:20px; width:225px;
     background:rgba(17,22,42,0.9); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
     display:none; backdrop-filter: blur(10px); max-height:70vh; overflow-y:auto;
   }
@@ -61,19 +61,35 @@
   #card .row{ display:flex; justify-content:space-between; gap:8px; font-family:var(--mono); font-size:10.5px; color:var(--ink-dim); padding:3px 0; border-top:1px solid var(--line); }
   #card .row span:last-child{ color:var(--ink); text-align:right; }
   #card .note{ font-size:10px; color:var(--ink-dim); margin-top:8px; line-height:1.5; border-top:1px solid var(--line); padding-top:8px; }
+  #cardWiki{ display:block; margin-top:9px; color:var(--accent); font:9px var(--mono); text-decoration:none; }
+  #cardWiki:hover{ text-decoration:underline; }
   #card .close{ position:absolute; top:10px; right:12px; cursor:pointer; color:var(--ink-dim); font-size:13px; }
   #card .close:hover{ color:var(--ink); }
+  .panel-close{
+    position:absolute; top:8px; right:10px; border:0; background:transparent;
+    color:var(--ink-dim); cursor:pointer; font-size:13px; line-height:1;
+  }
+  .panel-close:hover{ color:var(--ink); }
+  .panel-hidden{ display:none!important; }
 
-  #legend{ position:absolute; bottom:80px; left:20px; font-family:var(--mono); font-size:9.5px; color:var(--ink-dim); max-height:52vh; overflow-y:auto; }
+  #legend{
+    position:absolute; top:62px; left:20px; min-width:155px;
+    background:rgba(17,22,42,0.9); border:1px solid var(--line); border-radius:12px;
+    padding:9px 11px; backdrop-filter:blur(10px);
+    font-family:var(--mono); font-size:9.5px; color:var(--ink-dim);
+    overflow:visible;
+  }
+  #legend .heading{ color:var(--accent); font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
   #legend .grp-label{ text-transform:uppercase; letter-spacing:.08em; font-size:8.5px; color:#5c6690; margin:7px 0 3px; }
   #legend .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:7px; vertical-align:middle; }
   #legend .diamond{ display:inline-block; width:6px; height:6px; margin-right:7px; vertical-align:middle; transform:rotate(45deg); }
   #legend div.item{ cursor:pointer; padding:2px 4px; border-radius:4px; opacity:1; }
+  #legend div.item.moon-item{ padding-left:15px; font-size:8.8px; }
   #legend div.item:hover{ background:rgba(255,255,255,0.06); }
   #legend div.item.off{ opacity:0.35; }
 
   #missionPanel{
-    position:absolute; top:62px; left:20px; width:270px;
+    position:absolute; top:74px; right:20px; width:270px;
     background:rgba(17,22,42,0.9); border:1px solid var(--line); border-radius:12px;
     padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
   }
@@ -99,7 +115,6 @@
   #eventList .event span{ color:var(--accent); margin-right:7px; }
   #eventDetail{ min-height:25px; margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
 
-  #scaleNote{ position:absolute; bottom:80px; right:20px; font-family:var(--mono); font-size:9.5px; color:var(--ink-dim); text-align:right; max-width:190px; line-height:1.5; }
   #perfPanel{
     position:absolute; top:62px; left:50%; transform:translateX(-50%);
     width:min(280px,calc(100vw - 40px)); display:none;
@@ -114,10 +129,32 @@
   #perfPanel thead th{ color:#5c6690; text-transform:uppercase; font-size:8px; }
   #perfPanel tr.active td:first-child{ color:var(--accent); }
   #perfNote{ margin-top:6px; color:#5c6690; font-size:8px; line-height:1.4; }
+  #bodyPanel{
+    position:absolute; top:62px; left:310px; width:245px; display:none;
+    background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+  #bodyPanel.show{ display:block; }
+  #bodyPanel .heading{ color:var(--accent); font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+  #bodyPanel label{ display:block; margin-top:7px; color:var(--ink-dim); font-size:8px; text-transform:uppercase; letter-spacing:.05em; }
+  #bodyPanel input, #bodyPanel select{
+    width:100%; height:29px; margin-top:3px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); padding:0 7px; font:9.5px var(--mono); outline:none;
+  }
+  #bodyPanel .actions{ display:flex; gap:6px; margin-top:9px; }
+  #bodyPanel .actions button{ flex:1; }
+  #bodyPanel button:disabled{ opacity:.35; cursor:not-allowed; }
+  #bodyInstructions{ margin-top:8px; min-height:34px; color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+  #bodyReadout{ margin-top:6px; color:#5c6690; font-size:8px; line-height:1.5; white-space:pre-line; }
+  #bodyWarning{ margin-top:8px; padding-top:7px; border-top:1px solid var(--line); color:#8f7890; font-size:7.5px; line-height:1.4; }
   .btn.active{ border-color:var(--accent); color:var(--accent); }
+  .movable-panel{ cursor:grab; touch-action:none; }
+  .movable-panel label{ cursor:default; }
+  .movable-panel.panel-dragging{ cursor:grabbing; user-select:none; }
   @media (max-width:760px){
     #missionPanel{ width:230px; max-height:35vh; }
     #eventList{ max-height:80px; }
+    #bodyPanel{ left:20px; top:230px; width:230px; }
   }
 </style>
 </head>
@@ -131,7 +168,9 @@
   <div id="datebox"><span class="yy" id="yearOut">2026</span><span id="dateOut">01 Jan</span><span id="modelOut">JPL EPHEMERIS</span></div>
 
   <div id="legend"></div>
-  <div id="missionPanel">
+  <div id="missionPanel" class="panel-hidden">
+    <button class="panel-close" id="missionClose" type="button"
+      title="Close mission timeline (M to reopen)" aria-label="Close mission timeline">✕</button>
     <div class="heading">Mission timeline</div>
     <div class="controlRow">
       <select id="missionSelect" aria-label="Spacecraft mission"></select>
@@ -145,8 +184,9 @@
     <div id="eventList"></div>
     <div id="eventDetail">Choose an event to jump to its date and follow the spacecraft.</div>
   </div>
-  <div id="scaleNote">True 3D orbits, real scale (AU). Body sizes and the Pluto–Charon marker separation are exaggerated for visibility. Spacecraft shown as markers with orbital paths — see notes on precision in each card.</div>
-  <div id="perfPanel" class="show">
+  <div id="perfPanel">
+    <button class="panel-close" id="perfClose" type="button"
+      title="Close frame-time profiler (P to reopen)" aria-label="Close frame-time profiler">✕</button>
     <div class="heading">Frame-time profiler</div>
     <table>
       <thead><tr><th>View</th><th>Avg</th><th>p95</th><th>FPS</th></tr></thead>
@@ -159,17 +199,42 @@
     </table>
     <div id="perfNote">Rolling 300-frame window. Preset rows populate after selection.</div>
   </div>
+  <div id="bodyPanel">
+    <div class="heading">Introduce massive body</div>
+    <label for="bodyType">Type</label>
+    <select id="bodyType">
+      <option value="star">Star</option>
+      <option value="black-hole">Black hole</option>
+      <option value="planet">Planet</option>
+      <option value="comet">Comet</option>
+    </select>
+    <label for="bodyName">Name</label>
+    <input id="bodyName" type="text" maxlength="40" value="New Star">
+    <label for="bodyMass">Mass (kg)</label>
+    <input id="bodyMass" type="number" min="1" max="1e35" step="any" value="1.98847e30">
+    <div id="bodyInstructions">Press PLACE, then tap the ecliptic plane to set position.</div>
+    <div id="bodyReadout">Position: not set
+Velocity: not set</div>
+    <div class="actions">
+      <button class="timelineBtn" id="bodyPlaceBtn" type="button">PLACE</button>
+      <button class="timelineBtn" id="bodyInsertBtn" type="button" disabled>INSERT</button>
+      <button class="timelineBtn" id="bodyCancelBtn" type="button">CLOSE</button>
+    </div>
+    <div id="bodyWarning">Newtonian gravity only; collisions and relativistic effects are not modeled.</div>
+  </div>
 
   <div id="card">
     <div class="close" id="cardClose">✕</div>
     <div class="kind" id="cardKind">—</div>
     <div class="name" id="cardName">—</div>
+    <div class="row"><span>Mass</span><span id="cardMass">—</span></div>
     <div class="row"><span>Distance from Sun</span><span id="cardDist">—</span></div>
     <div class="row" id="rowPeriod"><span>Orbital period</span><span id="cardPeriod">—</span></div>
     <div class="row"><span>Speed</span><span id="cardSpeed">—</span></div>
-    <div class="row"><span>Eccentricity</span><span id="cardEcc">—</span></div>
+    <div class="row" id="rowEcc"><span>Eccentricity</span><span id="cardEcc">—</span></div>
     <div class="row" id="rowIncl"><span>Inclination</span><span id="cardIncl">—</span></div>
     <div class="note" id="cardNote"></div>
+    <a id="cardWiki" href="#" target="_blank" rel="noopener noreferrer">Wikipedia</a>
   </div>
 
   <div id="dock">
@@ -192,8 +257,10 @@
       <option value="Outer">OUTER</option>
       <option value="Deep">DEEP</option>
     </select>
-    <button class="btn wide active" id="perfBtn" type="button"
-      title="Toggle frame-time profiler (P)" aria-expanded="true">PERF</button>
+    <button class="btn wide" id="addBodyBtn" type="button"
+      title="Introduce a massive body">ADD BODY</button>
+    <button class="btn wide" id="perfBtn" type="button"
+      title="Toggle frame-time profiler (P)" aria-expanded="false">PERF</button>
     <div class="sep"></div>
     <div class="btn" id="todayBtn" title="Reset to today">⟲</div>
   </div>
@@ -206,6 +273,8 @@
 <script src="src/mission-timeline.js"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js"></script>
+<script src="src/panel-drag.js"></script>
+<script src="src/moon-system.js"></script>
 <script src="src/nbody-simulation.js"></script>
 <script>
 (function(){
@@ -215,6 +284,14 @@
   const skyCtx = sky.getContext('2d');
   const orbitCtx = orbits.getContext('2d');
   const ctx = scene.getContext('2d');
+  PanelDrag.installMovablePanels([
+    document.getElementById('missionPanel'),
+    document.getElementById('perfPanel'),
+    document.getElementById('bodyPanel'),
+    document.getElementById('card'),
+    document.getElementById('legend'),
+    document.getElementById('dock')
+  ]);
 
   let W, H, cx, cy;
   function resize(){
@@ -242,10 +319,16 @@
     AU_KM,interpolateTrajectory,sampledStateAt,propagateState,
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS
   }=window.TrajectoryMath;
-  const {zoomForTarget,findRelativeEvent}=window.MissionTimeline;
+  const {zoomForTarget,zoomForDistance,findRelativeEvent}=window.MissionTimeline;
   const {viewCoordinates,rotationFromDrag}=window.ViewTransform;
   const {
-    GM_BY_BODY,createBarycentricState,createSimulator,heliocentricState
+    MAJOR_MOONS,relativeStateAt:moonRelativeStateAt,stateAt:moonStateAt,
+    systemVisible:moonSystemVisibleAtZoom,focusZoom:moonSystemFocusZoom,
+    heliocentricPathsVisible
+  }=window.MoonSystem;
+  const {
+    GM_BY_BODY,MASS_KG,massKgToMu,cloneState,createBarycentricState,
+    recenterBarycentricState,createSimulator,heliocentricState
   }=window.NBodySimulation;
   const profilerViews=['Current','Inner','Outer','Deep'];
   const frameProfiler=window.FrameProfiler.createFrameProfiler(profilerViews,300);
@@ -268,6 +351,16 @@
      notes:'New Horizons observed Charon during its 14 July 2015 passage. Marker separation from Pluto is exaggerated for visibility.'},
   ];
   for(const p of planets){ p.n = 360/p.period; p.epochDays = 0; }
+  const moons=MAJOR_MOONS.map(moon=>({
+    ...moon,
+    parent:planets.find(planet=>planet.name===moon.parentName),
+    notes:'Approximate parent-relative Keplerian orbit around '+moon.parentName+'.'
+  }));
+  const charon=planets.find(planet=>planet.name==='Charon');
+  const moonVisibilityDefinitions=[
+    ...moons,
+    {name:'Charon',parentName:'Pluto',aKm:19596}
+  ];
 
   // Spacecraft — heliocentric osculating elements.
   // Voyager 1/2, Pioneer 10/11: hyperbolic orbit shape (a, e, i, Omega, omega) from
@@ -387,17 +480,34 @@
   const hybridInitialState=createBarycentricState(
     HYBRID_EPOCH_DAYS,massiveDefinitions,particleDefinitions
   );
-  const hybridSimulator=createSimulator(hybridInitialState,{
+  const hybridBaseSimulator=createSimulator(hybridInitialState,{
     stepDays:0.25,particleStepDays:0.03125,checkpointDays:8
   });
+  let hybridBranchSequence=0;
+  const hybridBranches=[{
+    id:hybridBranchSequence,
+    epoch:HYBRID_EPOCH_DAYS,
+    simulator:hybridBaseSimulator
+  }];
+  const customBodies=[];
   const HYBRID_MAX_DAYS=daysSinceJ2000(Date.parse('2100-01-01T00:00:00Z'));
   const hybridSnapshotCache=new Map();
   const hybridTrailCache=new Map();
 
+  function hybridBranchAt(tDays){
+    let branch=hybridBranches[0];
+    for(const candidate of hybridBranches){
+      if(candidate.epoch<=tDays) branch=candidate; else break;
+    }
+    return branch;
+  }
+
   function hybridSnapshotAt(tDays){
-    if(hybridSnapshotCache.has(tDays)) return hybridSnapshotCache.get(tDays);
-    const snapshot=hybridSimulator.stateAt(tDays);
-    hybridSnapshotCache.set(tDays,snapshot);
+    const branch=hybridBranchAt(tDays);
+    const cacheKey=branch.id+':'+tDays;
+    if(hybridSnapshotCache.has(cacheKey)) return hybridSnapshotCache.get(cacheKey);
+    const snapshot=branch.simulator.stateAt(tDays);
+    hybridSnapshotCache.set(cacheKey,snapshot);
     if(hybridSnapshotCache.size>512){
       hybridSnapshotCache.delete(hybridSnapshotCache.keys().next().value);
     }
@@ -405,7 +515,9 @@
   }
 
   function hybridPositionForBody(obj,tDays){
-    if(tDays<HYBRID_EPOCH_DAYS) return null;
+    if(tDays<HYBRID_EPOCH_DAYS || (obj.introducedAt && tDays<obj.introducedAt)){
+      return null;
+    }
     const state=heliocentricState(hybridSnapshotAt(tDays),obj.name);
     if(!state) return null;
     return {
@@ -417,17 +529,18 @@
   }
 
   function ensureHybridTrail(obj,tDays){
-    const span=Math.max(0,tDays-HYBRID_EPOCH_DAYS);
+    const trailEpoch=obj.introducedAt||HYBRID_EPOCH_DAYS;
+    const span=Math.max(0,tDays-trailEpoch);
     const preferredStep=obj.name==='Parker Solar Probe' ? 0.5 : 2;
     const step=span>365
       ? 8*Math.max(1,Math.ceil(span/(8*1000)))
       : preferredStep;
     let cache=hybridTrailCache.get(obj);
     if(!cache || cache.step!==step || tDays<cache.points[cache.points.length-1].t){
-      const origin=hybridPositionForBody(obj,HYBRID_EPOCH_DAYS);
+      const origin=hybridPositionForBody(obj,trailEpoch);
       cache={
         step,
-        points:[{t:HYBRID_EPOCH_DAYS,x:origin.x,y:origin.y,z:origin.z}]
+        points:[{t:trailEpoch,x:origin.x,y:origin.y,z:origin.z}]
       };
       hybridTrailCache.set(obj,cache);
     }
@@ -516,8 +629,12 @@
   }
 
   function positionForBody(obj, tDays){
+    if(obj.kind==='moon'){
+      return moonStateAt(obj,positionForBody(obj.parent,tDays),tDays);
+    }
     const integrated=hybridPositionForBody(obj,tDays);
     if(integrated) return integrated;
+    if(obj.kind==='custom') return null;
     if(obj.kind==='planet' && obj._ephemerisPoints){
       const ephemeris=sampledStateAt(obj._ephemerisPoints,tDays);
       if(ephemeris) return ephemeris;
@@ -543,17 +660,105 @@
   function speedDaysPerSec(){ return Math.pow(10, speedExp); }
 
   let zoom = 1;
-  const ZOOM_MIN = 0.018, ZOOM_MAX = 8;
+  const ZOOM_MIN = 0.018, ZOOM_MAX = 20000;
   let selected = null;
   let hovered = null;
   let showSpacecraft = true;
   let showComets = true;
   let followTarget = null;
   let activeMissionEvent = null;
+  let legendMoonVisibilityKey='';
   let panX = 0, panY = 0; // screen-pixel pan offset, independent of zoom
   let viewYaw = 0, viewTilt = DEFAULT_TILT;
   let projectionRevision = 0;
   let orbitLayerDirty = true;
+  const BODY_PRESETS={
+    star:{label:'Star',name:'New Star',mass:1.98847e30,color:'#ffd36a'},
+    'black-hole':{label:'Black hole',name:'New Black Hole',mass:1.98847e31,color:'#9b7cff'},
+    planet:{label:'Planet',name:'New Planet',mass:5.97237e24,color:'#70b7ff'},
+    comet:{label:'Comet',name:'New Comet',mass:1e14,color:'#8ff0df'}
+  };
+  const WIKIPEDIA_TITLES={
+    Mercury:'Mercury (planet)',Venus:'Venus',Earth:'Earth',Mars:'Mars',
+    Jupiter:'Jupiter',Saturn:'Saturn',Uranus:'Uranus',Neptune:'Neptune',
+    Pluto:'Pluto',Charon:'Charon (moon)',
+    Moon:'Moon',Phobos:'Phobos (moon)',Deimos:'Deimos (moon)',
+    Io:'Io (moon)',Europa:'Europa (moon)',Ganymede:'Ganymede (moon)',
+    Callisto:'Callisto (moon)',Rhea:'Rhea (moon)',Titan:'Titan (moon)',
+    Iapetus:'Iapetus (moon)',Titania:'Titania (moon)',Oberon:'Oberon (moon)',
+    Triton:'Triton (moon)',
+    'Voyager 1':'Voyager 1','Voyager 2':'Voyager 2',
+    'Pioneer 10':'Pioneer 10','Pioneer 11':'Pioneer 11',
+    'New Horizons':'New Horizons','Parker Solar Probe':'Parker Solar Probe',
+    Halley:"Halley's Comet",'Hale-Bopp':'Comet Hale-Bopp',
+    Encke:"Encke's Comet",
+    '67P/Churyumov-Gerasimenko':'67P/Churyumov-Gerasimenko',
+    NEOWISE:'Comet NEOWISE'
+  };
+  let bodyInsertionPhase='idle';
+  let bodyVelocityPointer=null;
+  let bodyDraft=null;
+
+  function screenToEcliptic(screenX,screenY){
+    const cosTilt=Math.cos(viewTilt);
+    if(Math.abs(cosTilt)<0.08) return null;
+    const viewX=(screenX-cx-panX)/(AU_PX*zoom);
+    const viewY=(screenY-cy-panY)/(AU_PX*zoom);
+    const rotatedY=viewY/cosTilt;
+    const cosYaw=Math.cos(viewYaw), sinYaw=Math.sin(viewYaw);
+    return {
+      x:viewX*cosYaw+rotatedY*sinYaw,
+      y:-viewX*sinYaw+rotatedY*cosYaw,
+      z:0
+    };
+  }
+
+  function updateBodyReadout(){
+    const readout=document.getElementById('bodyReadout');
+    if(!bodyDraft?.position){
+      readout.textContent='Position: not set\nVelocity: not set';
+      return;
+    }
+    const p=bodyDraft.position;
+    const position='Position: '+p.x.toFixed(3)+', '+p.y.toFixed(3)+', 0.000 AU';
+    const velocity=bodyDraft.speedKmS==null
+      ? 'Velocity: not set'
+      : 'Velocity: '+bodyDraft.speedKmS.toFixed(2)+' km/s  ('+
+        bodyDraft.direction.x.toFixed(3)+', '+bodyDraft.direction.y.toFixed(3)+', 0)';
+    readout.textContent=position+'\n'+velocity;
+  }
+
+  function resetBodyInsertion(){
+    bodyInsertionPhase='idle';
+    bodyVelocityPointer=null;
+    bodyDraft=null;
+    document.getElementById('bodyInsertBtn').disabled=true;
+    document.getElementById('bodyPlaceBtn').textContent='PLACE';
+    document.getElementById('bodyInstructions').textContent=
+      'Press PLACE, then tap the ecliptic plane to set position.';
+    updateBodyReadout();
+  }
+
+  function updateDraftVelocity(screenX,screenY){
+    const endpoint=screenToEcliptic(screenX,screenY);
+    if(!endpoint || !bodyDraft?.position) return;
+    const dx=endpoint.x-bodyDraft.position.x;
+    const dy=endpoint.y-bodyDraft.position.y;
+    const length=Math.hypot(dx,dy);
+    if(length<1e-8) return;
+    const startScreen=project(
+      bodyDraft.position.x,bodyDraft.position.y,bodyDraft.position.z
+    );
+    const screenLength=Math.hypot(screenX-startScreen.x,screenY-startScreen.y);
+    bodyDraft.direction={x:dx/length,y:dy/length,z:0};
+    bodyDraft.speedKmS=Math.min(1000,screenLength*0.5);
+    bodyDraft.velocity={
+      x:bodyDraft.direction.x*bodyDraft.speedKmS*86400/AU_KM,
+      y:bodyDraft.direction.y*bodyDraft.speedKmS*86400/AU_KM,
+      z:0
+    };
+    updateBodyReadout();
+  }
 
   function invalidateProjection(){
     projectionRevision++;
@@ -561,9 +766,10 @@
   }
 
   function setFollowTarget(target){
-    followTarget = target && target.kind==='spacecraft' ? target : null;
-    document.getElementById('followBtn').classList.toggle('active', !!followTarget);
-    document.getElementById('followBtn').textContent = followTarget ? 'FOLLOWING' : 'FOLLOW';
+    followTarget = target||null;
+    const followingSpacecraft=followTarget?.kind==='spacecraft';
+    document.getElementById('followBtn').classList.toggle('active',followingSpacecraft);
+    document.getElementById('followBtn').textContent=followingSpacecraft?'FOLLOWING':'FOLLOW';
     if(followTarget) selectViewPreset('Current');
   }
 
@@ -581,10 +787,37 @@
     }
   }
 
+  function isMoonSystemVisible(parentName){
+    if(!moonSystemVisibleAtZoom(
+      moonVisibilityDefinitions,parentName,zoom,AU_PX,12
+    )) return false;
+    if(!W || !H) return false;
+    const parent=planets.find(body=>body.name===parentName);
+    const pos=parent && positionForBody(parent,simDaysSinceJ2000);
+    if(!pos) return false;
+    const screen=project(pos.x,pos.y,pos.z);
+    const margin=80;
+    return screen.x>=-margin && screen.x<=W+margin &&
+      screen.y>=-margin && screen.y<=H+margin;
+  }
+
+  function visibleMoons(){
+    return moons.filter(moon=>isMoonSystemVisible(moon.parentName));
+  }
+
+  function moonVisibilityKey(){
+    return [...new Set(moonVisibilityDefinitions.map(moon=>moon.parentName))]
+      .filter(isMoonSystemVisible)
+      .join('|');
+  }
+
   function visibleBodies(){
-    const bodies=[...planets];
+    const bodies=planets.filter(body=>body!==charon);
+    bodies.push(...visibleMoons());
+    if(isMoonSystemVisible('Pluto')) bodies.push(charon);
     if(showSpacecraft) bodies.push(...spacecraft);
     if(showComets) bodies.push(...comets);
+    bodies.push(...customBodies.filter(body=>body.introducedAt<=simDaysSinceJ2000));
     return bodies;
   }
 
@@ -664,9 +897,13 @@
 
   function drawOrbitLayer(){
     orbitCtx.clearRect(0,0,W,H);
+    if(!heliocentricPathsVisible(zoom)){
+      orbitLayerDirty=false;
+      return;
+    }
     const drawList = visibleBodies();
     for(const b of drawList){
-      if(b.hideOrbit) continue;
+      if(b.hideOrbit || b.kind==='custom') continue;
       const isHi = b===hovered || b===selected;
       const pts = getProjectedOrbitPoints(b);
       if(b.kind==='spacecraft'){
@@ -720,14 +957,82 @@
     return Math.max(2.2, Math.min(base*zoom*1.1, 22));
   }
 
+  function drawBodyInsertionPreview(){
+    if(!bodyDraft?.position || bodyInsertionPhase==='idle') return;
+    const marker=project(
+      bodyDraft.position.x,bodyDraft.position.y,bodyDraft.position.z
+    );
+    ctx.save();
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle='#f2b544';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.arc(marker.x,marker.y,7,0,Math.PI*2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if(bodyDraft.velocity){
+      const endpoint=project(
+        bodyDraft.position.x+bodyDraft.direction.x,
+        bodyDraft.position.y+bodyDraft.direction.y,
+        bodyDraft.position.z
+      );
+      const dx=endpoint.x-marker.x, dy=endpoint.y-marker.y;
+      const length=Math.hypot(dx,dy)||1;
+      const arrowLength=Math.min(180,Math.max(12,bodyDraft.speedKmS*2));
+      const endX=marker.x+dx/length*arrowLength;
+      const endY=marker.y+dy/length*arrowLength;
+      ctx.strokeStyle='#f2b544';
+      ctx.fillStyle='#f2b544';
+      ctx.beginPath();
+      ctx.moveTo(marker.x,marker.y);
+      ctx.lineTo(endX,endY);
+      ctx.stroke();
+      const angle=Math.atan2(endY-marker.y,endX-marker.x);
+      ctx.beginPath();
+      ctx.moveTo(endX,endY);
+      ctx.lineTo(endX-9*Math.cos(angle-0.45),endY-9*Math.sin(angle-0.45));
+      ctx.lineTo(endX-9*Math.cos(angle+0.45),endY-9*Math.sin(angle+0.45));
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function hexToRgba(hex, a){
     const c = hex.replace('#','');
     const r=parseInt(c.substring(0,2),16), g=parseInt(c.substring(2,4),16), bl=parseInt(c.substring(4,6),16);
     return `rgba(${r},${g},${bl},${a})`;
   }
 
+  function drawMoonOrbits(posByBody){
+    for(const moon of visibleMoons()){
+      const parent=posByBody.get(moon.parent);
+      if(!parent) continue;
+      const highlighted=moon===selected||moon===hovered;
+      ctx.beginPath();
+      for(let i=0;i<=72;i++){
+        const relative=moonRelativeStateAt(
+          moon,simDaysSinceJ2000+moon.period*i/72
+        );
+        const point=project(
+          parent.pos.x+relative.x,
+          parent.pos.y+relative.y,
+          parent.pos.z+relative.z
+        );
+        if(i===0) ctx.moveTo(point.x,point.y); else ctx.lineTo(point.x,point.y);
+      }
+      ctx.strokeStyle=highlighted
+        ? hexToRgba(moon.color,0.7)
+        : 'rgba(150,160,195,0.24)';
+      ctx.lineWidth=highlighted?1.3:0.8;
+      ctx.stroke();
+    }
+  }
+
   function draw(){
     updateFollowCamera();
+    const nextMoonVisibilityKey=moonVisibilityKey();
+    if(nextMoonVisibilityKey!==legendMoonVisibilityKey) buildLegend();
     ctx.clearRect(0,0,W,H);
     if(orbitLayerDirty) drawOrbitLayer();
 
@@ -759,62 +1064,79 @@
     const posByBody = new Map(withPos.map(w=>[w.b,w]));
     withPos.sort((A,B)=> A.scr.depth - B.scr.depth);
 
-    // traveled spacecraft trails remain dynamic; full paths are on the cached orbit layer
-    for(const b of spacecraft){
-      if(!showSpacecraft) break;
-      const current = posByBody.get(b);
-      if(!current) continue;
-      const worldPts = getOrbitWorldPoints(b);
-      const projectedPts = getProjectedOrbitPoints(b);
-      let end = 0;
-      if(b._trajectoryPoints){
-        const historicalEnd=Math.min(simDaysSinceJ2000,HYBRID_EPOCH_DAYS);
-        while(end+1 < worldPts.length && worldPts[end+1].t <= historicalEnd) end++;
-      } else {
-        while(end+1 < worldPts.length && worldPts[end+1].nu <= current.pos.nu) end++;
-      }
-      ctx.beginPath();
-      ctx.moveTo(projectedPts[0].x, projectedPts[0].y);
-      for(let i=1;i<=end;i++) ctx.lineTo(projectedPts[i].x, projectedPts[i].y);
-      if(simDaysSinceJ2000>HYBRID_EPOCH_DAYS){
-        const continuation=ensureHybridTrail(b,simDaysSinceJ2000);
-        for(let i=0;i<continuation.length;i++){
-          const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
-          ctx.lineTo(p.x,p.y);
-        }
-      } else if(b._trajectoryPoints && simDaysSinceJ2000 > worldPts[worldPts.length-1].t){
-        const continuation=ensureContinuation(b,simDaysSinceJ2000);
-        for(let i=1;i<continuation.length;i++){
-          if(continuation[i].t>=simDaysSinceJ2000) break;
-          const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
-          ctx.lineTo(p.x,p.y);
-        }
-      }
-      ctx.lineTo(current.scr.x, current.scr.y);
-      const isHi = b===hovered || b===selected;
-      ctx.strokeStyle = hexToRgba(b.color, isHi?0.95:0.55);
-      ctx.lineWidth = isHi ? 1.6 : 1.1;
-      ctx.stroke();
-    }
-
-    if(showComets && simDaysSinceJ2000>HYBRID_EPOCH_DAYS){
-      for(const comet of comets){
-        const current=posByBody.get(comet);
+    if(heliocentricPathsVisible(zoom)){
+      // Traveled heliocentric trails are irrelevant and expensive in close moon views.
+      for(const b of spacecraft){
+        if(!showSpacecraft) break;
+        const current = posByBody.get(b);
         if(!current) continue;
-        const continuation=ensureHybridTrail(comet,simDaysSinceJ2000);
+        const worldPts = getOrbitWorldPoints(b);
+        const projectedPts = getProjectedOrbitPoints(b);
+        let end = 0;
+        if(b._trajectoryPoints){
+          const historicalEnd=Math.min(simDaysSinceJ2000,HYBRID_EPOCH_DAYS);
+          while(end+1 < worldPts.length && worldPts[end+1].t <= historicalEnd) end++;
+        } else {
+          while(end+1 < worldPts.length && worldPts[end+1].nu <= current.pos.nu) end++;
+        }
         ctx.beginPath();
-        for(let i=0;i<continuation.length;i++){
-          const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
+        ctx.moveTo(projectedPts[0].x, projectedPts[0].y);
+        for(let i=1;i<=end;i++) ctx.lineTo(projectedPts[i].x, projectedPts[i].y);
+        if(simDaysSinceJ2000>HYBRID_EPOCH_DAYS){
+          const continuation=ensureHybridTrail(b,simDaysSinceJ2000);
+          for(let i=0;i<continuation.length;i++){
+            const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
+            ctx.lineTo(p.x,p.y);
+          }
+        } else if(b._trajectoryPoints && simDaysSinceJ2000 > worldPts[worldPts.length-1].t){
+          const continuation=ensureContinuation(b,simDaysSinceJ2000);
+          for(let i=1;i<continuation.length;i++){
+            if(continuation[i].t>=simDaysSinceJ2000) break;
+            const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
+            ctx.lineTo(p.x,p.y);
+          }
+        }
+        ctx.lineTo(current.scr.x, current.scr.y);
+        const isHi = b===hovered || b===selected;
+        ctx.strokeStyle = hexToRgba(b.color, isHi?0.95:0.55);
+        ctx.lineWidth = isHi ? 1.6 : 1.1;
+        ctx.stroke();
+      }
+
+      if(showComets && simDaysSinceJ2000>HYBRID_EPOCH_DAYS){
+        for(const comet of comets){
+          const current=posByBody.get(comet);
+          if(!current) continue;
+          const continuation=ensureHybridTrail(comet,simDaysSinceJ2000);
+          ctx.beginPath();
+          for(let i=0;i<continuation.length;i++){
+            const p=project(continuation[i].x,continuation[i].y,continuation[i].z);
+            if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+          }
+          ctx.lineTo(current.scr.x,current.scr.y);
+          ctx.setLineDash([6,4]);
+          ctx.strokeStyle=hexToRgba(comet.color,comet===selected||comet===hovered?0.9:0.48);
+          ctx.lineWidth=comet===selected||comet===hovered?1.6:1;
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+      for(const body of customBodies){
+        const current=posByBody.get(body);
+        if(!current || simDaysSinceJ2000<=body.introducedAt) continue;
+        const trail=ensureHybridTrail(body,simDaysSinceJ2000);
+        ctx.beginPath();
+        for(let i=0;i<trail.length;i++){
+          const p=project(trail[i].x,trail[i].y,trail[i].z);
           if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
         }
         ctx.lineTo(current.scr.x,current.scr.y);
-        ctx.setLineDash([6,4]);
-        ctx.strokeStyle=hexToRgba(comet.color,comet===selected||comet===hovered?0.9:0.48);
-        ctx.lineWidth=comet===selected||comet===hovered?1.6:1;
+        ctx.strokeStyle=hexToRgba(body.color,body===selected||body===hovered?0.9:0.5);
+        ctx.lineWidth=body===selected||body===hovered?1.6:1;
         ctx.stroke();
-        ctx.setLineDash([]);
       }
     }
+    drawMoonOrbits(posByBody);
 
     // sun
     const sunP = project(0,0,0);
@@ -840,7 +1162,49 @@
     // bodies, depth sorted (far first)
     for(const {b,pos,scr} of withPos){
       const px=scr.x, py=scr.y;
-      if(b.kind==='planet'){
+      const behindSun=scr.depth<sunP.depth;
+      if(behindSun){
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0,0,W,H);
+        ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2);
+        ctx.clip('evenodd');
+      }
+      if(b.kind==='custom'){
+        const r=b.appearance==='star' ? 7 : b.appearance==='black-hole' ? 6 : 5;
+        if(b.appearance==='black-hole'){
+          ctx.fillStyle='#05050a';
+          ctx.strokeStyle=b.color;
+          ctx.lineWidth=2;
+          ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        } else {
+          ctx.fillStyle=b.color;
+          if(b.appearance==='star'){ ctx.shadowColor=b.color; ctx.shadowBlur=12; }
+          ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
+          ctx.shadowBlur=0;
+        }
+        ctx.font='9.5px "SF Mono", Consolas, monospace';
+        ctx.fillStyle=b===selected?b.color:'rgba(232,236,247,0.6)';
+        ctx.fillText(b.name,px+r+6,py+3);
+        b._screen={x:px,y:py,r:Math.max(r,7)};
+      } else if(b.kind==='moon'){
+        const r=Math.max(2.2,Math.min(6,Math.sqrt(b.radius)*0.1));
+        if(b===selected){
+          ctx.beginPath();
+          ctx.strokeStyle='rgba(242,181,68,0.9)';
+          ctx.lineWidth=1.4;
+          ctx.arc(px,py,r+4,0,Math.PI*2);
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.fillStyle=b.color;
+        ctx.arc(px,py,r,0,Math.PI*2);
+        ctx.fill();
+        ctx.font='8.5px "SF Mono", Consolas, monospace';
+        ctx.fillStyle=b===selected?'#f2b544':'rgba(232,236,247,0.58)';
+        ctx.fillText(b.name,px+r+5,py+3);
+        b._screen={x:px,y:py,r:Math.max(r,6)};
+      } else if(b.kind==='planet'){
         const r = sizeForRadius(b.radius,false);
         if(b===selected){ ctx.beginPath(); ctx.strokeStyle='rgba(242,181,68,0.9)'; ctx.lineWidth=1.5; ctx.arc(px,py,r+5,0,Math.PI*2); ctx.stroke(); }
         ctx.beginPath(); ctx.fillStyle=b.color; ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
@@ -888,7 +1252,15 @@
         }
         b._screen = {x:px,y:py,r:Math.max(r,7)};
       }
+      if(behindSun){
+        ctx.restore();
+        b._screen.occulted=
+          Math.hypot(px-sunP.x,py-sunP.y)+b._screen.r<=sunR;
+      } else {
+        b._screen.occulted=false;
+      }
     }
+    drawBodyInsertionPreview();
 
     updateDateUI();
     if(selected) updateCard();
@@ -915,6 +1287,19 @@
   }
 
   function fmtPeriod(days){ return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years'; }
+  function fmtMass(body){
+    const mass=body.massKg||MASS_KG[body.name];
+    return mass ? mass.toExponential(3).replace('e+','e')+' kg' : '0 kg (test particle)';
+  }
+  function wikipediaTitleForBody(body){
+    if(WIKIPEDIA_TITLES[body.name]) return WIKIPEDIA_TITLES[body.name];
+    if(body.kind==='custom') return BODY_PRESETS[body.appearance]?.label||null;
+    return null;
+  }
+  function wikipediaUrl(title){
+    const path=title.replace(/ /g,'_').split('/').map(encodeURIComponent).join('/');
+    return 'https://en.wikipedia.org/wiki/'+path;
+  }
 
   function updateCard(){
     const pos = positionForBody(selected, simDaysSinceJ2000);
@@ -922,12 +1307,28 @@
       (selected.kind==='planet'?'Planet':selected.kind==='comet'?'Comet':'Spacecraft');
     document.getElementById('cardKind').textContent = kindLabel;
     document.getElementById('cardName').textContent = selected.name;
+    document.getElementById('cardMass').textContent = fmtMass(selected);
+    const wiki=document.getElementById('cardWiki');
+    const wikiTitle=wikipediaTitleForBody(selected);
+    wiki.style.display=wikiTitle?'block':'none';
+    if(wikiTitle){
+      wiki.href=wikipediaUrl(wikiTitle);
+      wiki.textContent='Wikipedia: '+wikiTitle;
+    }
+    const rowPeriod=document.getElementById('rowPeriod');
+    const rowEcc=document.getElementById('rowEcc');
+    const rowIncl=document.getElementById('rowIncl');
+    const custom=selected.kind==='custom';
+    rowEcc.style.display=custom?'none':'';
+    rowIncl.style.display=custom?'none':'';
     if(!pos){
       document.getElementById('cardDist').textContent = selected.kind==='comet'?'Outside data range':'Not launched';
       document.getElementById('cardSpeed').textContent = '—';
-      document.getElementById('cardEcc').textContent = selected.e.toFixed(3);
-      document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
-      document.getElementById('rowPeriod').style.display='none';
+      if(!custom){
+        document.getElementById('cardEcc').textContent = selected.e.toFixed(3);
+        document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
+      }
+      rowPeriod.style.display='none';
       const noteEl = document.getElementById('cardNote');
       noteEl.style.display='';
       noteEl.textContent=selected.kind==='comet'
@@ -938,10 +1339,13 @@
     document.getElementById('cardDist').textContent = pos.r.toFixed(3)+' AU';
     const speed = pos.speedKmS == null ? orbitalSpeedKmS(selected,pos.r) : pos.speedKmS;
     document.getElementById('cardSpeed').textContent = speed.toFixed(2)+' km/s';
-    document.getElementById('cardEcc').textContent = selected.e.toFixed(3) + (selected.e>1?' (hyperbolic)':'');
-    document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
-    const rowPeriod = document.getElementById('rowPeriod');
-    if(selected.kind==='planet' || selected.kind==='comet'){
+    if(!custom){
+      document.getElementById('cardEcc').textContent = selected.e.toFixed(3) + (selected.e>1?' (hyperbolic)':'');
+      document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
+    }
+    if(custom){
+      rowPeriod.style.display='none';
+    } else if(selected.kind==='planet' || selected.kind==='moon' || selected.kind==='comet'){
       rowPeriod.style.display='';
       document.getElementById('cardPeriod').textContent = fmtPeriod(selected.displayPeriod||selected.period);
     } else {
@@ -949,7 +1353,10 @@
       if(selected.e<1) document.getElementById('cardPeriod').textContent = (360/selected.n).toFixed(1)+' days';
     }
     const noteEl = document.getElementById('cardNote');
-    if(selected.kind==='spacecraft'){
+    if(custom){
+      noteEl.style.display='';
+      noteEl.textContent=selected.notes;
+    } else if(selected.kind==='spacecraft'){
       noteEl.style.display='';
       const source = pos.nbody
         ? ' Position uses Newtonian N-body integration from '+HYBRID_EPOCH_DATE+'.'
@@ -962,6 +1369,9 @@
         ? 'Position uses Newtonian N-body integration from '+HYBRID_EPOCH_DATE+'. '
         : 'Position uses NASA/JPL Horizons state vectors. ';
       noteEl.textContent='Perihelion '+selected.perihelion+' at '+selected.q.toFixed(3)+' AU. '+source+selected.notes;
+    } else if(selected.kind==='moon'){
+      noteEl.style.display='';
+      noteEl.textContent=selected.notes+' Orbital elements are approximate and the moon is not integrated as a separate N-body mass.';
     }
     else if(pos.nbody){
       noteEl.style.display='';
@@ -981,12 +1391,34 @@
   function buildLegend(){
     const el = document.getElementById('legend');
     el.innerHTML = '';
-    const pLabel = document.createElement('div'); pLabel.className='grp-label'; pLabel.textContent='Planets, dwarf planet & moon'; el.appendChild(pLabel);
+    const close = document.createElement('button');
+    close.className='panel-close';
+    close.type='button';
+    close.title='Close bodies and spacecraft (L to reopen)';
+    close.setAttribute('aria-label','Close bodies and spacecraft');
+    close.textContent='✕';
+    close.addEventListener('click',()=>setPanelVisible('legend',false));
+    el.appendChild(close);
+    const heading = document.createElement('div'); heading.className='heading'; heading.textContent='Bodies & spacecraft'; el.appendChild(heading);
+    const pLabel = document.createElement('div'); pLabel.className='grp-label'; pLabel.textContent='Planets & dwarf planet'; el.appendChild(pLabel);
     for(const p of planets){
+      if(p===charon) continue;
       const row = document.createElement('div'); row.className='item';
       row.innerHTML = `<span class="dot" style="background:${p.color}"></span>${p.name}`;
-      row.addEventListener('click',()=>toggleBodySelection(p));
+      row.addEventListener('click',()=>toggleLegendBodySelection(p));
       el.appendChild(row);
+      if(isMoonSystemVisible(p.name)){
+        const children=p.name==='Pluto'
+          ? [charon]
+          : moons.filter(moon=>moon.parentName===p.name);
+        for(const moon of children){
+          const moonRow=document.createElement('div');
+          moonRow.className='item moon-item';
+          moonRow.innerHTML=`<span class="dot" style="background:${moon.color}"></span>${moon.name}`;
+          moonRow.addEventListener('click',()=>toggleLegendBodySelection(moon));
+          el.appendChild(moonRow);
+        }
+      }
     }
     const sLabel = document.createElement('div'); sLabel.className='grp-label'; sLabel.textContent='Spacecraft (click to toggle all)'; sLabel.style.cursor='pointer';
     sLabel.addEventListener('click', ()=>{ showSpacecraft = !showSpacecraft; orbitLayerDirty=true; buildLegend(); });
@@ -994,7 +1426,7 @@
     for(const s of spacecraft){
       const row = document.createElement('div'); row.className='item' + (showSpacecraft?'':' off');
       row.innerHTML = `<span class="diamond" style="background:${s.color}"></span>${s.name}`;
-      row.addEventListener('click',()=>toggleBodySelection(s));
+      row.addEventListener('click',()=>toggleLegendBodySelection(s));
       el.appendChild(row);
     }
     const cLabel=document.createElement('div');
@@ -1007,17 +1439,47 @@
       const row=document.createElement('div');
       row.className='item'+(showComets?'':' off');
       row.innerHTML=`<span class="dot" style="background:${comet.color}"></span>${comet.name}`;
-      row.addEventListener('click',()=>toggleBodySelection(comet));
+      row.addEventListener('click',()=>toggleLegendBodySelection(comet));
       el.appendChild(row);
     }
+    legendMoonVisibilityKey=moonVisibilityKey();
   }
   function setSelectedBody(body,syncMission=true){
+    const previous=selected;
     selected=body;
-    if(syncMission && body && body.kind==='spacecraft') syncMissionToSpacecraft(body);
+    if(!body || (followTarget===previous && followTarget!==body)) setFollowTarget(null);
+    if(body?.kind==='spacecraft'){
+      if(syncMission) syncMissionToSpacecraft(body);
+      setPanelVisible('missionPanel',true);
+    } else if(previous?.kind==='spacecraft'){
+      setPanelVisible('missionPanel',false);
+    }
     toggleCard();
   }
   function toggleBodySelection(body){
     setSelectedBody(selected===body ? null : body);
+  }
+  function toggleLegendBodySelection(body){
+    if(selected===body){
+      setSelectedBody(null);
+      return;
+    }
+    setSelectedBody(body);
+    const pos=positionForBody(body,simDaysSinceJ2000);
+    if(pos){
+      const parentName=body.kind==='moon'
+        ? body.parentName
+        : body===charon ? 'Pluto' : body.name;
+      zoom=moonSystemFocusZoom(
+        moonVisibilityDefinitions,parentName,AU_PX,70,ZOOM_MAX
+      )||zoomForDistance(Math.hypot(pos.x,pos.y,pos.z));
+      panX=0;
+      panY=0;
+    }
+    setFollowTarget(body);
+    updateFollowCamera();
+    invalidateProjection();
+    buildLegend();
   }
   function toggleCard(){
     orbitLayerDirty = true;
@@ -1027,7 +1489,10 @@
 
   // ---------- Mission timeline ----------
   function zoomForEvent(event){
-    return zoomForTarget(event.target);
+    const parentName=event.target==='Pluto & Charon'?'Pluto':event.target;
+    return moonSystemFocusZoom(
+      moonVisibilityDefinitions,parentName,AU_PX,70,ZOOM_MAX
+    )||zoomForTarget(event.target);
   }
 
   function missionEventsForSelection(){
@@ -1130,7 +1595,7 @@
         detail.textContent='Preparing future N-body state for '+requestedDate+'…';
         let prepared;
         try{
-          prepared=await hybridSimulator.prepareTo(targetDays,{
+          prepared=await hybridBranchAt(targetDays).simulator.prepareTo(targetDays,{
             chunkDays:180,
             cancelled:()=>revision!==dateNavigationRevision,
             onProgress:progress=>{
@@ -1168,13 +1633,14 @@
   }
   function hitTest(mx,my){
     const list = visibleBodies();
-    const marker = list.find(b=> b._screen && Math.hypot(mx-b._screen.x, my-b._screen.y) < b._screen.r+5);
+    const marker = list.find(b=> b._screen && !b._screen.occulted &&
+      Math.hypot(mx-b._screen.x, my-b._screen.y) < b._screen.r+5);
     if(marker) return marker;
     // fall back to proximity to the trajectory line itself
     const LINE_TOL = 9;
     let best = null, bestDist = LINE_TOL;
     for(const b of list){
-      if(b.hideOrbit) continue;
+      if(b.hideOrbit || b.kind==='custom') continue;
       const pts = getProjectedOrbitPoints(b);
       if(!pts) continue;
       const bounds = b._pathBounds;
@@ -1210,6 +1676,26 @@
   function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
 
   scene.addEventListener('pointerdown', (e)=>{
+    if(bodyInsertionPhase==='position'){
+      const position=screenToEcliptic(e.clientX,e.clientY);
+      if(!position){
+        document.getElementById('bodyInstructions').textContent=
+          'Rotate away from an edge-on ecliptic view, then try placement again.';
+        return;
+      }
+      bodyDraft.position=position;
+      bodyInsertionPhase='velocity';
+      document.getElementById('bodyInstructions').textContent=
+        'Drag on the main view to set direction and speed; arrow length controls speed.';
+      updateBodyReadout();
+      return;
+    }
+    if(bodyInsertionPhase==='velocity'){
+      bodyVelocityPointer=e.pointerId;
+      scene.setPointerCapture(e.pointerId);
+      updateDraftVelocity(e.clientX,e.clientY);
+      return;
+    }
     scene.setPointerCapture(e.pointerId);
     activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
     if(activePointers.size===1){
@@ -1226,6 +1712,10 @@
   });
 
   scene.addEventListener('pointermove', (e)=>{
+    if(bodyVelocityPointer===e.pointerId){
+      updateDraftVelocity(e.clientX,e.clientY);
+      return;
+    }
     if(!activePointers.has(e.pointerId)) return;
     activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
 
@@ -1271,6 +1761,17 @@
   });
 
   function endPointer(e){
+    if(bodyVelocityPointer===e.pointerId){
+      updateDraftVelocity(e.clientX,e.clientY);
+      bodyVelocityPointer=null;
+      if(bodyDraft?.velocity){
+        bodyInsertionPhase='ready';
+        document.getElementById('bodyInsertBtn').disabled=false;
+        document.getElementById('bodyInstructions').textContent=
+          'Review the vector, then press INSERT or PLACE to start over.';
+      }
+      return;
+    }
     activePointers.delete(e.pointerId);
     if(activePointers.size===0){
       if(!dragMoved && tapStart && (performance.now()-tapStart.t) < 500){
@@ -1302,6 +1803,126 @@
     dateNavigationRevision++;
     document.getElementById('dateInput').disabled=false;
   }
+  function applyBodyPreset(){
+    const preset=BODY_PRESETS[document.getElementById('bodyType').value];
+    document.getElementById('bodyName').value=preset.name;
+    document.getElementById('bodyMass').value=String(preset.mass);
+    resetBodyInsertion();
+  }
+  function beginBodyPlacement(){
+    cancelDateNavigation();
+    if(simDaysSinceJ2000<HYBRID_EPOCH_DAYS){
+      document.getElementById('bodyInstructions').textContent=
+        'New bodies can be introduced only on or after '+HYBRID_EPOCH_DATE+'.';
+      return;
+    }
+    if(Math.abs(Math.cos(viewTilt))<0.08){
+      document.getElementById('bodyInstructions').textContent=
+        'Rotate away from an edge-on ecliptic view before placing a body.';
+      return;
+    }
+    playing=false;
+    playBtn.textContent='▶';
+    bodyDraft={position:null,velocity:null,direction:null,speedKmS:null};
+    bodyInsertionPhase='position';
+    document.getElementById('bodyInsertBtn').disabled=true;
+    document.getElementById('bodyPlaceBtn').textContent='RESTART';
+    document.getElementById('bodyInstructions').textContent=
+      'Tap the main view to place the body on the ecliptic plane.';
+    updateBodyReadout();
+  }
+  function closeBodyPanel(){
+    resetBodyInsertion();
+    document.getElementById('bodyPanel').classList.remove('show');
+    document.getElementById('addBodyBtn').classList.remove('active');
+  }
+  function insertDraftBody(){
+    if(bodyInsertionPhase!=='ready' || !bodyDraft?.velocity) return;
+    const name=document.getElementById('bodyName').value.trim();
+    const massKg=Number(document.getElementById('bodyMass').value);
+    const preset=BODY_PRESETS[document.getElementById('bodyType').value];
+    const detail=document.getElementById('bodyInstructions');
+    if(!name){
+      detail.textContent='Enter a name before inserting the body.';
+      return;
+    }
+    if(massKg>1e35){
+      detail.textContent='Mass must not exceed 1e35 kg in this simulation.';
+      return;
+    }
+    const currentState=cloneState(hybridSnapshotAt(simDaysSinceJ2000));
+    if([...currentState.massive,...currentState.particles].some(body=>body.name===name)){
+      detail.textContent='A body named "'+name+'" already exists at this date.';
+      return;
+    }
+    let mu;
+    try{
+      mu=massKgToMu(massKg);
+    } catch(error){
+      detail.textContent=error.message;
+      return;
+    }
+    const sun=currentState.massive.find(body=>body.name==='Sun');
+    const position={
+      x:sun.x+bodyDraft.position.x,
+      y:sun.y+bodyDraft.position.y,
+      z:sun.z+bodyDraft.position.z
+    };
+    const closest=Math.min(...currentState.massive.map(body=>Math.hypot(
+      position.x-body.x,position.y-body.y,position.z-body.z
+    )));
+    if(closest<0.005){
+      detail.textContent='Place the body at least 0.005 AU from every massive body.';
+      return;
+    }
+    currentState.massive.push({
+      name,mu,
+      x:position.x,y:position.y,z:position.z,
+      vx:sun.vx+bodyDraft.velocity.x,
+      vy:sun.vy+bodyDraft.velocity.y,
+      vz:sun.vz+bodyDraft.velocity.z
+    });
+    recenterBarycentricState(currentState);
+    for(let i=hybridBranches.length-1;i>=0;i--){
+      if(hybridBranches[i].epoch>simDaysSinceJ2000) hybridBranches.splice(i,1);
+    }
+    for(let i=customBodies.length-1;i>=0;i--){
+      if(customBodies[i].introducedAt>simDaysSinceJ2000) customBodies.splice(i,1);
+    }
+    const simulator=createSimulator(currentState,{
+      stepDays:0.25,particleStepDays:0.03125,checkpointDays:8
+    });
+    hybridBranches.push({
+      id:++hybridBranchSequence,
+      epoch:simDaysSinceJ2000,
+      simulator
+    });
+    hybridBranches.sort((a,b)=>a.epoch-b.epoch||a.id-b.id);
+    const body={
+      kind:'custom',
+      category:preset.label,
+      appearance:document.getElementById('bodyType').value,
+      name,massKg,color:preset.color,
+      introducedAt:simDaysSinceJ2000,
+      notes:'Introduced by the user as a massive Newtonian body.'
+    };
+    customBodies.push(body);
+    hybridSnapshotCache.clear();
+    hybridTrailCache.clear();
+    orbitLayerDirty=true;
+    setSelectedBody(body);
+    closeBodyPanel();
+  }
+  document.getElementById('bodyType').addEventListener('change',applyBodyPreset);
+  document.getElementById('bodyPlaceBtn').addEventListener('click',beginBodyPlacement);
+  document.getElementById('bodyInsertBtn').addEventListener('click',insertDraftBody);
+  document.getElementById('bodyCancelBtn').addEventListener('click',closeBodyPanel);
+  document.getElementById('addBodyBtn').addEventListener('click',()=>{
+    const panel=document.getElementById('bodyPanel');
+    const visible=panel.classList.toggle('show');
+    document.getElementById('addBodyBtn').classList.toggle('active',visible);
+    if(!visible) resetBodyInsertion();
+  });
   playBtn.addEventListener('click', ()=>{
     cancelDateNavigation();
     playing=!playing;
@@ -1353,7 +1974,7 @@
   scene.addEventListener('wheel', (e)=>{ e.preventDefault(); applyZoom(zoom*(e.deltaY<0?1.1:0.9), e.clientX, e.clientY); }, {passive:false});
 
   let activeViewPreset='Current';
-  let profilerVisible=true;
+  let profilerVisible=false;
   let lastProfilerUpdate=0;
 
   function selectViewPreset(name){
@@ -1378,16 +1999,27 @@
     }
   }
 
-  function toggleProfiler(){
-    profilerVisible=!profilerVisible;
+  function setProfilerVisible(visible){
+    profilerVisible=visible;
     document.getElementById('perfPanel').classList.toggle('show',profilerVisible);
     const button=document.getElementById('perfBtn');
     button.classList.toggle('active',profilerVisible);
     button.setAttribute('aria-expanded',String(profilerVisible));
     if(profilerVisible) updateProfilerUI();
   }
+  function toggleProfiler(){ setProfilerVisible(!profilerVisible); }
+
+  function setPanelVisible(id,visible){
+    document.getElementById(id).classList.toggle('panel-hidden',!visible);
+  }
+  function togglePanel(id){
+    const panel=document.getElementById(id);
+    setPanelVisible(id,panel.classList.contains('panel-hidden'));
+  }
 
   document.getElementById('perfBtn').addEventListener('click',toggleProfiler);
+  document.getElementById('perfClose').addEventListener('click',()=>setProfilerVisible(false));
+  document.getElementById('missionClose').addEventListener('click',()=>setPanelVisible('missionPanel',false));
   document.getElementById('viewPreset').addEventListener('change',(e)=>{
     const name=e.target.value;
     if(name==='Current'){
@@ -1405,7 +2037,8 @@
   });
 
   window.addEventListener('keydown', (e)=>{
-    if(e.code==='Space' && !['INPUT','SELECT'].includes(e.target.tagName)){
+    const shortcutBlocked=['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)||e.target.isContentEditable;
+    if(e.code==='Space' && !shortcutBlocked){
       e.preventDefault();
       if(!e.repeat){
         spaceHeld=true;
@@ -1418,8 +2051,12 @@
         }
       }
     }
+    if(shortcutBlocked) return;
     if(e.key==='-'){ direction = -direction; updateSpeedLabel(); }
-    if(e.code==='KeyP' && !e.repeat && !['INPUT','SELECT'].includes(e.target.tagName)) toggleProfiler();
+    if(e.repeat) return;
+    if(e.code==='KeyP') toggleProfiler();
+    if(e.code==='KeyM') togglePanel('missionPanel');
+    if(e.code==='KeyL') togglePanel('legend');
   });
   window.addEventListener('keyup',(e)=>{
     if(e.code!=='Space' || !spaceToggleArmed) return;

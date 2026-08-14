@@ -76,6 +76,17 @@ orbit guides. Charon's marker is separated from Pluto by at least 16 screen
 pixels so both remain selectable; this display offset is explicitly identified
 as an exaggeration in Charon's detail card.
 
+`src/moon-system.js` adds the Moon, Phobos, Deimos, Io, Europa, Ganymede,
+Callisto, Rhea, Titan, Iapetus, Titania, Oberon, and Triton. These bodies use
+approximate parent-relative Keplerian elements rather than the solar-system
+integrator. A moon system is rendered only when its outer orbit spans at least
+12 screen pixels and its parent is near the viewport. Selecting a parent from
+the body list applies a close-view zoom that reveals its moons. Moon orbits,
+markers, selection cards, masses, and Wikipedia links then behave like the
+other visible bodies. Semimajor axes, periods, radii, and masses use standard
+published mean values in kilometers, days, and kilograms; orbital planes are
+simplified and phases at J2000 are illustrative rather than ephemeris-grade.
+
 Comet markers and paths use Horizons state vectors from 1950 through 2080.
 Velocity-aware interpolation smooths the sampled paths, while the rendered tail
 points away from the projected Sun and grows visually near perihelion. Tail
@@ -115,12 +126,35 @@ bound total work and checkpoint memory; moving integration to a Web Worker
 remains the next performance phase.
 
 Gravitational parameters are stored in km³/s² from standard NASA/JPL Solar
-System Dynamics values and converted once to AU³/day². Earth's value includes
-the Moon because the Moon is not yet represented separately. Spacecraft whose
-last bundled sample precedes the cutover are advanced to it with the prior
-solar-only universal-variable propagator, preserving positional continuity.
+System Dynamics values and converted once to AU³/day². Displayed major moons
+are not separate N-body masses, and Earth's value therefore continues to
+include the Moon. Spacecraft whose last bundled sample precedes the cutover are
+advanced to it with the prior solar-only universal-variable propagator,
+preserving positional continuity.
 Daily Pluto and Charon samples around the cutover prevent their 6.387-day binary
 orbit from being aliased by the normal sparse outer-system sampling cadence.
+
+The body detail card reports physical mass in kilograms for massive bodies.
+Spacecraft and comets display `0 kg (test particle)` to distinguish their
+modeled gravitational mass from their nonzero physical mass.
+Built-in bodies link to their corresponding English Wikipedia article. Custom
+bodies link to the general article for their selected body type.
+
+## User-introduced bodies
+
+The body insertion panel provides star, black-hole, planet, and comet presets
+with editable names and masses. Placement uses two direct-manipulation steps on
+the canvas: the first tap selects a position on the ecliptic plane, and the
+second pointer drag sets an in-plane velocity vector whose arrow length maps to
+speed. Live AU coordinates, direction, and km/s are shown before insertion.
+
+Insertion creates a new deterministic simulation branch at the current date.
+The new body's heliocentric position and velocity are converted to the active
+barycentric state, its mass becomes a Newtonian gravitational parameter, and
+later checkpoints and trail caches are invalidated. Rewinding before the
+insertion date selects the prior branch; inserting after a rewind discards
+branches introduced later. The first version intentionally limits placement
+and velocity to the ecliptic plane.
 
 Relativistic corrections, collisions, maneuvers, comet outgassing,
 close-encounter regularization, and adaptive timesteps are outside this first
@@ -142,9 +176,15 @@ The animation loop:
    state.
 7. Updates the date, active gravity model, and selected-object card.
 
+Body markers are depth sorted. Markers behind the Sun are clipped against its
+opaque disk and fully occulted markers are excluded from pointer hit testing.
+
 The star field is rendered to a separate canvas only on resize. Full orbit paths
 use a second cached canvas, while the dynamic scene is redrawn with
-`requestAnimationFrame`.
+`requestAnimationFrame`. At moon-system zoom levels, heliocentric orbit paths
+and traveled spacecraft/comet/custom-body trails are suppressed because they
+are far outside the viewport and rebuilding their extreme projected geometry
+while following a planet causes unnecessary frame-time spikes.
 
 An optional in-app profiler records frame intervals in a rolling 300-frame
 window for the inner, outer, and deep-space presets. It reports average and
@@ -157,10 +197,17 @@ runtime dependency.
 - One-pointer dragging rotates the view around the solar system.
 - Space plus one-pointer dragging pans the projected scene.
 - Two pointers pan by midpoint movement and perform anchored pinch zoom.
+- Dragging any non-interactive area of a panel repositions that panel while
+  preserving normal behavior for its links, buttons, inputs, and list items.
+- Mission, body/craft, and profiler panels can be closed directly and toggled
+  with `M`, `L`, and `P`, respectively. Mission and profiler start hidden.
 - Wheel and buttons apply anchored zoom.
 - Legend entries and canvas markers toggle selection.
+- Selecting a body from the body/craft list applies a distance-aware zoom,
+  centers the camera, and follows that body.
 - Selecting a spacecraft from the legend or canvas synchronizes the mission
-  selector, event list, and follow control to that spacecraft.
+  selector, event list, and follow control to that spacecraft. The mission
+  panel opens while a spacecraft is selected and closes when it is unselected.
 - Tapping Space toggles playback; holding Space while dragging pans. Minus
   reverses time direction.
 - The view preset selector resets rotation, zoom, and pan for inner, outer, and

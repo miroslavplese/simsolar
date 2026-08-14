@@ -12,6 +12,7 @@ const {
 }=require('../src/trajectory-math.js');
 const {
   zoomForTarget,
+  zoomForDistance,
   findRelativeEvent
 }=require('../src/mission-timeline.js');
 
@@ -211,6 +212,10 @@ assert.equal(findRelativeEvent(navigationEvents,5,-1),null);
 assert.equal(findRelativeEvent(navigationEvents,35,1),null);
 assert.equal(zoomForTarget('Jupiter'),1.15);
 assert.equal(zoomForTarget('Unknown'),1);
-assertions+=6;
+assert.equal(zoomForDistance(0),4.5);
+assert.equal(zoomForDistance(5.5),1);
+assert.equal(zoomForDistance(200),0.045);
+assert.equal(zoomForDistance(Number.NaN),1);
+assertions+=10;
 
 console.log(`Trajectory regression tests passed (${assertions.toLocaleString()} assertions).`);

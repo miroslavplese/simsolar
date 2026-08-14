@@ -5,6 +5,7 @@
 })(typeof globalThis!=='undefined' ? globalThis : this,function(){
   const AU_KM=1.495978707e8;
   const SECONDS_PER_DAY=86400;
+  const G_KM3_KG_S2=6.67430e-20;
   const KM3_S2_TO_AU3_DAY2=SECONDS_PER_DAY*SECONDS_PER_DAY/(AU_KM*AU_KM*AU_KM);
   const GM_KM3_S2={
     Sun:1.32712440018e11,
@@ -22,6 +23,26 @@
   const GM_BY_BODY=Object.fromEntries(
     Object.entries(GM_KM3_S2).map(([name,mu])=>[name,mu*KM3_S2_TO_AU3_DAY2])
   );
+  const MASS_KG={
+    Sun:1.98847e30,
+    Mercury:3.3011e23,
+    Venus:4.8675e24,
+    Earth:5.97237e24,
+    Mars:6.4171e23,
+    Jupiter:1.8982e27,
+    Saturn:5.6834e26,
+    Uranus:8.6810e25,
+    Neptune:1.02413e26,
+    Pluto:1.303e22,
+    Charon:1.586e21
+  };
+
+  function massKgToMu(massKg){
+    if(!Number.isFinite(massKg) || massKg<=0){
+      throw new RangeError('Mass must be a positive finite value.');
+    }
+    return massKg*G_KM3_KG_S2*KM3_S2_TO_AU3_DAY2;
+  }
 
   function cloneBody(body){
     return {...body};
@@ -48,16 +69,6 @@
       mu:definition.mu,
       ...kinematicState(definition.state)
     }));
-    const totalMu=massive.reduce((sum,body)=>sum+body.mu,0);
-    if(!(totalMu>0)) throw new Error('At least one massive body is required.');
-
-    const offset={x:0,y:0,z:0,vx:0,vy:0,vz:0};
-    for(const body of massive){
-      for(const key of Object.keys(offset)) offset[key]-=body.mu*body[key]/totalMu;
-    }
-    for(const body of massive){
-      for(const key of Object.keys(offset)) body[key]+=offset[key];
-    }
     const particles=particleDefinitions.map(definition=>{
       const body={
         name:definition.name,
@@ -65,10 +76,24 @@
         adaptiveFactor:definition.adaptiveFactor,
         ...kinematicState(definition.state)
       };
-      for(const key of Object.keys(offset)) body[key]+=offset[key];
       return body;
     });
-    return {t,massive,particles};
+    return recenterBarycentricState({t,massive,particles});
+  }
+
+  function recenterBarycentricState(state){
+    const totalMu=state.massive.reduce((sum,body)=>sum+body.mu,0);
+    if(!(totalMu>0)) throw new Error('At least one massive body is required.');
+    const offset={x:0,y:0,z:0,vx:0,vy:0,vz:0};
+    for(const body of state.massive){
+      for(const key of Object.keys(offset)){
+        offset[key]-=body.mu*body[key]/totalMu;
+      }
+    }
+    for(const body of [...state.massive,...state.particles]){
+      for(const key of Object.keys(offset)) body[key]+=offset[key];
+    }
+    return state;
   }
 
   function massiveAccelerations(bodies){
@@ -276,7 +301,7 @@
   }
 
   return {
-    GM_BY_BODY,cloneState,createBarycentricState,stepState,createSimulator,
-    heliocentricState,invariants
+    GM_BY_BODY,MASS_KG,massKgToMu,cloneState,createBarycentricState,stepState,
+    recenterBarycentricState,createSimulator,heliocentricState,invariants
   };
 });
