@@ -78,15 +78,22 @@ pixels so both remain selectable; this display offset is explicitly identified
 as an exaggeration in Charon's detail card.
 
 `src/moon-system.js` adds the Moon, Phobos, Deimos, Io, Europa, Ganymede,
-Callisto, Rhea, Titan, Iapetus, Titania, Oberon, and Triton. These bodies use
-approximate parent-relative Keplerian elements rather than the solar-system
-integrator. A moon system is rendered only when its outer orbit spans at least
-50 screen pixels and its parent is near the viewport. Selecting a parent from
-the body list applies a close-view zoom that reveals its moons. Moon orbits,
-markers, selection cards, masses, and Wikipedia links then behave like the
-other visible bodies. Semimajor axes, periods, radii, and masses use standard
-published mean values in kilometers, days, and kilograms; orbital planes are
-simplified and phases at J2000 are illustrative rather than ephemeris-grade.
+Callisto, Rhea, Titan, Iapetus, Titania, Oberon, and Triton. A moon system is
+rendered only when its outer orbit spans at least 50 screen pixels and its
+parent is near the viewport. Selecting a parent from the body list applies a
+close-view zoom that reveals its moons. Moon orbits, markers, selection cards,
+masses, and Wikipedia links then behave like the other visible bodies.
+
+`data/moon-cutoff-states.js` stores heliocentric Ecliptic J2000 position and
+velocity vectors from NASA/JPL Horizons at `2026-08-12 00:00:00 UTC`.
+Before that boundary, each moon is propagated backward from its cutoff vector
+as a parent-relative two-body orbit, preserving cutoff continuity without
+claiming a complete historical perturbation solution.
+
+`data/planet-cutoff-states.js` supplies exact Horizons vectors at the same
+boundary for every globally integrated planet. Sparse display ephemerides are
+not differentiated to initialize dynamics because fast inner planets can incur
+material velocity error between samples.
 
 `src/ring-system.js` defines physical ring bands for Jupiter, Saturn, Uranus,
 and Neptune. Inner and outer radii are stored in kilometers and projected in
@@ -115,6 +122,8 @@ The runtime uses a hybrid historical/future model:
   barycentric frame using each massive body's gravitational parameter.
 - The Sun, eight planets, Pluto, and Charon then interact through pairwise
   Newtonian gravity.
+- Earth through Neptune enter the global integration at their system
+  barycenters rather than their physical planet centers.
 - Spacecraft and comets feel every massive body's gravity but remain massless
   test particles, so they do not perturb the massive system.
 - Rendering converts integrated states back to Sun-relative coordinates,
@@ -130,19 +139,80 @@ queries between main integration steps run a deterministic partial step rather
 than discarding particle substep accuracy. Spacecraft and comet future trails
 are sampled from the same integrated solution as their markers.
 
+`src/hierarchical-moon-simulation.js` advances the six modeled moon systems
+independently at a 0.05-day step. Each split step applies half of the
+perturbation kick, performs an exact universal-variable parent-moon Kepler
+drift, then applies the final half kick. Perturbations include the differential
+external acceleration between each planet and moon, mutual forces between
+modeled moons, and the indirect acceleration caused by parent recoil. Global
+massive-body positions are linearly interpolated across one-day intervals from
+a dedicated massive-only sampler, avoiding repeated spacecraft integration.
+One-day moon checkpoints support deterministic replay.
+
+The global body's GM is the DE440 planetary-system GM. The hierarchy subtracts
+the current JPL GMs of explicitly modeled moons to obtain a residual parent GM;
+that residual includes the physical planet and omitted satellites. Parent
+offsets are reconstructed from the local system barycenter, so rendered planet
+centers and moon states remain continuous at the cutoff. Custom massive-body
+insertion creates matching global and moon hierarchy branches, allowing the new
+body's tidal gravity to affect moons without double-counting their mass.
+
 Long future jumps extend checkpoints in 180-day chunks and yield to the browser
 between chunks so progress remains visible. Navigation is capped at 2100 to
 bound total work and checkpoint memory; moving integration to a Web Worker
 remains the next performance phase.
 
-Gravitational parameters are stored in km³/s² from standard NASA/JPL Solar
-System Dynamics values and converted once to AU³/day². Displayed major moons
-are not separate N-body masses, and Earth's value therefore continues to
-include the Moon. Spacecraft whose last bundled sample precedes the cutover are
-advanced to it with the prior solar-only universal-variable propagator,
-preserving positional continuity.
+Gravitational parameters are stored in km³/s² from NASA/JPL Solar System
+Dynamics values and converted once to AU³/day². DE440 system parameters are
+used globally, while current satellite-solution parameters are used locally.
+Spacecraft whose last bundled sample precedes the cutover are advanced to it
+with the prior solar-only universal-variable propagator, preserving positional
+continuity.
 Daily Pluto and Charon samples around the cutover prevent their 6.387-day binary
 orbit from being aliased by the normal sparse outer-system sampling cadence.
+
+## Lagrange points and rotating frames
+
+`src/lagrange-system.js` calculates L1 through L5 for the selected Sun-planet,
+Sun-custom-body, Pluto-Charon, or planet-moon pair. Collinear points solve the
+dimensionless circular restricted three-body equilibrium equation by bracketed
+bisection. L4 and L5 use equilateral geometry in the instantaneous orbital plane.
+The rendered positions use each body's current state and GM, so they update with
+ephemeris and integrated motion.
+
+These markers are instantaneous circular-model estimates, not propagated
+objects or guaranteed stability regions. Their detail cards state this
+approximation. L-point mode auto-fits the selected pair, provides selectable
+legend entries, and draws the primary-secondary and triangular geometry at true
+scale.
+
+Co-rotating mode dynamically aligns the selected primary-secondary axis while
+retaining user-controlled tilt and yaw offset. Inertial orbit paths and traveled
+trails are suppressed in this mode because continuously reprojecting them is
+expensive and their inertial geometry is misleading in a rotating frame.
+
+## Eclipses and transits
+
+`src/occultation-system.js` compares the apparent angular disks of the Sun and
+an intervening body from a selected planet or moon center. Exact circle-overlap
+geometry reports maximum solar-disk coverage and classifies total, annular,
+partial, or contained-disk events. Local parent/moon and sibling-moon events are
+reported as solar eclipses; nonlocal inner bodies are reported as transits or
+solar occultations.
+
+The browser searches each eligible occulter with a bounded coarse scan, detects
+local minima in apparent limb clearance, and refines each candidate with a
+golden-section minimum search. Local scan cadence uses the shorter of the
+observer and occulter periods so fast moon observers such as Phobos are not
+under-sampled. Searches yield periodically, are cancellable by observer/type
+changes or closing the panel, and cover at most 20 years.
+
+Planetary transit searches prefer bundled Horizons ephemerides where available
+and use the massive-only future sampler afterward. Local moon eclipses use the
+full reconstructed physical parent and hierarchical moon states. The event view
+shows an apparent-Sun inset at true angular-radius ratio; it does not yet compute
+surface shadow tracks, atmospheric refraction, observer topography, or formal
+first-through-fourth contact times.
 
 The body detail card reports physical mass in kilograms for massive bodies.
 Spacecraft and comets display `0 kg (test particle)` to distinguish their
@@ -202,12 +272,17 @@ limb and terminator respond to both orbital position and camera rotation. Wide
 view markers remain unshaded. Ring shadows use parallel solar rays; the Sun's
 finite angular size and resulting narrow penumbra are not modeled.
 
-The star field is rendered to a separate canvas only on resize. Full orbit paths
-use a second cached canvas, while the dynamic scene is redrawn with
-`requestAnimationFrame`. At moon-system zoom levels, heliocentric orbit paths
-and traveled spacecraft/comet/custom-body trails are suppressed because they
-are far outside the viewport and rebuilding their extreme projected geometry
-while following a planet causes unnecessary frame-time spikes.
+`src/star-field.js` generates deterministic directions on a celestial sphere.
+The separate sky canvas uses a 90-degree perspective projection and redraws only
+when camera yaw, tilt, or viewport dimensions change. Stars therefore remain
+fixed in inertial space while moving correctly under pointer rotation and
+co-rotating reference frames; zoom and pan do not alter the distant background.
+
+Full orbit paths use a second cached canvas, while the dynamic scene is redrawn
+with `requestAnimationFrame`. At moon-system zoom levels, heliocentric orbit
+paths and traveled spacecraft/comet/custom-body trails are suppressed because
+they are far outside the viewport and rebuilding their extreme projected
+geometry while following a planet causes unnecessary frame-time spikes.
 
 An optional in-app profiler records frame intervals in a rolling 300-frame
 window for the inner, outer, and deep-space presets. It reports average and
@@ -273,6 +348,12 @@ Record material design decisions here so later changes retain their rationale.
 | 2026-08-13 | Defer relativistic compact-object physics. | Newtonian gravity is sufficient for the first interactive implementation; close black-hole encounters need specialized integration. |
 | 2026-08-13 | Cut over to N-body gravity at 2026-08-12 UTC. | All massive bodies and test particles have a reproducible JPL-backed or continuity-preserving state at this shared boundary. |
 | 2026-08-13 | Use velocity Verlet at a fixed 0.25-day step. | A symplectic method provides bounded long-term energy error and deterministic replay at interactive solar-system scale. |
+| 2026-08-14 | Integrate major moons in nested planetary hierarchies. | Exact local Kepler drift resolves fast moons without forcing the whole solar system onto a Phobos-scale timestep. |
+| 2026-08-14 | Keep planetary-system GMs global and explicit moon GMs local. | Barycenter reconstruction captures parent recoil while preventing moon masses from being counted twice. |
+| 2026-08-14 | Derive L1-L5 from the instantaneous selected two-body state. | The same implementation supports historical ephemerides, future integration, moons, and user-created massive bodies without pretending the points are independently propagated objects. |
+| 2026-08-14 | Search occultations using apparent angular-disk overlap. | A center-of-body observer model consistently distinguishes total, annular, partial, and transit geometry while remaining usable for every modeled planet and moon. |
+| 2026-08-14 | Seed future gravity from exact cutoff vectors. | Differentiating sparse display interpolation produced unacceptable inner-planet velocity and event-timing error. |
+| 2026-08-14 | Store stars as inertial unit directions rather than screen pixels. | A celestial sphere makes the background respond naturally to every camera and reference-frame rotation without coupling it to scene zoom or pan. |
 
 ## Change checklist
 

@@ -8,20 +8,38 @@
   const G_KM3_KG_S2=6.67430e-20;
   const KM3_S2_TO_AU3_DAY2=SECONDS_PER_DAY*SECONDS_PER_DAY/(AU_KM*AU_KM*AU_KM);
   const GM_KM3_S2={
-    Sun:1.32712440018e11,
-    Mercury:22031.86855,
+    Sun:1.3271244004127942e11,
+    Mercury:22031.8685514,
     Venus:324858.592,
-    Earth:403503.235502,
-    Mars:42828.375214,
-    Jupiter:126686534.911,
-    Saturn:37931207.8,
-    Uranus:5793951.3,
-    Neptune:6835099.5,
-    Pluto:869.613817,
-    Charon:105.88
+    Earth:403503.23562548019,
+    Mars:42828.375815756102,
+    Jupiter:126712764.09999998,
+    Saturn:37940584.841799997,
+    Uranus:5794556.3999999985,
+    Neptune:6836527.100580399,
+    Pluto:869.3261226311508,
+    Charon:106.1011388236118
+  };
+  const MOON_GM_KM3_S2={
+    Moon:4902.80011845755,
+    Phobos:0.0007087546066894452,
+    Deimos:0.00009615569648120313,
+    Io:5959.915466180539,
+    Europa:3202.712099607295,
+    Ganymede:9887.832752719638,
+    Callisto:7179.283402579837,
+    Rhea:153.9417519146563,
+    Titan:8978.137095521046,
+    Iapetus:120.5151060137642,
+    Titania:222.8006351879754,
+    Oberon:214.2098399407347,
+    Triton:1428.495462910464
   };
   const GM_BY_BODY=Object.fromEntries(
     Object.entries(GM_KM3_S2).map(([name,mu])=>[name,mu*KM3_S2_TO_AU3_DAY2])
+  );
+  const MOON_GM_BY_BODY=Object.fromEntries(
+    Object.entries(MOON_GM_KM3_S2).map(([name,mu])=>[name,mu*KM3_S2_TO_AU3_DAY2])
   );
   const MASS_KG={
     Sun:1.98847e30,
@@ -221,7 +239,13 @@
     const checkpointStride=Math.max(1,Math.round(checkpointDays/stepDays));
     const epoch=initialState.t;
     const checkpoints=new Map([[0,cloneState(initialState)]]);
+    const massiveCheckpoints=new Map([[
+      0,{t:initialState.t,massive:initialState.massive.map(cloneBody),particles:[]}
+    ]]);
     let maxCheckpointIndex=0;
+    let maxMassiveCheckpointIndex=0;
+    let massiveCursor=cloneState(massiveCheckpoints.get(0));
+    let massiveCursorIndex=0;
 
     function stateAt(targetTime){
       if(targetTime<epoch) throw new RangeError('N-body target time precedes the simulation epoch.');
@@ -245,6 +269,42 @@
       return lower;
     }
 
+    function massiveStateAt(targetTime){
+      if(targetTime<epoch) throw new RangeError('N-body target time precedes the simulation epoch.');
+      const exactIndex=(targetTime-epoch)/stepDays;
+      const lowerIndex=Math.floor(exactIndex+1e-10);
+      const fraction=Math.max(0,Math.min(1,exactIndex-lowerIndex));
+      const desiredCheckpoint=Math.floor(lowerIndex/checkpointStride)*checkpointStride;
+      let checkpointIndex=Math.min(
+        desiredCheckpoint,maxMassiveCheckpointIndex
+      );
+      let lower;
+      if(massiveCursorIndex>=checkpointIndex && massiveCursorIndex<=lowerIndex){
+        checkpointIndex=massiveCursorIndex;
+        lower=cloneState(massiveCursor);
+      } else {
+        lower=cloneState(massiveCheckpoints.get(checkpointIndex));
+      }
+      for(let index=checkpointIndex;index<lowerIndex;index++){
+        stepState(lower,stepDays,stepDays);
+        lower.t=epoch+(index+1)*stepDays;
+        if((index+1)%checkpointStride===0){
+          massiveCheckpoints.set(index+1,cloneState(lower));
+          maxMassiveCheckpointIndex=Math.max(
+            maxMassiveCheckpointIndex,index+1
+          );
+        }
+      }
+      if(fraction>=1e-10){
+        stepState(lower,stepDays*fraction,stepDays);
+        lower.t=targetTime;
+      } else if(lowerIndex>=massiveCursorIndex){
+        massiveCursor=cloneState(lower);
+        massiveCursorIndex=lowerIndex;
+      }
+      return lower.massive;
+    }
+
     async function prepareTo(targetTime,prepareOptions){
       if(targetTime<epoch) return stateAt(targetTime);
       const chunkDays=prepareOptions?.chunkDays||180;
@@ -263,7 +323,7 @@
       return stateAt(targetTime);
     }
 
-    return {epoch,stepDays,particleStepDays,stateAt,prepareTo};
+    return {epoch,stepDays,particleStepDays,stateAt,massiveStateAt,prepareTo};
   }
 
   function heliocentricState(state,name){
@@ -301,7 +361,8 @@
   }
 
   return {
-    GM_BY_BODY,MASS_KG,massKgToMu,cloneState,createBarycentricState,stepState,
+    GM_BY_BODY,MOON_GM_BY_BODY,MASS_KG,massKgToMu,cloneState,
+    createBarycentricState,stepState,
     recenterBarycentricState,createSimulator,heliocentricState,invariants
   };
 });

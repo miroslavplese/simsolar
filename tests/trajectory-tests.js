@@ -143,6 +143,20 @@ for(const [name,record] of Object.entries(spacecraft)){
   }
 }
 
+const localMu=1e-6;
+const localRadius=0.01;
+const localPeriod=2*Math.PI*Math.sqrt(localRadius**3/localMu);
+const localOrigin={
+  t:0,x:localRadius,y:0,z:0,
+  vx:0,vy:Math.sqrt(localMu/localRadius),vz:0
+};
+const localOrbit=propagateState(localOrigin,localPeriod,localMu);
+close(localOrbit.x,localOrigin.x,1e-11,'arbitrary-mu orbit x closure');
+close(localOrbit.y,localOrigin.y,1e-11,'arbitrary-mu orbit y closure');
+close(localOrbit.vx,localOrigin.vx,1e-11,'arbitrary-mu orbit vx closure');
+close(localOrbit.vy,localOrigin.vy,1e-11,'arbitrary-mu orbit vy closure');
+assertions+=4;
+
 const flybys=[
   ['Voyager 1','Jupiter','1979-03-05',0.03],
   ['Voyager 1','Saturn','1980-11-12',0.03],

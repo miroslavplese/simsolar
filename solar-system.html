@@ -114,6 +114,19 @@
   #eventList .event:hover, #eventList .event.active{ background:rgba(255,255,255,.06); color:var(--ink); }
   #eventList .event span{ color:var(--accent); margin-right:7px; }
   #eventDetail{ min-height:25px; margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+  #occultationPanel{
+    position:absolute; top:74px; right:310px; width:270px;
+    background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+  #occultationPanel .heading{ color:#72e6c1; font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+  #occultationPanel .controlRow{ display:flex; gap:6px; margin-bottom:7px; }
+  #occultationObserver, #occultationType{
+    flex:1; min-width:0; height:28px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); font:9.5px var(--mono); padding:0 7px; outline:none;
+  }
+  #occultationStatus{ min-height:40px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+  #occultationStatus strong{ color:#72e6c1; font-weight:500; }
 
   #perfPanel{
     position:absolute; top:62px; left:50%; transform:translateX(-50%);
@@ -148,11 +161,13 @@
   #bodyReadout{ margin-top:6px; color:#5c6690; font-size:8px; line-height:1.5; white-space:pre-line; }
   #bodyWarning{ margin-top:8px; padding-top:7px; border-top:1px solid var(--line); color:#8f7890; font-size:7.5px; line-height:1.4; }
   .btn.active{ border-color:var(--accent); color:var(--accent); }
+  .btn:disabled{ opacity:.35; cursor:not-allowed; }
   .movable-panel{ cursor:grab; touch-action:none; }
   .movable-panel label{ cursor:default; }
   .movable-panel.panel-dragging{ cursor:grabbing; user-select:none; }
   @media (max-width:760px){
     #missionPanel{ width:230px; max-height:35vh; }
+    #occultationPanel{ top:230px; right:20px; width:230px; max-height:35vh; }
     #eventList{ max-height:80px; }
     #bodyPanel{ left:20px; top:230px; width:230px; }
   }
@@ -183,6 +198,25 @@
     </div>
     <div id="eventList"></div>
     <div id="eventDetail">Choose an event to jump to its date and follow the spacecraft.</div>
+  </div>
+  <div id="occultationPanel" class="panel-hidden">
+    <button class="panel-close" id="occultationClose" type="button"
+      title="Close eclipses and transits (E to reopen)"
+      aria-label="Close eclipses and transits">✕</button>
+    <div class="heading">Eclipses &amp; transits</div>
+    <div class="controlRow">
+      <select id="occultationObserver" aria-label="Event observer"></select>
+      <select id="occultationType" aria-label="Event type">
+        <option value="all">ALL EVENTS</option>
+        <option value="eclipse">ECLIPSES</option>
+        <option value="transit">TRANSITS</option>
+      </select>
+    </div>
+    <div class="controlRow">
+      <button class="timelineBtn" id="previousOccultationBtn" type="button">‹ PREVIOUS</button>
+      <button class="timelineBtn" id="nextOccultationBtn" type="button">NEXT ›</button>
+    </div>
+    <div id="occultationStatus">Choose an observer, then search for an event.</div>
   </div>
   <div id="perfPanel">
     <button class="panel-close" id="perfClose" type="button"
@@ -259,6 +293,12 @@ Velocity: not set</div>
     </select>
     <button class="btn wide" id="addBodyBtn" type="button"
       title="Introduce a massive body">ADD BODY</button>
+    <button class="btn wide" id="lagrangeBtn" type="button"
+      title="Show L1-L5 for the selected system (G)">L-POINTS</button>
+    <button class="btn wide" id="rotatingFrameBtn" type="button"
+      title="Lock the selected system axis in a co-rotating frame (R)">CO-ROTATE</button>
+    <button class="btn wide" id="occultationBtn" type="button"
+      title="Find eclipses and transits (E)">ECLIPSES</button>
     <button class="btn wide" id="perfBtn" type="button"
       title="Toggle frame-time profiler (P)" aria-expanded="false">PERF</button>
     <div class="sep"></div>
@@ -267,18 +307,24 @@ Velocity: not set</div>
 </div>
 
 <script src="data/planet-ephemerides.js"></script>
+<script src="data/planet-cutoff-states.js"></script>
+<script src="data/moon-cutoff-states.js"></script>
 <script src="data/spacecraft-trajectories.js"></script>
 <script src="data/comet-ephemerides.js"></script>
 <script src="src/trajectory-math.js"></script>
 <script src="src/mission-timeline.js"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js"></script>
+<script src="src/star-field.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js"></script>
 <script src="src/body-lighting.js"></script>
 <script src="src/moon-system.js"></script>
 <script src="src/ring-system.js"></script>
+<script src="src/lagrange-system.js"></script>
+<script src="src/occultation-system.js"></script>
 <script src="src/nbody-simulation.js"></script>
+<script src="src/hierarchical-moon-simulation.js"></script>
 <script>
 (function(){
   const sky = document.getElementById('sky');
@@ -289,6 +335,7 @@ Velocity: not set</div>
   const ctx = scene.getContext('2d');
   PanelDrag.installMovablePanels([
     document.getElementById('missionPanel'),
+    document.getElementById('occultationPanel'),
     document.getElementById('perfPanel'),
     document.getElementById('bodyPanel'),
     document.getElementById('card'),
@@ -301,17 +348,38 @@ Velocity: not set</div>
     W = sky.width = orbits.width = scene.width = window.innerWidth;
     H = sky.height = orbits.height = scene.height = window.innerHeight;
     cx = W/2; cy = H/2;
-    drawStars();
+    drawStars(true);
     invalidateProjection();
   }
 
   let stars = [];
-  function drawStars(){
-    stars = [];
-    const n = Math.floor((W*H)/2600);
-    for(let i=0;i<n;i++) stars.push({x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.2+0.2, a:Math.random()*0.6+0.15});
+  let starViewYaw=NaN;
+  let starViewTilt=NaN;
+  function drawStars(force){
+    if(
+      !force &&
+      Math.abs(starViewYaw-viewYaw)<1e-8 &&
+      Math.abs(starViewTilt-viewTilt)<1e-8
+    ) return;
+    const count=Math.max(
+      1800,Math.min(8000,Math.ceil((W*H)/550))
+    );
+    if(stars.length!==count) stars=StarField.createStars(count);
     skyCtx.fillStyle = '#0a0e1a'; skyCtx.fillRect(0,0,W,H);
-    for(const s of stars){ skyCtx.beginPath(); skyCtx.fillStyle = `rgba(232,236,247,${s.a})`; skyCtx.arc(s.x,s.y,s.r,0,Math.PI*2); skyCtx.fill(); }
+    for(const star of stars){
+      const projected=StarField.projectStar(
+        star,viewYaw,viewTilt,W,H
+      );
+      if(!projected) continue;
+      skyCtx.beginPath();
+      skyCtx.fillStyle=`rgba(232,236,247,${projected.alpha})`;
+      skyCtx.arc(
+        projected.x,projected.y,projected.radius,0,Math.PI*2
+      );
+      skyCtx.fill();
+    }
+    starViewYaw=viewYaw;
+    starViewTilt=viewTilt;
   }
 
   const DEG = Math.PI/180;
@@ -333,7 +401,7 @@ Velocity: not set</div>
     normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor
   }=window.BodyLighting;
   const {
-    MAJOR_MOONS,relativeStateAt:moonRelativeStateAt,stateAt:moonStateAt,
+    MAJOR_MOONS,
     systemVisible:moonSystemVisibleAtZoom,focusZoom:moonSystemFocusZoom,
     outerRadiusAu:moonSystemRadiusAu,heliocentricPathsVisible
   }=window.MoonSystem;
@@ -342,9 +410,21 @@ Velocity: not set</div>
     outerRadiusKm:ringOuterRadiusKm,normalVector:ringNormalVector
   }=window.RingSystem;
   const {
-    GM_BY_BODY,MASS_KG,massKgToMu,cloneState,createBarycentricState,
+    lagrangePoints:calculateLagrangePoints,rotatingFrameYaw
+  }=window.LagrangeSystem;
+  const {
+    apparentOccultation,goldenMinimum
+  }=window.OccultationSystem;
+  const {
+    GM_BY_BODY,MOON_GM_BY_BODY,MASS_KG,massKgToMu,cloneState,createBarycentricState,
     recenterBarycentricState,createSimulator,heliocentricState
   }=window.NBodySimulation;
+  const {
+    createInitialState:createMoonInitialState,
+    cloneState:cloneMoonState,
+    createSimulator:createMoonSimulator,
+    bodyState:moonBodyState
+  }=window.HierarchicalMoonSimulation;
   const profilerViews=['Current','Inner','Outer','Deep'];
   const frameProfiler=window.FrameProfiler.createFrameProfiler(profilerViews,300);
 
@@ -369,9 +449,12 @@ Velocity: not set</div>
   const moons=MAJOR_MOONS.map(moon=>({
     ...moon,
     parent:planets.find(planet=>planet.name===moon.parentName),
-    notes:'Approximate parent-relative Keplerian orbit around '+moon.parentName+'.'
+    notes:'Major moon of '+moon.parentName+'.'
   }));
   const charon=planets.find(planet=>planet.name==='Charon');
+  const sunReference={
+    kind:'sun',name:'Sun',color:'#f2b544',mu:GM_BY_BODY.Sun
+  };
   const moonVisibilityDefinitions=[
     ...moons,
     {name:'Charon',parentName:'Pluto',aKm:19596}
@@ -439,6 +522,10 @@ Velocity: not set</div>
   const trajectoryData = trajectoryBundle ? trajectoryBundle.trajectories : {};
   const planetBundle = window.PLANET_EPHEMERIDES;
   const planetData = planetBundle ? planetBundle.ephemerides : {};
+  const planetCutoffBundle=window.PLANET_CUTOFF_STATES;
+  const planetCutoffData=planetCutoffBundle ? planetCutoffBundle.states : {};
+  const moonCutoffBundle=window.MOON_CUTOFF_STATES;
+  const moonCutoffData=moonCutoffBundle ? moonCutoffBundle.states : {};
   const cometBundle = window.COMET_EPHEMERIDES;
   const cometData = cometBundle ? cometBundle.ephemerides : {};
   for(const s of spacecraft){
@@ -470,6 +557,31 @@ Velocity: not set</div>
     },HYBRID_EPOCH_DAYS-last[0]);
   }
 
+  function stateVectorFromPoint(point){
+    return {
+      t:point[0],x:point[1],y:point[2],z:point[3],
+      vx:point[4],vy:point[5],vz:point[6]
+    };
+  }
+
+  const moonSystemParents=[
+    'Earth','Mars','Jupiter','Saturn','Uranus','Neptune'
+  ];
+  const moonInitial=createMoonInitialState(
+    HYBRID_EPOCH_DAYS,
+    moonSystemParents.map(parentName=>({
+      parentName,
+      systemMu:GM_BY_BODY[parentName],
+      parentState:stateVectorFromPoint(
+        planetCutoffData[parentName].point
+      ),
+      moons:MAJOR_MOONS.filter(moon=>moon.parentName===parentName).map(moon=>({
+        name:moon.name,
+        mu:MOON_GM_BY_BODY[moon.name],
+        state:stateVectorFromPoint(moonCutoffData[moon.name].point)
+      }))
+    }))
+  );
   const massiveDefinitions=[
     {
       name:'Sun',mu:GM_BY_BODY.Sun,
@@ -478,7 +590,8 @@ Velocity: not set</div>
     ...planets.map(body=>({
       name:body.name,
       mu:GM_BY_BODY[body.name],
-      state:stateVectorAtEpoch(body._ephemerisPoints)
+      state:moonInitial.barycenters[body.name] ||
+        stateVectorFromPoint(planetCutoffData[body.name].point)
     }))
   ];
   const particleDefinitions=[
@@ -504,9 +617,19 @@ Velocity: not set</div>
     epoch:HYBRID_EPOCH_DAYS,
     simulator:hybridBaseSimulator
   }];
+  let moonBranchSequence=0;
+  const moonBranches=[{
+    id:moonBranchSequence,
+    epoch:HYBRID_EPOCH_DAYS,
+    simulator:createMoonSimulator(
+      moonInitial.state,moonExternalStateAt
+    )
+  }];
   const customBodies=[];
   const HYBRID_MAX_DAYS=daysSinceJ2000(Date.parse('2100-01-01T00:00:00Z'));
   const hybridSnapshotCache=new Map();
+  const moonSnapshotCache=new Map();
+  const moonExternalCache=new Map();
   const hybridTrailCache=new Map();
 
   function hybridBranchAt(tDays){
@@ -527,6 +650,126 @@ Velocity: not set</div>
       hybridSnapshotCache.delete(hybridSnapshotCache.keys().next().value);
     }
     return snapshot;
+  }
+
+  function moonExternalStateAt(tDays){
+    const branch=hybridBranchAt(tDays);
+    const intervalDays=1;
+    const exactIndex=(tDays-branch.epoch)/intervalDays;
+    const lowerIndex=Math.floor(exactIndex+1e-10);
+    const fraction=Math.max(0,Math.min(1,exactIndex-lowerIndex));
+    const lowerTime=branch.epoch+lowerIndex*intervalDays;
+    const cacheKey=branch.id+':'+lowerIndex;
+    let interval=moonExternalCache.get(cacheKey);
+    if(!interval){
+      interval={
+        lower:branch.simulator.massiveStateAt(lowerTime),
+        upper:branch.simulator.massiveStateAt(lowerTime+intervalDays)
+      };
+      moonExternalCache.set(cacheKey,interval);
+      if(moonExternalCache.size>64){
+        moonExternalCache.delete(moonExternalCache.keys().next().value);
+      }
+    }
+    if(fraction<1e-10) return interval.lower;
+    return interval.lower.map((body,index)=>{
+      const upper=interval.upper[index];
+      return {
+        ...body,
+        x:body.x+(upper.x-body.x)*fraction,
+        y:body.y+(upper.y-body.y)*fraction,
+        z:body.z+(upper.z-body.z)*fraction,
+        vx:body.vx+(upper.vx-body.vx)*fraction,
+        vy:body.vy+(upper.vy-body.vy)*fraction,
+        vz:body.vz+(upper.vz-body.vz)*fraction
+      };
+    });
+  }
+
+  function moonBranchAt(tDays){
+    let branch=moonBranches[0];
+    for(const candidate of moonBranches){
+      if(candidate.epoch<=tDays) branch=candidate; else break;
+    }
+    return branch;
+  }
+
+  function moonSnapshotAt(tDays){
+    const branch=moonBranchAt(tDays);
+    const cacheKey=branch.id+':'+tDays;
+    if(moonSnapshotCache.has(cacheKey)) return moonSnapshotCache.get(cacheKey);
+    const snapshot=branch.simulator.stateAt(tDays);
+    moonSnapshotCache.set(cacheKey,snapshot);
+    if(moonSnapshotCache.size>512){
+      moonSnapshotCache.delete(moonSnapshotCache.keys().next().value);
+    }
+    return snapshot;
+  }
+
+  function integratedMoonRelativeStateAt(moon,tDays){
+    if(tDays>=HYBRID_EPOCH_DAYS){
+      const system=moonSnapshotAt(tDays).systems.find(
+        item=>item.parentName===moon.parentName
+      );
+      return system.moons.find(item=>item.name===moon.name);
+    }
+    const system=moonInitial.state.systems.find(
+      item=>item.parentName===moon.parentName
+    );
+    const state=system.moons.find(item=>item.name===moon.name);
+    return {
+      ...propagateState(
+        state,tDays-HYBRID_EPOCH_DAYS,system.parentMu+state.mu
+      ),
+      name:state.name,
+      mu:state.mu
+    };
+  }
+
+  function hierarchicalPositionForBody(obj,tDays){
+    const isMoon=obj.kind==='moon';
+    if(!isMoon && !moonSystemParents.includes(obj.name)) return null;
+    if(tDays<HYBRID_EPOCH_DAYS){
+      if(!isMoon) return null;
+      const parent=planets.find(body=>body.name===obj.parentName);
+      const parentState=positionForBody(parent,tDays);
+      const relative=integratedMoonRelativeStateAt(obj,tDays);
+      return {
+        x:parentState.x+relative.x,
+        y:parentState.y+relative.y,
+        z:parentState.z+relative.z,
+        vx:parentState.vx+relative.vx,
+        vy:parentState.vy+relative.vy,
+        vz:parentState.vz+relative.vz,
+        r:Math.hypot(
+          parentState.x+relative.x,
+          parentState.y+relative.y,
+          parentState.z+relative.z
+        ),
+        speedKmS:Math.hypot(
+          parentState.vx+relative.vx,
+          parentState.vy+relative.vy,
+          parentState.vz+relative.vz
+        )*AU_KM/86400,
+        sampled:false,parentRelative:true
+      };
+    }
+    const global=hybridSnapshotAt(tDays);
+    const state=moonBodyState(
+      moonSnapshotAt(tDays),global.massive,obj.name
+    );
+    if(!state) return null;
+    const sun=global.massive.find(body=>body.name==='Sun');
+    const result={
+      x:state.x-sun.x,y:state.y-sun.y,z:state.z-sun.z,
+      vx:state.vx-sun.vx,vy:state.vy-sun.vy,vz:state.vz-sun.vz
+    };
+    return {
+      ...result,
+      r:Math.hypot(result.x,result.y,result.z),
+      speedKmS:Math.hypot(result.vx,result.vy,result.vz)*AU_KM/86400,
+      sampled:false,nbody:true,parentRelative:isMoon
+    };
   }
 
   function hybridPositionForBody(obj,tDays){
@@ -644,9 +887,12 @@ Velocity: not set</div>
   }
 
   function positionForBody(obj, tDays){
-    if(obj.kind==='moon'){
-      return moonStateAt(obj,positionForBody(obj.parent,tDays),tDays);
+    if(obj===sunReference){
+      return {x:0,y:0,z:0,vx:0,vy:0,vz:0,r:0,speedKmS:0};
     }
+    if(obj.kind==='lagrange') return lagrangePositionForBody(obj,tDays);
+    const hierarchical=hierarchicalPositionForBody(obj,tDays);
+    if(hierarchical) return hierarchical;
     const integrated=hybridPositionForBody(obj,tDays);
     if(integrated) return integrated;
     if(obj.kind==='custom') return null;
@@ -678,6 +924,11 @@ Velocity: not set</div>
   const ZOOM_MIN = 0.018, ZOOM_MAX = 20000;
   let selected = null;
   let hovered = null;
+  let showLagrangePoints=false;
+  let rotatingReferenceFrame=false;
+  let rotatingYawOffset=0;
+  let activeLagrangeSystem=null;
+  const lagrangeSystemCache=new Map();
   let showSpacecraft = true;
   let showComets = true;
   let followTarget = null;
@@ -713,6 +964,431 @@ Velocity: not set</div>
   let bodyInsertionPhase='idle';
   let bodyVelocityPointer=null;
   let bodyDraft=null;
+  const SUN_RADIUS_KM=696340;
+  const occultationObservers=[
+    ...planets.filter(body=>body!==charon),
+    ...moons,
+    charon
+  ];
+  let activeOccultationEvent=null;
+  let occultationSearchRevision=0;
+
+  function occultationCandidateBodies(observer){
+    const bodies=[
+      ...planets.filter(body=>body!==charon),
+      ...moons,
+      charon
+    ];
+    const observerOrbit=observer.kind==='moon'
+      ? observer.parent.a
+      : observer===charon
+        ? planets.find(body=>body.name==='Pluto').a
+        : observer.a;
+    return bodies.filter(candidate=>{
+      if(candidate===observer || !(candidate.radius>0)) return false;
+      const candidateParent=candidate.kind==='moon'
+        ? candidate.parent
+        : candidate===charon
+          ? planets.find(body=>body.name==='Pluto')
+          : candidate;
+      const observerParent=observer.kind==='moon'
+        ? observer.parent
+        : observer===charon
+          ? planets.find(body=>body.name==='Pluto')
+          : observer;
+      const local=candidateParent===observerParent ||
+        candidate===observerParent ||
+        candidate.parent===observer;
+      return local || candidateParent.a<observerOrbit*0.999;
+    });
+  }
+
+  function isLocalOcculter(observer,occulter){
+    const observerParent=observer.kind==='moon'
+      ? observer.parent
+      : observer===charon
+        ? planets.find(body=>body.name==='Pluto')
+        : observer;
+    const occulterParent=occulter.kind==='moon'
+      ? occulter.parent
+      : occulter===charon
+        ? planets.find(body=>body.name==='Pluto')
+        : occulter;
+    return occulter===observerParent ||
+      occulterParent===observerParent ||
+      occulter.parent===observer;
+  }
+
+  function occultationGeometryAt(observer,occulter,tDays){
+    const local=isLocalOcculter(observer,occulter);
+    const observerState=local
+      ? positionForBody(observer,tDays)
+      : occultationSearchPositionForBody(observer,tDays);
+    const occulterState=local
+      ? positionForBody(occulter,tDays)
+      : occultationSearchPositionForBody(occulter,tDays);
+    if(!observerState || !occulterState){
+      return {visible:false,clearance:Infinity,coverage:0};
+    }
+    return apparentOccultation(
+      observerState,{x:0,y:0,z:0},occulterState,
+      SUN_RADIUS_KM/AU_KM,occulter.radius/AU_KM
+    );
+  }
+
+  function occultationSearchPositionForBody(body,tDays){
+    if(body._ephemerisPoints){
+      const sampled=sampledStateAt(body._ephemerisPoints,tDays);
+      if(sampled) return sampled;
+    }
+    if(tDays<HYBRID_EPOCH_DAYS || body.kind==='moon'){
+      return positionForBody(body,tDays);
+    }
+    const branch=hybridBranchAt(tDays);
+    const massive=branch.simulator.massiveStateAt(tDays);
+    const target=massive.find(candidate=>candidate.name===body.name);
+    const sun=massive.find(candidate=>candidate.name==='Sun');
+    if(!target || !sun) return positionForBody(body,tDays);
+    return {
+      x:target.x-sun.x,y:target.y-sun.y,z:target.z-sun.z,
+      vx:target.vx-sun.vx,vy:target.vy-sun.vy,vz:target.vz-sun.vz
+    };
+  }
+
+  function occultationEventLabel(observer,occulter,geometry){
+    if(!isLocalOcculter(observer,occulter)){
+      return geometry.geometry==='total'
+        ? 'Solar occultation'
+        : occulter.name+' transit';
+    }
+    if(geometry.geometry==='total') return 'Total solar eclipse';
+    if(geometry.geometry==='contained') return 'Annular solar eclipse';
+    return 'Partial solar eclipse';
+  }
+
+  function candidateSearchSettings(observer,candidate,maxDistance){
+    const local=isLocalOcculter(observer,candidate);
+    const candidatePeriod=candidate.displayPeriod||candidate.period||365.25;
+    const observerPeriod=observer.kind==='moon'||observer===charon
+      ? observer.displayPeriod||observer.period
+      : Infinity;
+    const period=Math.min(candidatePeriod,observerPeriod);
+    const span=Math.min(
+      maxDistance,
+      local ? Math.max(120,Math.min(800,period*24)) : 365.25*20
+    );
+    return {
+      span,
+      step:local
+        ? Math.max(0.01,Math.min(0.25,period/12))
+        : 1
+    };
+  }
+
+  async function searchCandidateOccultation(
+    observer,candidate,direction,maxDistance,revision
+  ){
+    const settings=candidateSearchSettings(observer,candidate,maxDistance);
+    const evaluate=time=>occultationGeometryAt(observer,candidate,time);
+    const start=simDaysSinceJ2000+direction*1e-4;
+    const limit=Math.max(
+      -200*365.25,
+      Math.min(HYBRID_MAX_DAYS,start+direction*settings.span)
+    );
+    const samples=[];
+    let sampleCount=0;
+    for(
+      let time=start;
+      direction>0 ? time<=limit : time>=limit;
+      time+=direction*settings.step
+    ){
+      if(revision!==occultationSearchRevision) return null;
+      samples.push({time,geometry:evaluate(time)});
+      if(samples.length>3) samples.shift();
+      if(samples.length===3){
+        const [before,current,after]=samples;
+        if(
+          current.geometry.clearance<=before.geometry.clearance &&
+          current.geometry.clearance<=after.geometry.clearance
+        ){
+          const minimum=goldenMinimum(
+            evaluate,
+            Math.min(before.time,after.time),
+            Math.max(before.time,after.time),
+            34
+          );
+          if(minimum.geometry.visible){
+            return {
+              time:minimum.time,
+              observer,occulter:candidate,
+              geometry:minimum.geometry,
+              label:occultationEventLabel(
+                observer,candidate,minimum.geometry
+              )
+            };
+          }
+        }
+      }
+      if(++sampleCount%180===0){
+        await new Promise(resolve=>setTimeout(resolve,0));
+      }
+    }
+    return null;
+  }
+
+  async function findOccultation(direction){
+    const observerName=document.getElementById('occultationObserver').value;
+    const observer=occultationObservers.find(
+      body=>body.name===observerName
+    );
+    if(!observer) return;
+    const revision=++occultationSearchRevision;
+    const status=document.getElementById('occultationStatus');
+    const buttons=[
+      document.getElementById('previousOccultationBtn'),
+      document.getElementById('nextOccultationBtn')
+    ];
+    buttons.forEach(button=>button.disabled=true);
+    const candidates=occultationCandidateBodies(observer).sort((a,b)=>
+      Number(!isLocalOcculter(observer,a))-Number(!isLocalOcculter(observer,b))
+    ).filter(candidate=>{
+      const type=document.getElementById('occultationType').value;
+      return type==='all' ||
+        (type==='eclipse')===isLocalOcculter(observer,candidate);
+    });
+    let nearest=null;
+    try{
+      for(let index=0;index<candidates.length;index++){
+        if(revision!==occultationSearchRevision) return;
+        const candidate=candidates[index];
+        status.textContent='Searching '+candidate.name+'… '+
+          Math.round(index/candidates.length*100)+'%';
+        const maxDistance=nearest
+          ? Math.abs(nearest.time-simDaysSinceJ2000)
+          : 365.25*20;
+        const event=await searchCandidateOccultation(
+          observer,candidate,direction,maxDistance,revision
+        );
+        if(
+          event &&
+          (!nearest ||
+            Math.abs(event.time-simDaysSinceJ2000)<
+            Math.abs(nearest.time-simDaysSinceJ2000))
+        ) nearest=event;
+      }
+    } catch(error){
+      if(revision===occultationSearchRevision){
+        status.textContent='Event search failed: '+error.message;
+      }
+      console.error(error);
+      return;
+    } finally {
+      if(revision===occultationSearchRevision){
+        buttons.forEach(button=>button.disabled=false);
+      }
+    }
+    if(revision!==occultationSearchRevision) return;
+    if(!nearest){
+      status.textContent='No event found in the 20-year search window.';
+      return;
+    }
+    goToOccultationEvent(nearest);
+  }
+
+  function formatOccultationDate(tDays){
+    return new Date(J2000+tDays*86400000).toISOString()
+      .replace('T',' ').slice(0,16)+' UTC';
+  }
+
+  function updateOccultationStatus(event,geometry){
+    const status=document.getElementById('occultationStatus');
+    const coverage=(geometry.coverage*100).toFixed(
+      geometry.coverage<0.01?2:1
+    );
+    status.innerHTML='<strong>'+event.label+'</strong><br>'+
+      event.occulter.name+' across the Sun from '+event.observer.name+
+      '<br>'+formatOccultationDate(event.time)+' · '+coverage+'% maximum coverage';
+  }
+
+  function goToOccultationEvent(event){
+    cancelDateNavigation();
+    activeOccultationEvent=event;
+    simDaysSinceJ2000=event.time;
+    playing=false;
+    playBtn.textContent='▶';
+    setSelectedBody(event.observer);
+    setFollowTarget(event.observer);
+    const observer=positionForBody(event.observer,event.time);
+    const occulter=positionForBody(event.occulter,event.time);
+    const separation=Math.hypot(
+      observer.x-occulter.x,
+      observer.y-occulter.y,
+      observer.z-occulter.z
+    );
+    zoom=Math.max(
+      ZOOM_MIN,Math.min(ZOOM_MAX,140/(AU_PX*Math.max(separation,1e-9)))
+    );
+    panX=0;
+    panY=0;
+    updateFollowCamera();
+    invalidateProjection();
+    updateOccultationStatus(event,event.geometry);
+  }
+
+  function lagrangeSystemForBody(body){
+    if(!body) return null;
+    if(body.kind==='lagrange') return body.system;
+    let primary;
+    if(body.kind==='moon'){
+      primary=body.parent;
+    } else if(body===charon){
+      primary=planets.find(candidate=>candidate.name==='Pluto');
+    } else if(body.kind==='planet' || body.kind==='custom'){
+      primary=sunReference;
+    } else {
+      return null;
+    }
+    if(body.kind==='custom'){
+      const customMu=massKgToMu(body.massKg);
+      const ratio=Math.min(customMu,GM_BY_BODY.Sun)/(customMu+GM_BY_BODY.Sun);
+      if(ratio<1e-28) return null;
+    }
+    if(body.kind==='custom' && massKgToMu(body.massKg)>=GM_BY_BODY.Sun){
+      primary=body;
+      body=sunReference;
+    }
+    const key=primary.name+'|'+body.name;
+    if(!lagrangeSystemCache.has(key)){
+      const system={key,primary,secondary:body,points:[]};
+      system.points=['L1','L2','L3','L4','L5'].map(name=>({
+        kind:'lagrange',
+        category:'Lagrange point',
+        name,
+        color:name==='L4'||name==='L5'?'#72e6c1':'#66c7ff',
+        system
+      }));
+      lagrangeSystemCache.set(key,system);
+    }
+    return lagrangeSystemCache.get(key);
+  }
+
+  function lagrangeBodyState(body,tDays){
+    if(body===sunReference){
+      return {x:0,y:0,z:0,vx:0,vy:0,vz:0};
+    }
+    return positionForBody(body,tDays);
+  }
+
+  function lagrangeBodyMu(body,system){
+    if(body===sunReference) return GM_BY_BODY.Sun;
+    if(body.kind==='custom') return massKgToMu(body.massKg);
+    if(body.kind==='moon'){
+      return MOON_GM_BY_BODY[body.name];
+    }
+    if(system?.secondary?.kind==='moon' && body===system.primary){
+      return moonInitial.state.systems.find(
+        item=>item.parentName===body.name
+      ).parentMu;
+    }
+    return GM_BY_BODY[body.name];
+  }
+
+  function calculatedLagrangeStates(system,tDays){
+    const primary=lagrangeBodyState(system.primary,tDays);
+    const secondary=lagrangeBodyState(system.secondary,tDays);
+    if(!primary || !secondary) return null;
+    return calculateLagrangePoints(
+      primary,secondary,
+      lagrangeBodyMu(system.primary,system),
+      lagrangeBodyMu(system.secondary,system)
+    );
+  }
+
+  function lagrangePositionForBody(point,tDays){
+    const states=calculatedLagrangeStates(point.system,tDays);
+    const state=states?.find(candidate=>candidate.name===point.name);
+    if(!state) return null;
+    return {
+      ...state,
+      r:Math.hypot(state.x,state.y,state.z),
+      speedKmS:Math.hypot(state.vx,state.vy,state.vz)*AU_KM/86400,
+      calculated:true
+    };
+  }
+
+  function updateLagrangeControls(){
+    const eligible=lagrangeSystemForBody(selected);
+    const lagrangeButton=document.getElementById('lagrangeBtn');
+    const rotatingButton=document.getElementById('rotatingFrameBtn');
+    lagrangeButton.disabled=!eligible;
+    lagrangeButton.classList.toggle('active',showLagrangePoints&&!!activeLagrangeSystem);
+    rotatingButton.disabled=!activeLagrangeSystem;
+    rotatingButton.classList.toggle('active',rotatingReferenceFrame);
+  }
+
+  function autoFitLagrangeSystem(system){
+    const primary=lagrangeBodyState(system.primary,simDaysSinceJ2000);
+    const secondary=lagrangeBodyState(system.secondary,simDaysSinceJ2000);
+    if(!primary || !secondary) return;
+    const separation=Math.hypot(
+      secondary.x-primary.x,secondary.y-primary.y,secondary.z-primary.z
+    );
+    const viewport=Math.max(320,Math.min(W||900,H||700));
+    zoom=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX,viewport/(AU_PX*5*separation)));
+    panX=0;
+    panY=0;
+    setFollowTarget(system.secondary);
+    selectViewPreset('Current');
+    invalidateProjection();
+  }
+
+  function setLagrangeVisibility(visible){
+    const system=lagrangeSystemForBody(selected);
+    if(visible && !system) return;
+    showLagrangePoints=visible;
+    activeLagrangeSystem=visible ? system : null;
+    if(!visible){
+      rotatingReferenceFrame=false;
+      rotatingYawOffset=0;
+      if(selected?.kind==='lagrange') setSelectedBody(system?.secondary||null);
+    } else {
+      autoFitLagrangeSystem(system);
+    }
+    updateLagrangeControls();
+    invalidateProjection();
+    buildLegend();
+  }
+
+  function setRotatingReferenceFrame(enabled){
+    if(enabled && !activeLagrangeSystem) return;
+    rotatingReferenceFrame=enabled;
+    rotatingYawOffset=0;
+    updateLagrangeControls();
+    invalidateProjection();
+  }
+
+  function rotatingBaseYaw(){
+    if(!activeLagrangeSystem) return null;
+    const primary=lagrangeBodyState(
+      activeLagrangeSystem.primary,simDaysSinceJ2000
+    );
+    const secondary=lagrangeBodyState(
+      activeLagrangeSystem.secondary,simDaysSinceJ2000
+    );
+    if(!primary || !secondary) return null;
+    return rotatingFrameYaw(primary,secondary,viewTilt);
+  }
+
+  function updateRotatingReferenceFrame(){
+    if(!rotatingReferenceFrame) return;
+    const baseYaw=rotatingBaseYaw();
+    if(baseYaw===null) return;
+    const nextYaw=baseYaw+rotatingYawOffset;
+    if(Math.abs(nextYaw-viewYaw)>1e-8){
+      viewYaw=nextYaw;
+      invalidateProjection();
+    }
+  }
 
   function screenToEcliptic(screenX,screenY){
     const cosTilt=Math.cos(viewTilt);
@@ -833,6 +1509,9 @@ Velocity: not set</div>
     if(showSpacecraft) bodies.push(...spacecraft);
     if(showComets) bodies.push(...comets);
     bodies.push(...customBodies.filter(body=>body.introducedAt<=simDaysSinceJ2000));
+    if(showLagrangePoints && activeLagrangeSystem){
+      bodies.push(...activeLagrangeSystem.points);
+    }
     return bodies;
   }
 
@@ -912,13 +1591,13 @@ Velocity: not set</div>
 
   function drawOrbitLayer(){
     orbitCtx.clearRect(0,0,W,H);
-    if(!heliocentricPathsVisible(zoom)){
+    if(rotatingReferenceFrame || !heliocentricPathsVisible(zoom)){
       orbitLayerDirty=false;
       return;
     }
     const drawList = visibleBodies();
     for(const b of drawList){
-      if(b.hideOrbit || b.kind==='custom') continue;
+      if(b.hideOrbit || b.kind==='custom' || b.kind==='lagrange') continue;
       const isHi = b===hovered || b===selected;
       const pts = getProjectedOrbitPoints(b);
       if(b.kind==='spacecraft'){
@@ -1116,11 +1795,18 @@ Velocity: not set</div>
       if(!parent) continue;
       const highlighted=moon===selected||moon===hovered;
       const points=[];
+      const origin=integratedMoonRelativeStateAt(moon,simDaysSinceJ2000);
+      const system=moonInitial.state.systems.find(
+        item=>item.parentName===moon.parentName
+      );
+      const centralMu=system.parentMu+origin.mu;
+      const speedSq=origin.vx*origin.vx+origin.vy*origin.vy+origin.vz*origin.vz;
+      const semimajor=-centralMu/
+        (speedSq-2*centralMu/Math.hypot(origin.x,origin.y,origin.z));
+      const period=2*Math.PI*Math.sqrt(semimajor*semimajor*semimajor/centralMu);
       ctx.beginPath();
       for(let i=0;i<=72;i++){
-        const relative=moonRelativeStateAt(
-          moon,simDaysSinceJ2000+moon.period*i/72
-        );
+        const relative=propagateState(origin,period*i/72,centralMu);
         const point=project(
           parent.pos.x+relative.x,
           parent.pos.y+relative.y,
@@ -1209,7 +1895,118 @@ Velocity: not set</div>
     }
   }
 
+  function drawLagrangeGeometry(){
+    if(!showLagrangePoints || !activeLagrangeSystem) return;
+    const primary=lagrangeBodyState(
+      activeLagrangeSystem.primary,simDaysSinceJ2000
+    );
+    const secondary=lagrangeBodyState(
+      activeLagrangeSystem.secondary,simDaysSinceJ2000
+    );
+    const states=calculatedLagrangeStates(
+      activeLagrangeSystem,simDaysSinceJ2000
+    );
+    if(!primary || !secondary || !states) return;
+    const primaryScreen=project(primary.x,primary.y,primary.z);
+    const secondaryScreen=project(secondary.x,secondary.y,secondary.z);
+    ctx.save();
+    ctx.setLineDash([4,5]);
+    ctx.strokeStyle='rgba(102,199,255,0.2)';
+    ctx.lineWidth=0.8;
+    ctx.beginPath();
+    ctx.moveTo(primaryScreen.x,primaryScreen.y);
+    ctx.lineTo(secondaryScreen.x,secondaryScreen.y);
+    for(const name of ['L4','L5']){
+      const state=states.find(point=>point.name===name);
+      const screen=project(state.x,state.y,state.z);
+      ctx.moveTo(primaryScreen.x,primaryScreen.y);
+      ctx.lineTo(screen.x,screen.y);
+      ctx.lineTo(secondaryScreen.x,secondaryScreen.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawOccultationEvent(){
+    if(!activeOccultationEvent) return;
+    const event=activeOccultationEvent;
+    const observer=positionForBody(event.observer,simDaysSinceJ2000);
+    const occulter=positionForBody(event.occulter,simDaysSinceJ2000);
+    if(!observer || !occulter) return;
+    const geometry=occultationGeometryAt(
+      event.observer,event.occulter,simDaysSinceJ2000
+    );
+    if(isLocalOcculter(event.observer,event.occulter)){
+      const observerScreen=project(observer.x,observer.y,observer.z);
+      const occulterScreen=project(occulter.x,occulter.y,occulter.z);
+      ctx.save();
+      ctx.setLineDash([5,5]);
+      ctx.strokeStyle='rgba(114,230,193,0.42)';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(observerScreen.x,observerScreen.y);
+      ctx.lineTo(occulterScreen.x,occulterScreen.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if(
+      !Number.isFinite(geometry.separation) ||
+      geometry.separation>
+        5*(geometry.sourceAngularRadius+geometry.occulterAngularRadius)
+    ) return;
+
+    const centerX=Math.min(W-90,Math.max(90,cx));
+    const centerY=92;
+    const sunRadius=34;
+    const ratio=geometry.occulterAngularRadius/geometry.sourceAngularRadius;
+    const occulterRadius=Math.max(2,Math.min(70,sunRadius*ratio));
+    const offset=Math.min(
+      100,
+      sunRadius*geometry.separation/geometry.sourceAngularRadius
+    );
+    ctx.save();
+    ctx.fillStyle='rgba(10,14,26,0.88)';
+    ctx.strokeStyle='rgba(114,230,193,0.36)';
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.roundRect(centerX-82,centerY-58,164,116,10);
+    ctx.fill();
+    ctx.stroke();
+    const glow=ctx.createRadialGradient(
+      centerX,centerY,0,centerX,centerY,sunRadius*1.5
+    );
+    glow.addColorStop(0,'rgba(255,243,214,1)');
+    glow.addColorStop(0.62,'rgba(242,181,68,0.92)');
+    glow.addColorStop(1,'rgba(242,181,68,0)');
+    ctx.fillStyle=glow;
+    ctx.beginPath();
+    ctx.arc(centerX,centerY,sunRadius*1.5,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='#fff1c7';
+    ctx.beginPath();
+    ctx.arc(centerX,centerY,sunRadius,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='#080b13';
+    ctx.strokeStyle=event.occulter.color||'#b9c1d9';
+    ctx.beginPath();
+    ctx.arc(centerX+offset,centerY,occulterRadius,0,Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle='#72e6c1';
+    ctx.font='8.5px "SF Mono", Consolas, monospace';
+    ctx.textAlign='center';
+    ctx.fillText(
+      event.label.toUpperCase()+' · '+
+      (geometry.coverage*100).toFixed(geometry.coverage<0.01?2:1)+'%',
+      centerX,centerY+51
+    );
+    ctx.textAlign='start';
+    ctx.restore();
+  }
+
   function draw(){
+    updateRotatingReferenceFrame();
+    drawStars(false);
     updateFollowCamera();
     const nextMoonVisibilityKey=moonVisibilityKey();
     if(nextMoonVisibilityKey!==legendMoonVisibilityKey) buildLegend();
@@ -1244,7 +2041,7 @@ Velocity: not set</div>
     const posByBody = new Map(withPos.map(w=>[w.b,w]));
     withPos.sort((A,B)=> A.scr.depth - B.scr.depth);
 
-    if(heliocentricPathsVisible(zoom)){
+    if(!rotatingReferenceFrame && heliocentricPathsVisible(zoom)){
       // Traveled heliocentric trails are irrelevant and expensive in close moon views.
       for(const b of spacecraft){
         if(!showSpacecraft) break;
@@ -1317,6 +2114,7 @@ Velocity: not set</div>
       }
     }
     drawMoonOrbits(posByBody);
+    drawLagrangeGeometry();
 
     // sun
     const sunP = project(0,0,0);
@@ -1358,7 +2156,28 @@ Velocity: not set</div>
         ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2);
         ctx.clip('evenodd');
       }
-      if(b.kind==='custom'){
+      if(b.kind==='lagrange'){
+        const highlighted=b===selected||b===hovered;
+        const radius=highlighted?5:3.5;
+        ctx.save();
+        ctx.translate(px,py);
+        ctx.strokeStyle=b.color;
+        ctx.fillStyle=hexToRgba(b.color,highlighted?0.42:0.24);
+        ctx.lineWidth=highlighted?1.8:1.1;
+        ctx.beginPath();
+        ctx.arc(0,0,radius,0,Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-radius-3,0); ctx.lineTo(radius+3,0);
+        ctx.moveTo(0,-radius-3); ctx.lineTo(0,radius+3);
+        ctx.stroke();
+        ctx.restore();
+        ctx.font='9px "SF Mono", Consolas, monospace';
+        ctx.fillStyle=highlighted?b.color:'rgba(160,220,244,0.72)';
+        ctx.fillText(b.name,px+radius+5,py-5);
+        b._screen={x:px,y:py,r:Math.max(radius,6)};
+      } else if(b.kind==='custom'){
         const r=b.appearance==='star' ? 7 : b.appearance==='black-hole' ? 6 : 5;
         if(b.appearance==='black-hole'){
           ctx.fillStyle='#05050a';
@@ -1449,6 +2268,7 @@ Velocity: not set</div>
         b._screen.occulted=false;
       }
     }
+    drawOccultationEvent();
     drawBodyInsertionPreview();
 
     updateDateUI();
@@ -1477,10 +2297,12 @@ Velocity: not set</div>
 
   function fmtPeriod(days){ return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years'; }
   function fmtMass(body){
+    if(body.kind==='lagrange') return '0 kg (equilibrium point)';
     const mass=body.massKg||MASS_KG[body.name];
     return mass ? mass.toExponential(3).replace('e+','e')+' kg' : '0 kg (test particle)';
   }
   function wikipediaTitleForBody(body){
+    if(body.kind==='lagrange') return 'Lagrange point';
     if(WIKIPEDIA_TITLES[body.name]) return WIKIPEDIA_TITLES[body.name];
     if(body.kind==='custom') return BODY_PRESETS[body.appearance]?.label||null;
     return null;
@@ -1508,6 +2330,33 @@ Velocity: not set</div>
     const rowEcc=document.getElementById('rowEcc');
     const rowIncl=document.getElementById('rowIncl');
     const custom=selected.kind==='custom';
+    const lagrange=selected.kind==='lagrange';
+    if(lagrange){
+      rowEcc.style.display='none';
+      rowIncl.style.display='none';
+      rowPeriod.style.display='';
+      document.getElementById('cardPeriod').textContent='Co-rotating';
+      if(!pos){
+        document.getElementById('cardDist').textContent='Outside branch range';
+        document.getElementById('cardSpeed').textContent='—';
+        document.getElementById('cardNote').style.display='';
+        document.getElementById('cardNote').textContent=
+          'The selected system does not exist at this simulation date.';
+        return;
+      }
+      document.getElementById('cardDist').textContent=pos.r.toFixed(3)+' AU';
+      document.getElementById('cardSpeed').textContent=pos.speedKmS.toFixed(2)+' km/s';
+      const primary=selected.system.primary.name;
+      const secondary=selected.system.secondary.name;
+      document.getElementById('cardNote').style.display='';
+      document.getElementById('cardNote').textContent=
+        selected.name+' is an instantaneous circular restricted three-body '+
+        'equilibrium estimate for '+primary+' and '+secondary+'. Distance from '+
+        secondary+': '+(pos.distanceFromSecondary*AU_KM).toLocaleString(
+          undefined,{maximumFractionDigits:0}
+        )+' km.';
+      return;
+    }
     rowEcc.style.display=custom?'none':'';
     rowIncl.style.display=custom?'none':'';
     if(!pos){
@@ -1560,7 +2409,7 @@ Velocity: not set</div>
       noteEl.textContent='Perihelion '+selected.perihelion+' at '+selected.q.toFixed(3)+' AU. '+source+selected.notes;
     } else if(selected.kind==='moon'){
       noteEl.style.display='';
-      noteEl.textContent=selected.notes+' Orbital elements are approximate and the moon is not integrated as a separate N-body mass.';
+      noteEl.textContent=selected.notes+' Future motion uses hierarchical perturbation integration from '+HYBRID_EPOCH_DATE+'.';
     }
     else if(pos.nbody){
       noteEl.style.display='';
@@ -1631,18 +2480,61 @@ Velocity: not set</div>
       row.addEventListener('click',()=>toggleLegendBodySelection(comet));
       el.appendChild(row);
     }
+    if(showLagrangePoints && activeLagrangeSystem){
+      const label=document.createElement('div');
+      label.className='grp-label';
+      label.textContent=activeLagrangeSystem.primary.name+'–'+
+        activeLagrangeSystem.secondary.name+' Lagrange points';
+      el.appendChild(label);
+      for(const point of activeLagrangeSystem.points){
+        const row=document.createElement('div');
+        row.className='item';
+        row.innerHTML=`<span class="diamond" style="background:${point.color}"></span>${point.name}`;
+        row.addEventListener('click',()=>toggleLegendBodySelection(point));
+        el.appendChild(row);
+      }
+    }
     legendMoonVisibilityKey=moonVisibilityKey();
   }
   function setSelectedBody(body,syncMission=true){
     const previous=selected;
     selected=body;
-    if(!body || (followTarget===previous && followTarget!==body)) setFollowTarget(null);
+    if(body?.kind==='lagrange'){
+      activeLagrangeSystem=body.system;
+      showLagrangePoints=true;
+      setFollowTarget(body.system.secondary);
+    } else {
+      const previousSystem=activeLagrangeSystem;
+      const system=showLagrangePoints ? lagrangeSystemForBody(body) : null;
+      activeLagrangeSystem=system;
+      if(system?.key!==previousSystem?.key) rotatingYawOffset=0;
+      if(!system){
+        showLagrangePoints=false;
+        rotatingReferenceFrame=false;
+        rotatingYawOffset=0;
+      }
+      if(!body || (followTarget===previous && followTarget!==body)){
+        setFollowTarget(null);
+      }
+    }
     if(body?.kind==='spacecraft'){
       if(syncMission) syncMissionToSpacecraft(body);
       setPanelVisible('missionPanel',true);
     } else if(previous?.kind==='spacecraft'){
       setPanelVisible('missionPanel',false);
     }
+    updateLagrangeControls();
+    if(
+      occultationObservers.includes(body) &&
+      !document.getElementById('occultationPanel').classList.contains('panel-hidden')
+    ){
+      const observerSelect=document.getElementById('occultationObserver');
+      if(observerSelect.value!==body.name){
+        observerSelect.value=body.name;
+        observerSelect.dispatchEvent(new Event('change'));
+      }
+    }
+    buildLegend();
     toggleCard();
   }
   function toggleBodySelection(body){
@@ -1654,6 +2546,12 @@ Velocity: not set</div>
       return;
     }
     setSelectedBody(body);
+    if(body.kind==='lagrange'){
+      setFollowTarget(body.system.secondary);
+      updateFollowCamera();
+      invalidateProjection();
+      return;
+    }
     const pos=positionForBody(body,simDaysSinceJ2000);
     if(pos){
       const parentName=body.kind==='moon'
@@ -1790,10 +2688,22 @@ Velocity: not set</div>
             onProgress:progress=>{
               if(revision===dateNavigationRevision){
                 detail.textContent='Preparing future N-body state for '+requestedDate+
-                  '… '+Math.round(progress*100)+'%';
+                  '… '+Math.round(progress*35)+'%';
               }
             }
           });
+          if(prepared){
+            prepared=await moonBranchAt(targetDays).simulator.prepareTo(targetDays,{
+              chunkDays:30,
+              cancelled:()=>revision!==dateNavigationRevision,
+              onProgress:progress=>{
+                if(revision===dateNavigationRevision){
+                  detail.textContent='Preparing future N-body state for '+requestedDate+
+                    '… '+Math.round(35+progress*65)+'%';
+                }
+              }
+            });
+          }
         } catch(error){
           if(revision===dateNavigationRevision){
             e.target.disabled=false;
@@ -1811,10 +2721,69 @@ Velocity: not set</div>
     renderMissionEvents();
   }
 
+  function buildOccultationControls(){
+    const select=document.getElementById('occultationObserver');
+    select.innerHTML='';
+    const planetGroup=document.createElement('optgroup');
+    planetGroup.label='Planets';
+    const moonGroup=document.createElement('optgroup');
+    moonGroup.label='Moons';
+    for(const observer of occultationObservers){
+      const option=document.createElement('option');
+      option.value=observer.name;
+      option.textContent=observer.name;
+      (observer.kind==='moon'||observer===charon
+        ? moonGroup
+        : planetGroup
+      ).appendChild(option);
+    }
+    select.appendChild(planetGroup);
+    select.appendChild(moonGroup);
+    select.value='Earth';
+    select.addEventListener('change',()=>{
+      occultationSearchRevision++;
+      activeOccultationEvent=null;
+      document.getElementById('previousOccultationBtn').disabled=false;
+      document.getElementById('nextOccultationBtn').disabled=false;
+      document.getElementById('occultationStatus').textContent=
+        'Search for the previous or next event visible from '+select.value+'.';
+    });
+    document.getElementById('occultationType').addEventListener('change',()=>{
+      occultationSearchRevision++;
+      activeOccultationEvent=null;
+      document.getElementById('previousOccultationBtn').disabled=false;
+      document.getElementById('nextOccultationBtn').disabled=false;
+      document.getElementById('occultationStatus').textContent=
+        'Search for the selected event type visible from '+select.value+'.';
+    });
+    document.getElementById('previousOccultationBtn').addEventListener(
+      'click',()=>findOccultation(-1)
+    );
+    document.getElementById('nextOccultationBtn').addEventListener(
+      'click',()=>findOccultation(1)
+    );
+  }
+
+  function setOccultationPanelVisible(visible){
+    if(!visible){
+      occultationSearchRevision++;
+      activeOccultationEvent=null;
+      document.getElementById('previousOccultationBtn').disabled=false;
+      document.getElementById('nextOccultationBtn').disabled=false;
+    }
+    setPanelVisible('occultationPanel',visible);
+    document.getElementById('occultationBtn').classList.toggle('active',visible);
+    if(visible && occultationObservers.includes(selected)){
+      document.getElementById('occultationObserver').value=selected.name;
+    }
+  }
+
   // ---------- Interaction: hover + pointer rotate/pan/pinch/tap ----------
   function hitTest(mx,my){
     const list = visibleBodies();
-    const marker = list.find(b=> b.kind==='moon' && b._screen && !b._screen.occulted &&
+    const marker = list.find(b=> b.kind==='lagrange' && b._screen &&
+      Math.hypot(mx-b._screen.x,my-b._screen.y)<b._screen.r+6) ||
+      list.find(b=> b.kind==='moon' && b._screen && !b._screen.occulted &&
       Math.hypot(mx-b._screen.x, my-b._screen.y) < b._screen.r+7) ||
       list.find(b=> b._screen && !b._screen.occulted &&
       Math.hypot(mx-b._screen.x, my-b._screen.y) < b._screen.r+5);
@@ -1930,6 +2899,10 @@ Velocity: not set</div>
       const rotation=rotationFromDrag(dragStartInfo.yaw,dragStartInfo.tilt,dx,dy);
       viewYaw=rotation.yaw;
       viewTilt=rotation.tilt;
+      if(rotatingReferenceFrame){
+        const baseYaw=rotatingBaseYaw();
+        if(baseYaw!==null) rotatingYawOffset=viewYaw-baseYaw;
+      }
       if(dragStartInfo.rotationPivot){
         const pivot=dragStartInfo.rotationPivot;
         const currentPosition=positionForBody(pivot.body,simDaysSinceJ2000)||
@@ -2067,6 +3040,7 @@ Velocity: not set</div>
       return;
     }
     const currentState=cloneState(hybridSnapshotAt(simDaysSinceJ2000));
+    const currentMoonState=cloneMoonState(moonSnapshotAt(simDaysSinceJ2000));
     if([...currentState.massive,...currentState.particles].some(body=>body.name===name)){
       detail.textContent='A body named "'+name+'" already exists at this date.';
       return;
@@ -2102,6 +3076,9 @@ Velocity: not set</div>
     for(let i=hybridBranches.length-1;i>=0;i--){
       if(hybridBranches[i].epoch>simDaysSinceJ2000) hybridBranches.splice(i,1);
     }
+    for(let i=moonBranches.length-1;i>=0;i--){
+      if(moonBranches[i].epoch>simDaysSinceJ2000) moonBranches.splice(i,1);
+    }
     for(let i=customBodies.length-1;i>=0;i--){
       if(customBodies[i].introducedAt>simDaysSinceJ2000) customBodies.splice(i,1);
     }
@@ -2114,6 +3091,14 @@ Velocity: not set</div>
       simulator
     });
     hybridBranches.sort((a,b)=>a.epoch-b.epoch||a.id-b.id);
+    moonBranches.push({
+      id:++moonBranchSequence,
+      epoch:simDaysSinceJ2000,
+      simulator:createMoonSimulator(
+        currentMoonState,moonExternalStateAt
+      )
+    });
+    moonBranches.sort((a,b)=>a.epoch-b.epoch||a.id-b.id);
     const body={
       kind:'custom',
       category:preset.label,
@@ -2124,6 +3109,8 @@ Velocity: not set</div>
     };
     customBodies.push(body);
     hybridSnapshotCache.clear();
+    moonSnapshotCache.clear();
+    moonExternalCache.clear();
     hybridTrailCache.clear();
     orbitLayerDirty=true;
     setSelectedBody(body);
@@ -2133,6 +3120,13 @@ Velocity: not set</div>
   document.getElementById('bodyPlaceBtn').addEventListener('click',beginBodyPlacement);
   document.getElementById('bodyInsertBtn').addEventListener('click',insertDraftBody);
   document.getElementById('bodyCancelBtn').addEventListener('click',closeBodyPanel);
+  document.getElementById('lagrangeBtn').addEventListener('click',()=>{
+    setLagrangeVisibility(!showLagrangePoints);
+    buildLegend();
+  });
+  document.getElementById('rotatingFrameBtn').addEventListener('click',()=>{
+    setRotatingReferenceFrame(!rotatingReferenceFrame);
+  });
   document.getElementById('addBodyBtn').addEventListener('click',()=>{
     const panel=document.getElementById('bodyPanel');
     const visible=panel.classList.toggle('show');
@@ -2236,6 +3230,13 @@ Velocity: not set</div>
   document.getElementById('perfBtn').addEventListener('click',toggleProfiler);
   document.getElementById('perfClose').addEventListener('click',()=>setProfilerVisible(false));
   document.getElementById('missionClose').addEventListener('click',()=>setPanelVisible('missionPanel',false));
+  document.getElementById('occultationBtn').addEventListener('click',()=>{
+    const panel=document.getElementById('occultationPanel');
+    setOccultationPanelVisible(panel.classList.contains('panel-hidden'));
+  });
+  document.getElementById('occultationClose').addEventListener(
+    'click',()=>setOccultationPanelVisible(false)
+  );
   document.getElementById('viewPreset').addEventListener('change',(e)=>{
     const name=e.target.value;
     if(name==='Current'){
@@ -2245,6 +3246,9 @@ Velocity: not set</div>
     const zoomByPreset={Inner:4.5,Outer:0.28,Deep:0.045};
     zoom=zoomByPreset[name];
     panX=0; panY=0; viewYaw=0; viewTilt=DEFAULT_TILT;
+    rotatingReferenceFrame=false;
+    rotatingYawOffset=0;
+    updateLagrangeControls();
     if(name!=='Inner') showSpacecraft=true;
     setFollowTarget(null);
     invalidateProjection();
@@ -2273,6 +3277,12 @@ Velocity: not set</div>
     if(e.code==='KeyP') toggleProfiler();
     if(e.code==='KeyM') togglePanel('missionPanel');
     if(e.code==='KeyL') togglePanel('legend');
+    if(e.code==='KeyG') setLagrangeVisibility(!showLagrangePoints);
+    if(e.code==='KeyR') setRotatingReferenceFrame(!rotatingReferenceFrame);
+    if(e.code==='KeyE'){
+      const panel=document.getElementById('occultationPanel');
+      setOccultationPanelVisible(panel.classList.contains('panel-hidden'));
+    }
   });
   window.addEventListener('keyup',(e)=>{
     if(e.code!=='Space' || !spaceToggleArmed) return;
@@ -2312,7 +3322,9 @@ Velocity: not set</div>
   }
 
   buildMissionTimeline();
+  buildOccultationControls();
   buildLegend();
+  updateLagrangeControls();
   resize();
   window.addEventListener('resize', resize);
   requestAnimationFrame(loop);

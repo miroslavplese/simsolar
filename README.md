@@ -15,6 +15,10 @@ web server is required.
 - Eight planets, Pluto and Charon, 13 major planetary moons, and six spacecraft
 - Five iconic comets with JPL-derived paths and Sun-facing tails
 - Future-only Newtonian N-body gravity initialized from JPL state vectors
+- Hierarchical major-moon dynamics with external and mutual perturbations
+- Selectable L1-L5 markers and co-rotating Sun-planet or planet-moon views
+- Observer-based solar eclipse and planetary transit search with apparent-disk previews
+- Deterministic celestial star sphere that follows camera and co-rotating-frame motion
 - Interactive insertion of configurable stars, black holes, planets, and comets
 - Animated simulation clock with adjustable speed and direction
 - Mission timeline with launch/flyby jumps and UTC date navigation
@@ -32,6 +36,8 @@ web server is required.
 | --- | --- |
 | `solar-system.html` | Complete application: markup, styles, data, simulation, rendering, and input |
 | `data/planet-ephemerides.js` | Generated NASA/JPL Horizons planet state vectors |
+| `data/planet-cutoff-states.js` | Exact NASA/JPL Horizons future-integration seed vectors |
+| `data/moon-cutoff-states.js` | Generated NASA/JPL Horizons major-moon cutoff vectors |
 | `data/spacecraft-trajectories.js` | Generated NASA/JPL Horizons trajectory samples |
 | `data/comet-ephemerides.js` | Generated NASA/JPL Horizons comet state vectors |
 | `docs/DESIGN.md` | Architecture, data model, numerical assumptions, and design decisions |
@@ -40,18 +46,26 @@ web server is required.
 | `src/mission-timeline.js` | Shared mission navigation helpers |
 | `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
 | `src/view-transform.js` | Camera rotation and view-space transformation helpers |
+| `src/star-field.js` | Deterministic celestial-sphere generation and camera projection |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
 | `src/body-lighting.js` | Lambert sphere lighting and geometric shadow tests |
-| `src/moon-system.js` | Parent-relative major-moon orbits and visibility thresholds |
+| `src/moon-system.js` | Major-moon metadata and visibility thresholds |
+| `src/hierarchical-moon-simulation.js` | Perturbed parent-moon hierarchy integration |
 | `src/ring-system.js` | Physical ring bands and 3D equatorial-plane geometry |
+| `src/lagrange-system.js` | Restricted three-body L1-L5 calculations and frame alignment |
+| `src/occultation-system.js` | Apparent-disk overlap geometry and event refinement |
 | `src/nbody-simulation.js` | Barycentric Newtonian integration and checkpoint replay |
 | `tests/trajectory-tests.js` | Dependency-free numerical regression suite |
+| `tests/star-field-tests.js` | Star generation and camera-relative projection tests |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
 | `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
 | `tests/body-lighting-tests.js` | Illumination and planet-shadow geometry tests |
 | `tests/moon-system-tests.js` | Moon orbit, visibility, and focus-zoom tests |
+| `tests/hierarchical-moon-tests.js` | Moon conservation, perturbation, continuity, and stability tests |
 | `tests/ring-system-tests.js` | Planetary ring dimensions and projection tests |
+| `tests/lagrange-system-tests.js` | Collinear, triangular, and rotating-frame tests |
+| `tests/occultation-system-tests.js` | Eclipse, transit, overlap, and event-search tests |
 | `tests/nbody-tests.js` | Conservation, continuity, and deterministic replay tests |
 | `tools/fetch-trajectories.py` | Reproducible Horizons data generator |
 
@@ -69,9 +83,12 @@ web server is required.
   cutover epoch.
 - Future gravity is Newtonian. Relativistic effects, close-encounter
   regularization, collisions, maneuvers, and comet outgassing are not modeled.
-- Major moons use approximate parent-relative Keplerian display orbits and are
-  revealed only in close planetary views. They are not separate N-body masses;
-  Earth's gravitational parameter continues to include the Moon.
+- Historical major-moon positions are two-body continuations from authoritative
+  cutoff vectors; historical planetary and mutual perturbations are not replayed.
+- Future moon dynamics cover 13 major moons. Omitted satellites remain absorbed
+  into each parent system's gravitational parameter.
+- Eclipse and transit events use center-of-body observers. Surface visibility
+  paths, atmospheric refraction, and formal contact times are not yet modeled.
 - Planet and spacecraft data is embedded in the application.
 - Dynamic body positions and traveled trails are rendered every animation frame,
   except that off-screen heliocentric paths are suppressed in close moon views.
@@ -82,13 +99,16 @@ web server is required.
 
 Historical dates use bundled JPL ephemerides. At
 `2026-08-12 00:00:00 UTC`, JPL-backed position and velocity vectors initialize
-a barycentric Newtonian simulation. The Sun, planets, Pluto, and Charon
-interact pairwise; spacecraft and comets are massless test particles. A
-fixed-step velocity-Verlet integrator and eight-day checkpoints provide
-deterministic future date navigation. Long jumps are prepared in bounded chunks
-so the browser can repaint progress between them. Relativistic effects and
-compact-object close encounters remain deferred. The browser UI currently caps
-future navigation at 2100 to bound integration time and checkpoint memory.
+from exact cutoff samples rather than sparse-ephemeris interpolation. Planetary
+systems are represented globally
+by their system barycenters. A nested 0.05-day moon integrator combines exact
+parent-moon Kepler drift with external tidal, mutual-moon, and parent-recoil
+kicks. Spacecraft and comets remain massless test particles. Checkpoints provide
+deterministic future navigation, and custom massive bodies perturb both global
+and moon-system branches. Long jumps are prepared in bounded chunks so the
+browser can repaint progress between them. Relativistic effects and compact-
+object close encounters remain deferred. The browser UI currently caps future
+navigation at 2100 to bound integration time and checkpoint memory.
 
 ## Contributing
 
@@ -106,8 +126,8 @@ npm test
 
 The dependency-free Node test suite validates source-sample interpolation,
 ephemeris endpoint continuity, long-range propagation, N-body conservation and
-deterministic replay, launch proximity, flyby alignment, and mission navigation
-helpers.
+deterministic replay, hierarchical moon continuity and stability, launch
+proximity, flyby alignment, and mission navigation helpers.
 
 ## Refresh trajectory data
 

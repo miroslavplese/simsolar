@@ -102,11 +102,25 @@ introduced.
   to full 3D.
 - [ ] Investigate adaptive close-encounter integration and relativistic
   corrections as a later, separate capability.
+- [ ] Add an opt-in collision and fragmentation model with deterministic debris
+  generation and explicit performance limits.
 
 ## Completed
 
+- [x] 2026-08-14 - Replaced static screen-space stars with a deterministic
+  celestial sphere that responds to camera and co-rotating-frame orientation.
+- [x] 2026-08-14 - Added observer-based solar eclipse and transit search,
+  apparent-disk classification and coverage, cancellable navigation, and event
+  previews for modeled planets and moons.
+- [x] 2026-08-14 - Added exact JPL planet vectors at the future cutover to avoid
+  sparse-interpolation velocity error in N-body initialization.
+- [x] 2026-08-14 - Added selectable L1-L5 markers, true-scale system guides,
+  auto-fit navigation, and co-rotating Sun-planet and planet-moon frames.
+- [x] 2026-08-14 - Initialized 13 major moons from JPL Horizons cutoff vectors
+  and added hierarchical future dynamics with external tides, mutual moon
+  perturbations, parent recoil, checkpoints, and custom-body branches.
 - [x] 2026-08-14 - Added close-view rendering, selection, and approximate
-  parent-relative orbits for 13 major planetary moons.
+  parent-relative display metadata for 13 major planetary moons.
 - [x] 2026-08-13 - Added Pluto, Charon, and their New Horizons encounter using
   matching NASA/JPL Horizons state vectors.
 - [x] 2026-08-12 - Added baseline project, design, and roadmap documentation.

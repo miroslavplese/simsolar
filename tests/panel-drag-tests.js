@@ -20,6 +20,7 @@ assert.deepEqual(
 assert.match(DEFAULT_INTERACTIVE_SELECTOR,/\bbutton\b/);
 assert.match(DEFAULT_INTERACTIVE_SELECTOR,/\binput\b/);
 assert.match(DEFAULT_INTERACTIVE_SELECTOR,/\.item/);
+assert.match(DEFAULT_INTERACTIVE_SELECTOR,/\.grp-label/);
 
 const listeners=new Map();
 const windowListeners=new Map();

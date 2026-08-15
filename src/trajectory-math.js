@@ -155,20 +155,21 @@
     return 1/6-z/120+z*z/5040;
   }
 
-  function propagateState(origin,days){
+  function propagateState(origin,days,mu){
     if(days===0) return {...origin};
+    const gravitationalParameter=mu||GM_SUN_AU_DAY;
     const r0=Math.hypot(origin.x,origin.y,origin.z);
     const v0sq=origin.vx*origin.vx+origin.vy*origin.vy+origin.vz*origin.vz;
     const rv=origin.x*origin.vx+origin.y*origin.vy+origin.z*origin.vz;
-    const alpha=2/r0-v0sq/GM_SUN_AU_DAY;
-    const sqrtMu=Math.sqrt(GM_SUN_AU_DAY);
+    const alpha=2/r0-v0sq/gravitationalParameter;
+    const sqrtMu=Math.sqrt(gravitationalParameter);
     let chi;
     if(alpha>1e-10){
       chi=sqrtMu*alpha*days;
     } else if(alpha<-1e-10){
       const sign=Math.sign(days)||1;
-      const root=Math.sqrt(-GM_SUN_AU_DAY/alpha);
-      const argument=(-2*GM_SUN_AU_DAY*alpha*days)/(rv+sign*root*(1-r0*alpha));
+      const root=Math.sqrt(-gravitationalParameter/alpha);
+      const argument=(-2*gravitationalParameter*alpha*days)/(rv+sign*root*(1-r0*alpha));
       chi=sign*Math.sqrt(-1/alpha)*Math.log(Math.max(argument,1e-12));
     } else {
       chi=sqrtMu*days/r0;

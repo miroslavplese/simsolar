@@ -4,6 +4,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {
   GM_BY_BODY,
+  MOON_GM_BY_BODY,
   MASS_KG,
   massKgToMu,
   cloneState,
@@ -19,6 +20,8 @@ const year=365.25;
 assert.equal(MASS_KG.Earth,5.97237e24);
 assert.equal(MASS_KG.Pluto,1.303e22);
 assert.equal(MASS_KG.Charon,1.586e21);
+assert.ok(MOON_GM_BY_BODY.Moon>MOON_GM_BY_BODY.Triton);
+assert.ok(MOON_GM_BY_BODY.Phobos<MOON_GM_BY_BODY.Deimos*10);
 assert.ok(Math.abs(massKgToMu(MASS_KG.Sun)-GM_BY_BODY.Sun)/GM_BY_BODY.Sun<1e-4);
 assert.throws(()=>massKgToMu(0),/positive finite/);
 const circularSpeed=Math.sqrt((GM_BY_BODY.Sun+GM_BY_BODY.Earth)/1);
@@ -58,6 +61,11 @@ const replayA=simulator.stateAt(123.456);
 simulator.stateAt(500);
 const replayB=simulator.stateAt(123.456);
 assert.deepEqual(replayB,replayA);
+assert.deepEqual(
+  simulator.massiveStateAt(123.456),
+  replayA.massive,
+  'massive-only sampling must match the full integration'
+);
 
 const withoutParticle=createBarycentricState(0,[
   {name:'Sun',mu:GM_BY_BODY.Sun,state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}},
@@ -99,10 +107,27 @@ function loadGenerated(relativePath,key){
 }
 
 const planets=loadGenerated('data/planet-ephemerides.js','PLANET_EPHEMERIDES').ephemerides;
+const planetCutoff=loadGenerated(
+  'data/planet-cutoff-states.js','PLANET_CUTOFF_STATES'
+).states;
 const spacecraft=loadGenerated('data/spacecraft-trajectories.js','SPACECRAFT_TRAJECTORIES').trajectories;
 const comets=loadGenerated('data/comet-ephemerides.js','COMET_EPHEMERIDES').ephemerides;
 const j2000=Date.UTC(2000,0,1,12);
 const hybridEpoch=(Date.parse('2026-08-12T00:00:00Z')-j2000)/86400000;
+assert.equal(planetCutoff.Mercury.point[0],hybridEpoch);
+const mercuryCutoff=planetCutoff.Mercury.point;
+const mercuryRadius=Math.hypot(
+  mercuryCutoff[1],mercuryCutoff[2],mercuryCutoff[3]
+);
+const mercurySpeedSq=
+  mercuryCutoff[4]**2+mercuryCutoff[5]**2+mercuryCutoff[6]**2;
+const mercurySemimajor=1/(
+  2/mercuryRadius-mercurySpeedSq/GM_BY_BODY.Sun
+);
+assert.ok(
+  Math.abs(mercurySemimajor-0.3871)<1e-4,
+  `Mercury cutoff osculating semimajor axis: ${mercurySemimajor}`
+);
 
 function stateAtEpoch(points){
   const sampled=sampledStateAt(points,hybridEpoch);
@@ -116,8 +141,16 @@ function stateAtEpoch(points){
 
 const realMassive=[
   {name:'Sun',mu:GM_BY_BODY.Sun,state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}},
-  ...Object.entries(planets).map(([name,record])=>({
-    name,mu:GM_BY_BODY[name],state:stateAtEpoch(record.points)
+  ...Object.keys(planets).map(name=>({
+    name,mu:GM_BY_BODY[name],
+    state:{
+      x:planetCutoff[name].point[1],
+      y:planetCutoff[name].point[2],
+      z:planetCutoff[name].point[3],
+      vx:planetCutoff[name].point[4],
+      vy:planetCutoff[name].point[5],
+      vz:planetCutoff[name].point[6]
+    }
   }))
 ];
 const realParticles=[

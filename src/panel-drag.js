@@ -5,7 +5,8 @@
 })(typeof globalThis!=='undefined' ? globalThis : this,function(root){
   const DEFAULT_INTERACTIVE_SELECTOR=[
     'a','button','input','select','textarea','label',
-    '[contenteditable="true"]','[role="button"]','.btn','.item','.close'
+    '[contenteditable="true"]','[role="button"]',
+    '.btn','.item','.grp-label','.close'
   ].join(',');
 
   function clampPanelPosition(left,top,width,height,viewportWidth,viewportHeight,minVisible){
