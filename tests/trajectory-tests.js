@@ -4,11 +4,17 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {
   GM_SUN_AU_DAY,
+  solveKeplerElliptical,
+  solveKeplerHyperbolic,
+  bodyPosition,
   sampledStateAt,
+  adaptiveTrajectoryPoints,
+  osculatingOrbitPoints,
   propagateState
 }=require('../src/trajectory-math.js');
 const {
   zoomForTarget,
+  zoomForDistance,
   findRelativeEvent
 }=require('../src/mission-timeline.js');
 
@@ -46,11 +52,82 @@ function dateFromJ2000(days){
   return new Date(Date.UTC(2000,0,1,12)+days*86400000).toISOString().slice(0,10);
 }
 
+const straight=adaptiveTrajectoryPoints(
+  {t:0,x:0,y:0,z:0,vx:1,vy:0,vz:0},
+  {t:10,x:10,y:0,z:0,vx:1,vy:0,vz:0},
+  t=>({t,x:t,y:0,z:0,vx:1,vy:0,vz:0}),
+  {tolerance:0.01}
+);
+assert.equal(straight.length,2);
+const curved=adaptiveTrajectoryPoints(
+  {t:-1,x:-1,y:1,z:0,vx:1,vy:-2,vz:0},
+  {t:1,x:1,y:1,z:0,vx:1,vy:2,vz:0},
+  t=>({t,x:t,y:t*t,z:0,vx:1,vy:2*t,vz:0}),
+  {tolerance:0.01}
+);
+assert.ok(curved.length>8);
+for(let i=1;i<curved.length;i++) assert.ok(curved[i].t>curved[i-1].t);
+const currentOrbitState={
+  x:1,y:0,z:0,vx:0,vy:Math.sqrt(GM_SUN_AU_DAY),vz:0
+};
+const osculating=osculatingOrbitPoints(
+  currentOrbitState,GM_SUN_AU_DAY,256
+);
+assert.equal(osculating.length,257);
+assert.deepEqual(osculating[128],{x:1,y:0,z:0});
+for(const point of osculating){
+  close(Math.hypot(point.x,point.y,point.z),1,1e-12,'circular osculating radius');
+}
+
 const spacecraft=loadGenerated('data/spacecraft-trajectories.js','SPACECRAFT_TRAJECTORIES').trajectories;
 const planets=loadGenerated('data/planet-ephemerides.js','PLANET_EPHEMERIDES').ephemerides;
 const comets=loadGenerated('data/comet-ephemerides.js','COMET_EPHEMERIDES').ephemerides;
 
 let assertions=0;
+
+const ellipticalCases=[
+  [0,0],
+  [0.2,1e-12],
+  [1.7,0.5],
+  [Math.PI,0.999999],
+  [1e-6,0.999999]
+];
+for(const [meanAnomaly,eccentricity] of ellipticalCases){
+  const eccentricAnomaly=solveKeplerElliptical(meanAnomaly,eccentricity);
+  close(
+    eccentricAnomaly-eccentricity*Math.sin(eccentricAnomaly),
+    meanAnomaly,
+    1e-11,
+    `elliptical Kepler residual at e=${eccentricity}`
+  );
+  assertions++;
+}
+
+const hyperbolicCases=[
+  [0,1.000001],
+  [1e-6,1.000001],
+  [-2.5,1.2],
+  [10,3.7]
+];
+for(const [meanAnomaly,eccentricity] of hyperbolicCases){
+  const hyperbolicAnomaly=solveKeplerHyperbolic(meanAnomaly,eccentricity);
+  close(
+    eccentricity*Math.sinh(hyperbolicAnomaly)-hyperbolicAnomaly,
+    meanAnomaly,
+    1e-11,
+    `hyperbolic Kepler residual at e=${eccentricity}`
+  );
+  assertions++;
+}
+
+const circularBody={
+  a:1,e:0,i:0,Omega:0,omega:0,M0:0,n:1,epochDays:0
+};
+const circularPosition=bodyPosition(circularBody,90);
+close(circularPosition.r,1,1e-12,'circular orbit radius');
+close(Math.hypot(circularPosition.x,circularPosition.y),1,1e-12,'circular orbit plane distance');
+assert.ok(Number.isFinite(circularPosition.z),'circular orbit z position must be finite');
+assertions+=3;
 
 for(const [name,record] of Object.entries({...spacecraft,...planets,...comets})){
   const points=record.points;
@@ -95,6 +172,20 @@ for(const [name,record] of Object.entries(spacecraft)){
   }
 }
 
+const localMu=1e-6;
+const localRadius=0.01;
+const localPeriod=2*Math.PI*Math.sqrt(localRadius**3/localMu);
+const localOrigin={
+  t:0,x:localRadius,y:0,z:0,
+  vx:0,vy:Math.sqrt(localMu/localRadius),vz:0
+};
+const localOrbit=propagateState(localOrigin,localPeriod,localMu);
+close(localOrbit.x,localOrigin.x,1e-11,'arbitrary-mu orbit x closure');
+close(localOrbit.y,localOrigin.y,1e-11,'arbitrary-mu orbit y closure');
+close(localOrbit.vx,localOrigin.vx,1e-11,'arbitrary-mu orbit vx closure');
+close(localOrbit.vy,localOrigin.vy,1e-11,'arbitrary-mu orbit vy closure');
+assertions+=4;
+
 const flybys=[
   ['Voyager 1','Jupiter','1979-03-05',0.03],
   ['Voyager 1','Saturn','1980-11-12',0.03],
@@ -106,6 +197,8 @@ const flybys=[
   ['Pioneer 11','Jupiter','1974-12-03',0.03],
   ['Pioneer 11','Saturn','1979-09-01',0.03],
   ['New Horizons','Jupiter','2007-02-28',0.03],
+  ['New Horizons','Pluto','2015-07-14',0.001],
+  ['New Horizons','Charon','2015-07-14',0.001],
   ['Parker Solar Probe','Venus','2024-11-06',0.03]
 ];
 
@@ -162,6 +255,10 @@ assert.equal(findRelativeEvent(navigationEvents,5,-1),null);
 assert.equal(findRelativeEvent(navigationEvents,35,1),null);
 assert.equal(zoomForTarget('Jupiter'),1.15);
 assert.equal(zoomForTarget('Unknown'),1);
-assertions+=6;
+assert.equal(zoomForDistance(0),4.5);
+assert.equal(zoomForDistance(5.5),1);
+assert.equal(zoomForDistance(200),0.045);
+assert.equal(zoomForDistance(Number.NaN),1);
+assertions+=10;
 
 console.log(`Trajectory regression tests passed (${assertions.toLocaleString()} assertions).`);

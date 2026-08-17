@@ -1,0 +1,45 @@
+const assert=require('node:assert/strict');
+const {
+  AU_KM,
+  smoothstep,
+  physicalRadiusPixels,
+  planetMarkerRadiusPixels,
+  displayRadiusPixels,
+  distanceToSegment,
+  distanceToPolyline
+}=require('../src/body-rendering.js');
+
+assert.equal(smoothstep(20,50,10),0);
+assert.equal(smoothstep(20,50,35),0.5);
+assert.equal(smoothstep(20,50,60),1);
+assert.equal(physicalRadiusPixels(AU_KM,2,46),92);
+assert.equal(planetMarkerRadiusPixels(6371),2.2);
+assert.ok(planetMarkerRadiusPixels(69911)>5);
+assert.equal(planetMarkerRadiusPixels(69911),Math.sqrt(69911)*0.022);
+
+const marker=displayRadiusPixels({
+  radiusKm:6371,zoom:1,auPixels:46,markerRadius:4,systemRadiusAu:0.00257
+});
+assert.equal(marker.radius,4);
+assert.equal(marker.scaleAccurate,false);
+
+const transition=displayRadiusPixels({
+  radiusKm:6371,zoom:35/(0.00257*46),auPixels:46,
+  markerRadius:22,systemRadiusAu:0.00257
+});
+assert.equal(transition.scaleBlend,0.5);
+assert.equal(transition.radius,22);
+assert.equal(transition.scaleAccurate,false);
+
+const close=displayRadiusPixels({
+  radiusKm:6371,zoom:70/(0.00257*46),auPixels:46,
+  markerRadius:22,systemRadiusAu:0.00257
+});
+assert.equal(close.radius,close.physicalRadius);
+assert.equal(close.scaleAccurate,true);
+
+assert.equal(distanceToSegment(5,3,0,0,10,0),3);
+assert.equal(distanceToSegment(-2,0,0,0,10,0),2);
+assert.equal(distanceToPolyline(10,4,[{x:0,y:0},{x:10,y:0},{x:10,y:10}]),0);
+
+console.log('Body rendering tests passed.');
