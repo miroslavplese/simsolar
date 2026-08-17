@@ -129,11 +129,13 @@ The runtime uses a hybrid historical/future model:
 - Rendering converts integrated states back to Sun-relative coordinates,
   preserving the visualization's heliocentric presentation.
 
-`src/nbody-simulation.js` uses velocity Verlet with a fixed 0.25-day massive-body
-timestep. Massless particles use 0.03125-day substeps while the massive-body
-positions are interpolated across each main step. Parker Solar Probe selects
-smaller deterministic substeps near massive bodies according to the local
-dynamical timescale so its near-Sun passages remain resolved. Eight-day
+`src/nbody-simulation.js` uses velocity Verlet with a 0.25-day base
+massive-body timestep. Pairs involving a custom massive body select smaller,
+deterministic substeps from predicted closest approach, crossing time, and local
+dynamical time. Particles advance alongside those massive-body substeps instead
+of seeing one linearized flyby. Their normal maximum step is 0.03125 day, and
+Parker Solar Probe selects still smaller deterministic steps near massive
+bodies. Eight-day
 checkpoints make future date queries deterministic and bound replay work;
 queries between main integration steps run a deterministic partial step rather
 than discarding particle substep accuracy. Spacecraft and comet future trails
@@ -236,10 +238,21 @@ insertion date selects the prior branch; inserting after a rewind discards
 branches introduced later. The first version intentionally limits placement
 and velocity to the ecliptic plane.
 
-Relativistic corrections, collisions, maneuvers, comet outgassing,
-close-encounter regularization, and adaptive timesteps are outside this first
-implementation. The synchronous reference integrator is intentionally
-validated before moving equivalent work to a Web Worker.
+Each forward playback interval checks swept physical spheres for every pair
+involving a custom body. Natural radii come from the body catalog; custom radii
+use type-specific mass estimates (stellar mass-radius scaling, Schwarzschild
+radius, constant Earth density, or comet density). The impact monitor also
+provides a constant-velocity warning up to 365 days ahead. Contact pauses at the
+first crossing. Natural-body contacts remain report-only; custom-custom
+contacts may create a volume-conserving, momentum-conserving remnant on matching
+global and moon branches.
+
+Relativistic corrections, fragmentation, maneuvers, comet outgassing, and
+singularity regularization remain outside this implementation. Adaptive
+substepping improves fast Newtonian flybys but does not make extreme
+black-hole encounters physically relativistic. The synchronous reference
+integrator is intentionally validated before moving equivalent work to a Web
+Worker.
 
 ## Rendering lifecycle
 
@@ -354,6 +367,8 @@ Record material design decisions here so later changes retain their rationale.
 | 2026-08-14 | Search occultations using apparent angular-disk overlap. | A center-of-body observer model consistently distinguishes total, annular, partial, and transit geometry while remaining usable for every modeled planet and moon. |
 | 2026-08-14 | Seed future gravity from exact cutoff vectors. | Differentiating sparse display interpolation produced unacceptable inner-planet velocity and event-timing error. |
 | 2026-08-14 | Store stars as inertial unit directions rather than screen pixels. | A celestial sphere makes the background respond naturally to every camera and reference-frame rotation without coupling it to scene zoom or pan. |
+| 2026-08-14 | Detect only collisions involving custom bodies and merge only custom-custom pairs. | Natural major-body collisions are irrelevant on the supported time horizon, while restricted merging avoids unsafe moon-parent and Sun branch rewrites. |
+| 2026-08-16 | Adapt the massive timestep only for pairs involving custom bodies. | Fast stellar flybys need close-approach resolution, while leaving the natural system on its established base step avoids a permanent performance penalty. |
 
 ## Change checklist
 

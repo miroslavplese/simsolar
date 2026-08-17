@@ -97,6 +97,46 @@ assert.ok(Math.hypot(
   branchedEarth.z-baselineEarth.z
 )>1e-10,'inserted massive body must perturb existing bodies');
 
+function flybyState(adaptiveFactor){
+  return createBarycentricState(0,[
+    {
+      name:'Sun',mu:GM_BY_BODY.Sun,
+      state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}
+    },
+    {
+      name:'Flyby star',mu:GM_BY_BODY.Sun,adaptiveFactor,
+      state:{x:-0.08,y:0.015,z:0,vx:0.3,vy:0,vz:0}
+    }
+  ],[
+    {
+      name:'Far probe',
+      state:{
+        x:30,y:0,z:0,vx:0,
+        vy:Math.sqrt(GM_BY_BODY.Sun/30),vz:0
+      }
+    }
+  ]);
+}
+const flybyReference=heliocentricState(
+  createSimulator(flybyState(0),{
+    stepDays:0.001,particleStepDays:0.001
+  }).stateAt(0.6),
+  'Far probe'
+);
+const flybyAdaptive=heliocentricState(
+  createSimulator(flybyState(48),{
+    stepDays:0.25,particleStepDays:0.03125
+  }).stateAt(0.6),
+  'Far probe'
+);
+const flybyError=Math.hypot(
+  flybyAdaptive.x-flybyReference.x,
+  flybyAdaptive.y-flybyReference.y,
+  flybyAdaptive.vx-flybyReference.vx,
+  flybyAdaptive.vy-flybyReference.vy
+);
+assert.ok(flybyError<5e-5,`adaptive flyby error: ${flybyError}`);
+
 assert.throws(()=>simulator.stateAt(-1),/precedes the simulation epoch/);
 
 function loadGenerated(relativePath,key){

@@ -20,6 +20,7 @@ web server is required.
 - Observer-based solar eclipse and planetary transit search with apparent-disk previews
 - Deterministic celestial star sphere that follows camera and co-rotating-frame motion
 - Interactive insertion of configurable stars, black holes, planets, and comets
+- Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
 - Animated simulation clock with adjustable speed and direction
 - Mission timeline with launch/flyby jumps and UTC date navigation
 - Automatic zoom/focus/follow from the body list and spacecraft mission events
@@ -81,8 +82,12 @@ web server is required.
 - Dates beyond the bundled spacecraft vectors are propagated from the final JPL
   position and velocity under solar gravity only until the common N-body
   cutover epoch.
-- Future gravity is Newtonian. Relativistic effects, close-encounter
-  regularization, collisions, maneuvers, and comet outgassing are not modeled.
+- Future gravity is Newtonian. Custom-body contacts are detected using estimated
+  physical radii; impacts with natural bodies are report-only and custom-body
+  merges conserve mass and linear momentum. Custom massive bodies trigger
+  deterministic close-encounter substeps during fast flybys. Relativistic
+  effects, singularity regularization, fragmentation, maneuvers, and comet
+  outgassing are not modeled.
 - Historical major-moon positions are two-body continuations from authoritative
   cutoff vectors; historical planetary and mutual perturbations are not replayed.
 - Future moon dynamics cover 13 major moons. Omitted satellites remain absorbed
@@ -106,9 +111,10 @@ parent-moon Kepler drift with external tidal, mutual-moon, and parent-recoil
 kicks. Spacecraft and comets remain massless test particles. Checkpoints provide
 deterministic future navigation, and custom massive bodies perturb both global
 and moon-system branches. Long jumps are prepared in bounded chunks so the
-browser can repaint progress between them. Relativistic effects and compact-
-object close encounters remain deferred. The browser UI currently caps future
-navigation at 2100 to bound integration time and checkpoint memory.
+browser can repaint progress between them. Adaptive substeps resolve
+Newtonian custom-body flybys, but relativistic compact-object encounters
+remain deferred. The browser UI currently caps future navigation at 2100 to
+bound integration time and checkpoint memory.
 
 ## Contributing
 

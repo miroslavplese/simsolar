@@ -85,6 +85,7 @@
     const massive=massiveDefinitions.map(definition=>({
       name:definition.name,
       mu:definition.mu,
+      adaptiveFactor:definition.adaptiveFactor,
       ...kinematicState(definition.state)
     }));
     const particles=particleDefinitions.map(definition=>{
@@ -175,6 +176,52 @@
     }
   }
 
+  function massiveStepLimit(bodies,stepDays){
+    const span=Math.abs(stepDays);
+    let limit=span;
+    for(let i=0;i<bodies.length;i++){
+      for(let j=i+1;j<bodies.length;j++){
+        const a=bodies[i], b=bodies[j];
+        const adaptiveFactor=Math.max(
+          a.adaptiveFactor||0,b.adaptiveFactor||0
+        );
+        if(!adaptiveFactor) continue;
+        const position={
+          x:a.x-b.x,y:a.y-b.y,z:a.z-b.z
+        };
+        const velocity={
+          x:a.vx-b.vx,y:a.vy-b.vy,z:a.vz-b.vz
+        };
+        const speedSq=
+          velocity.x**2+velocity.y**2+velocity.z**2;
+        const approachTime=speedSq===0 ? 0 : Math.max(0,Math.min(
+          span,
+          -(
+            position.x*velocity.x+
+            position.y*velocity.y+
+            position.z*velocity.z
+          )/speedSq
+        ));
+        const direction=Math.sign(stepDays)||1;
+        const closestDistance=Math.max(1e-9,Math.hypot(
+          position.x+velocity.x*approachTime*direction,
+          position.y+velocity.y*approachTime*direction,
+          position.z+velocity.z*approachTime*direction
+        ));
+        const dynamicalTime=Math.sqrt(
+          closestDistance**3/(a.mu+b.mu)
+        );
+        limit=Math.min(limit,dynamicalTime/adaptiveFactor);
+        if(speedSq>0){
+          limit=Math.min(
+            limit,closestDistance/Math.sqrt(speedSq)/adaptiveFactor
+          );
+        }
+      }
+    }
+    return Math.max(limit,span/1024);
+  }
+
   function particleStepLimit(particle,massive,defaultStep){
     let limit=particle.stepDays||defaultStep;
     if(!particle.adaptiveFactor) return limit;
@@ -194,38 +241,48 @@
   }
 
   function stepState(state,stepDays,particleStepDays){
-    const halfStep=stepDays/2;
-    const massiveStartPositions=state.massive.map(cloneBody);
-    const massiveStart=massiveAccelerations(state.massive);
-    applyHalfKick(state.massive,massiveStart,halfStep);
-    drift(state.massive,stepDays);
-    const massiveEnd=massiveAccelerations(state.massive);
-    applyHalfKick(state.massive,massiveEnd,halfStep);
+    const requestedMassiveStep=massiveStepLimit(state.massive,stepDays);
+    const massiveSubsteps=Math.max(
+      1,Math.ceil(Math.abs(stepDays)/requestedMassiveStep)
+    );
+    const massiveStep=stepDays/massiveSubsteps;
+    for(let massiveSubstep=0;massiveSubstep<massiveSubsteps;massiveSubstep++){
+      const halfStep=massiveStep/2;
+      const massiveStartPositions=state.massive.map(cloneBody);
+      const massiveStart=massiveAccelerations(state.massive);
+      applyHalfKick(state.massive,massiveStart,halfStep);
+      drift(state.massive,massiveStep);
+      const massiveEnd=massiveAccelerations(state.massive);
+      applyHalfKick(state.massive,massiveEnd,halfStep);
 
-    for(const particle of state.particles){
-      const requestedParticleStep=particleStepLimit(
-        particle,massiveStartPositions,particleStepDays||Math.abs(stepDays)
-      );
-      const particleSubsteps=Math.max(1,Math.ceil(Math.abs(stepDays)/requestedParticleStep));
-      const particleStep=stepDays/particleSubsteps;
-      for(let substep=0;substep<particleSubsteps;substep++){
-        const startFraction=substep/particleSubsteps;
-        const endFraction=(substep+1)/particleSubsteps;
-        const particleStart=particleAccelerationBetween(
-          particle,massiveStartPositions,state.massive,startFraction
+      for(const particle of state.particles){
+        const requestedParticleStep=particleStepLimit(
+          particle,massiveStartPositions,
+          particleStepDays||Math.abs(massiveStep)
         );
-        particle.vx+=particleStart.x*particleStep/2;
-        particle.vy+=particleStart.y*particleStep/2;
-        particle.vz+=particleStart.z*particleStep/2;
-        particle.x+=particle.vx*particleStep;
-        particle.y+=particle.vy*particleStep;
-        particle.z+=particle.vz*particleStep;
-        const particleEnd=particleAccelerationBetween(
-          particle,massiveStartPositions,state.massive,endFraction
+        const particleSubsteps=Math.max(
+          1,Math.ceil(Math.abs(massiveStep)/requestedParticleStep)
         );
-        particle.vx+=particleEnd.x*particleStep/2;
-        particle.vy+=particleEnd.y*particleStep/2;
-        particle.vz+=particleEnd.z*particleStep/2;
+        const particleStep=massiveStep/particleSubsteps;
+        for(let substep=0;substep<particleSubsteps;substep++){
+          const startFraction=substep/particleSubsteps;
+          const endFraction=(substep+1)/particleSubsteps;
+          const particleStart=particleAccelerationBetween(
+            particle,massiveStartPositions,state.massive,startFraction
+          );
+          particle.vx+=particleStart.x*particleStep/2;
+          particle.vy+=particleStart.y*particleStep/2;
+          particle.vz+=particleStart.z*particleStep/2;
+          particle.x+=particle.vx*particleStep;
+          particle.y+=particle.vy*particleStep;
+          particle.z+=particle.vz*particleStep;
+          const particleEnd=particleAccelerationBetween(
+            particle,massiveStartPositions,state.massive,endFraction
+          );
+          particle.vx+=particleEnd.x*particleStep/2;
+          particle.vy+=particleEnd.y*particleStep/2;
+          particle.vz+=particleEnd.z*particleStep/2;
+        }
       }
     }
     state.t+=stepDays;

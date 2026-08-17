@@ -100,10 +100,14 @@ introduced.
   stars, black holes, planets, and comets at the current future date.
 - [ ] Extend custom-body placement and velocity controls from the ecliptic plane
   to full 3D.
-- [ ] Investigate adaptive close-encounter integration and relativistic
-  corrections as a later, separate capability.
-- [ ] Add an opt-in collision and fragmentation model with deterministic debris
-  generation and explicit performance limits.
+- [x] 2026-08-16 - Add deterministic adaptive substeps for fast Newtonian
+  encounters involving custom massive bodies.
+- [ ] Investigate relativistic corrections and singularity regularization as a
+  later, separate capability.
+- [x] 2026-08-14 - Add custom-body impact prediction and physical contact
+  detection, automatic pause/report, and optional momentum-conserving merging.
+- [ ] Consider deterministic debris generation with explicit performance limits
+  only if fragmentation becomes a useful interactive scenario.
 
 ## Completed
 
