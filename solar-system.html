@@ -19,7 +19,13 @@
   canvas{ display:block; position:absolute; top:0; left:0; }
   #scene{ touch-action:none; }
 
-  #title{ position:absolute; top:16px; left:20px; font-family:var(--mono); letter-spacing:0.1em; text-transform:uppercase; font-size:10px; color:var(--ink-dim); pointer-events:none; line-height:1.6; }
+  #title{
+    position:absolute; top:16px; left:20px; border:0; background:transparent;
+    font-family:var(--mono); letter-spacing:0.1em; text-transform:uppercase;
+    font-size:10px; color:var(--ink-dim); line-height:1.6; text-align:left;
+    cursor:pointer;
+  }
+  #title:hover, #title:focus-visible{ color:var(--ink); outline:none; }
   #title b{ color:var(--accent); font-weight:600; }
 
   #datebox{ position:absolute; top:14px; right:20px; font-family:var(--mono); font-size:12px; color:var(--ink); text-align:right; pointer-events:none; }
@@ -74,6 +80,27 @@
   #card .note{ font-size:10px; color:var(--ink-dim); margin-top:8px; line-height:1.5; border-top:1px solid var(--line); padding-top:8px; }
   #cardWiki{ display:block; margin-top:9px; color:var(--accent); font:9px var(--mono); text-decoration:none; }
   #cardWiki:hover{ text-decoration:underline; }
+  #aboutPanel{
+    position:absolute; top:50%; left:50%; width:290px;
+    transform:translate(-50%,-50%);
+    background:rgba(17,22,42,0.96); border:1px solid var(--line); border-radius:12px;
+    padding:15px 16px; backdrop-filter:blur(10px); font-family:var(--mono);
+    box-shadow:0 14px 50px rgba(0,0,0,.55);
+  }
+  #aboutPanel .heading{
+    color:var(--accent); font-size:9px; letter-spacing:.09em;
+    text-transform:uppercase; margin-bottom:6px;
+  }
+  #aboutPanel .aboutTitle{ color:var(--ink); font-size:17px; margin-bottom:6px; }
+  #aboutPanel .aboutDescription{
+    color:var(--ink-dim); font:10px/1.55 var(--sans); margin-bottom:11px;
+  }
+  #aboutPanel .row{
+    display:flex; justify-content:space-between; gap:12px; padding:4px 0;
+    border-top:1px solid var(--line); color:var(--ink-dim); font-size:9px;
+  }
+  #aboutPanel .row span:last-child{ color:var(--ink); text-align:right; }
+  #aboutPanel .copyright{ margin-top:10px; color:#5c6690; font-size:8.5px; }
   #card .close{ position:absolute; top:10px; right:12px; cursor:pointer; color:var(--ink-dim); font-size:13px; }
   #card .close:hover{ color:var(--ink); }
   .panel-close{
@@ -193,6 +220,7 @@
     #eventList{ max-height:80px; }
     #bodyPanel{ left:20px; top:230px; width:230px; }
     #impactPanel{ left:20px; top:400px; width:230px; }
+    #aboutPanel{ width:calc(100vw - 40px); }
   }
 </style>
 </head>
@@ -202,7 +230,10 @@
   <canvas id="orbits"></canvas>
   <canvas id="scene"></canvas>
 
-  <div id="title">Orrery <b>·</b> Solar System &amp; Spacecraft<br>JPL ephemerides · 3D projection</div>
+  <button id="title" type="button" title="About Orrery"
+    aria-label="About Orrery" aria-expanded="false">
+    Orrery <b>·</b> Solar System &amp; Spacecraft<br>JPL ephemerides · 3D projection
+  </button>
   <div id="datebox"><span class="yy" id="yearOut">2026</span><span id="dateOut">01 Jan</span><span id="modelOut">JPL EPHEMERIS</span></div>
 
   <div id="mainToolbar" aria-label="Main controls">
@@ -239,6 +270,20 @@
         <option value="Deep">DEEP</option>
       </select>
     </label>
+  </div>
+
+  <div id="aboutPanel" class="panel-hidden">
+    <button class="panel-close" id="aboutClose" type="button"
+      title="Close About" aria-label="Close About">✕</button>
+    <div class="heading">About</div>
+    <div class="aboutTitle">Orrery</div>
+    <div class="aboutDescription">
+      An interactive, JPL-backed Solar System and spacecraft trajectory
+      simulator with future N-body dynamics.
+    </div>
+    <div class="row"><span>Author</span><span>Miroslav Plese</span></div>
+    <div class="row"><span>Build</span><span>2026.08.17.132343</span></div>
+    <div class="copyright">Copyright © 2026 Miroslav Plese. All rights reserved.</div>
   </div>
 
   <div id="legend"></div>
@@ -293,7 +338,9 @@
     <div id="perfNote">Rolling 300-frame window. Preset rows populate after selection.</div>
   </div>
   <div id="bodyPanel">
-    <div class="heading">Introduce massive body</div>
+    <button class="panel-close" id="bodyClose" type="button"
+      title="Close Add Body" aria-label="Close Add Body">✕</button>
+    <div class="heading">Add Body</div>
     <label for="bodyType">Type</label>
     <select id="bodyType">
       <option value="star">Star</option>
@@ -311,7 +358,6 @@ Velocity: not set</div>
     <div class="actions">
       <button class="timelineBtn" id="bodyPlaceBtn" type="button">PLACE</button>
       <button class="timelineBtn" id="bodyInsertBtn" type="button" disabled>INSERT</button>
-      <button class="timelineBtn" id="bodyCancelBtn" type="button">CLOSE</button>
     </div>
     <div id="bodyWarning">Newtonian gravity with physical contact detection. Custom-body radii are estimated from type and mass.</div>
   </div>
@@ -3487,7 +3533,7 @@ Velocity: not set</div>
   document.getElementById('bodyType').addEventListener('change',applyBodyPreset);
   document.getElementById('bodyPlaceBtn').addEventListener('click',beginBodyPlacement);
   document.getElementById('bodyInsertBtn').addEventListener('click',insertDraftBody);
-  document.getElementById('bodyCancelBtn').addEventListener('click',closeBodyPanel);
+  document.getElementById('bodyClose').addEventListener('click',closeBodyPanel);
   document.getElementById('impactBtn').addEventListener('click',()=>{
     const panel=document.getElementById('impactPanel');
     setImpactPanelVisible(panel.classList.contains('panel-hidden'));
@@ -3616,13 +3662,14 @@ Velocity: not set</div>
 
   function setPanelVisible(id,visible){
     document.getElementById(id).classList.toggle('panel-hidden',!visible);
-    const buttonId={
-      legend:'legendBtn',
-      missionPanel:'missionBtn',
-      occultationPanel:'occultationBtn',
-      impactPanel:'impactBtn'
-    }[id];
-    if(buttonId){
+    const buttonIds={
+      aboutPanel:['title'],
+      legend:['legendBtn'],
+      missionPanel:['missionBtn'],
+      occultationPanel:['occultationBtn'],
+      impactPanel:['impactBtn']
+    }[id]||[];
+    for(const buttonId of buttonIds){
       const button=document.getElementById(buttonId);
       button.classList.toggle('active',visible);
       button.setAttribute('aria-expanded',String(visible));
@@ -3635,6 +3682,12 @@ Velocity: not set</div>
 
   document.getElementById('perfBtn').addEventListener('click',toggleProfiler);
   document.getElementById('perfClose').addEventListener('click',()=>setProfilerVisible(false));
+  document.getElementById('title').addEventListener(
+    'click',()=>togglePanel('aboutPanel')
+  );
+  document.getElementById('aboutClose').addEventListener(
+    'click',()=>setPanelVisible('aboutPanel',false)
+  );
   document.getElementById('legendBtn').addEventListener(
     'click',()=>togglePanel('legend')
   );
