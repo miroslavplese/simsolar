@@ -8,6 +8,8 @@ const {
   solveKeplerHyperbolic,
   bodyPosition,
   sampledStateAt,
+  adaptiveTrajectoryPoints,
+  osculatingOrbitPoints,
   propagateState
 }=require('../src/trajectory-math.js');
 const {
@@ -48,6 +50,33 @@ function daysSinceJ2000(isoDate){
 
 function dateFromJ2000(days){
   return new Date(Date.UTC(2000,0,1,12)+days*86400000).toISOString().slice(0,10);
+}
+
+const straight=adaptiveTrajectoryPoints(
+  {t:0,x:0,y:0,z:0,vx:1,vy:0,vz:0},
+  {t:10,x:10,y:0,z:0,vx:1,vy:0,vz:0},
+  t=>({t,x:t,y:0,z:0,vx:1,vy:0,vz:0}),
+  {tolerance:0.01}
+);
+assert.equal(straight.length,2);
+const curved=adaptiveTrajectoryPoints(
+  {t:-1,x:-1,y:1,z:0,vx:1,vy:-2,vz:0},
+  {t:1,x:1,y:1,z:0,vx:1,vy:2,vz:0},
+  t=>({t,x:t,y:t*t,z:0,vx:1,vy:2*t,vz:0}),
+  {tolerance:0.01}
+);
+assert.ok(curved.length>8);
+for(let i=1;i<curved.length;i++) assert.ok(curved[i].t>curved[i-1].t);
+const currentOrbitState={
+  x:1,y:0,z:0,vx:0,vy:Math.sqrt(GM_SUN_AU_DAY),vz:0
+};
+const osculating=osculatingOrbitPoints(
+  currentOrbitState,GM_SUN_AU_DAY,256
+);
+assert.equal(osculating.length,257);
+assert.deepEqual(osculating[128],{x:1,y:0,z:0});
+for(const point of osculating){
+  close(Math.hypot(point.x,point.y,point.z),1,1e-12,'circular osculating radius');
 }
 
 const spacecraft=loadGenerated('data/spacecraft-trajectories.js','SPACECRAFT_TRAJECTORIES').trajectories;

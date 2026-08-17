@@ -40,6 +40,51 @@
     return {fraction,distance:radius};
   }
 
+  function refinedSweptSphereImpact(
+    startTime,endTime,sampleA,sampleB,radius,maxDepth
+  ){
+    if(!(endTime>=startTime)){
+      throw new RangeError('Impact interval must not run backward.');
+    }
+    const depthLimit=maxDepth===undefined ? 12 : maxDepth;
+    const startA=sampleA(startTime), endA=sampleA(endTime);
+    const startB=sampleB(startTime), endB=sampleB(endTime);
+    if(!startA || !endA || !startB || !endB) return null;
+
+    function search(t0,t1,a0,a1,b0,b1,depth){
+      const hit=sweptSphereImpact(a0,a1,b0,b1,radius);
+      if(!hit) return null;
+      const candidateTime=t0+(t1-t0)*hit.fraction;
+      const candidateA=sampleA(candidateTime);
+      const candidateB=sampleB(candidateTime);
+      if(!candidateA || !candidateB) return null;
+      const actualDistance=Math.hypot(
+        candidateA.x-candidateB.x,
+        candidateA.y-candidateB.y,
+        candidateA.z-candidateB.z
+      );
+      if(actualDistance<=radius*(1+1e-7)){
+        return {
+          time:candidateTime,
+          fraction:(candidateTime-startTime)/(endTime-startTime||1),
+          distance:actualDistance
+        };
+      }
+      if(depth>=depthLimit) return null;
+      const midpoint=(t0+t1)/2;
+      const midpointA=sampleA(midpoint);
+      const midpointB=sampleB(midpoint);
+      if(!midpointA || !midpointB) return null;
+      return search(
+        t0,midpoint,a0,midpointA,b0,midpointB,depth+1
+      ) || search(
+        midpoint,t1,midpointA,a1,midpointB,b1,depth+1
+      );
+    }
+
+    return search(startTime,endTime,startA,endA,startB,endB,0);
+  }
+
   function linearImpactTime(a,b,radius,maxDays){
     if(!(radius>0)) throw new RangeError('Collision radius must be positive.');
     const position=relativeVector(a,b);
@@ -118,7 +163,8 @@
   }
 
   return {
-    sweptSphereImpact,linearImpactTime,impactStillInProgress,mergeKinematics,
+    sweptSphereImpact,refinedSweptSphereImpact,
+    linearImpactTime,impactStillInProgress,mergeKinematics,
     mergedRadius,estimatedRadiusKm
   };
 });

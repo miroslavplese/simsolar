@@ -137,6 +137,110 @@
     };
   }
 
+  function adaptiveTrajectoryPoints(start,end,sampleAt,options){
+    const tolerance=options?.tolerance;
+    if(!(tolerance>0)){
+      throw new RangeError('Adaptive trajectory tolerance must be positive.');
+    }
+    const maxDepth=options?.maxDepth??10;
+    const minSpan=options?.minSpan??1/1440;
+    function refine(a,b,depth){
+      const span=b.t-a.t;
+      if(depth>=maxDepth || span<=minSpan) return [b];
+      const midpoint=sampleAt((a.t+b.t)/2);
+      const linear={
+        x:(a.x+b.x)/2,
+        y:(a.y+b.y)/2,
+        z:(a.z+b.z)/2
+      };
+      const positionError=Math.hypot(
+        midpoint.x-linear.x,
+        midpoint.y-linear.y,
+        midpoint.z-linear.z
+      );
+      const chordVelocity={
+        x:(b.x-a.x)/span,
+        y:(b.y-a.y)/span,
+        z:(b.z-a.z)/span
+      };
+      const velocityError=(
+        Number.isFinite(midpoint.vx) &&
+        Number.isFinite(midpoint.vy) &&
+        Number.isFinite(midpoint.vz)
+      ) ? Math.hypot(
+        midpoint.vx-chordVelocity.x,
+        midpoint.vy-chordVelocity.y,
+        midpoint.vz-chordVelocity.z
+      )*span/8 : 0;
+      if(Math.max(positionError,velocityError)<=tolerance) return [b];
+      return [
+        ...refine(a,midpoint,depth+1),
+        ...refine(midpoint,b,depth+1)
+      ];
+    }
+    return [start,...refine(start,end,0)];
+  }
+
+  function osculatingOrbitPoints(state,mu,steps){
+    if(!(mu>0)) throw new RangeError('Orbit gravitational parameter must be positive.');
+    const count=Math.max(32,steps||256);
+    const radius=Math.hypot(state.x,state.y,state.z);
+    const h={
+      x:state.y*state.vz-state.z*state.vy,
+      y:state.z*state.vx-state.x*state.vz,
+      z:state.x*state.vy-state.y*state.vx
+    };
+    const hMagnitude=Math.hypot(h.x,h.y,h.z);
+    if(!(radius>0) || !(hMagnitude>0)) return [];
+    const velocityCrossH={
+      x:state.vy*h.z-state.vz*h.y,
+      y:state.vz*h.x-state.vx*h.z,
+      z:state.vx*h.y-state.vy*h.x
+    };
+    const eccentricityVector={
+      x:velocityCrossH.x/mu-state.x/radius,
+      y:velocityCrossH.y/mu-state.y/radius,
+      z:velocityCrossH.z/mu-state.z/radius
+    };
+    const eccentricity=Math.hypot(
+      eccentricityVector.x,eccentricityVector.y,eccentricityVector.z
+    );
+    if(eccentricity>=1) return [];
+    const pAxis=eccentricity>1e-10
+      ? {
+          x:eccentricityVector.x/eccentricity,
+          y:eccentricityVector.y/eccentricity,
+          z:eccentricityVector.z/eccentricity
+        }
+      : {x:state.x/radius,y:state.y/radius,z:state.z/radius};
+    const hAxis={x:h.x/hMagnitude,y:h.y/hMagnitude,z:h.z/hMagnitude};
+    const qAxis={
+      x:hAxis.y*pAxis.z-hAxis.z*pAxis.y,
+      y:hAxis.z*pAxis.x-hAxis.x*pAxis.z,
+      z:hAxis.x*pAxis.y-hAxis.y*pAxis.x
+    };
+    const currentAnomaly=Math.atan2(
+      state.x*qAxis.x+state.y*qAxis.y+state.z*qAxis.z,
+      state.x*pAxis.x+state.y*pAxis.y+state.z*pAxis.z
+    );
+    const semilatusRectum=hMagnitude*hMagnitude/mu;
+    const points=[];
+    for(let index=0;index<=count;index++){
+      if(index===count/2 && count%2===0){
+        points.push({x:state.x,y:state.y,z:state.z});
+        continue;
+      }
+      const anomaly=currentAnomaly-Math.PI+2*Math.PI*index/count;
+      const orbitRadius=semilatusRectum/(1+eccentricity*Math.cos(anomaly));
+      points.push({
+        x:orbitRadius*(pAxis.x*Math.cos(anomaly)+qAxis.x*Math.sin(anomaly)),
+        y:orbitRadius*(pAxis.y*Math.cos(anomaly)+qAxis.y*Math.sin(anomaly)),
+        z:orbitRadius*(pAxis.z*Math.cos(anomaly)+qAxis.z*Math.sin(anomaly))
+      });
+    }
+    return points;
+  }
+
   function stumpffC(z){
     if(z>1e-8) return (1-Math.cos(Math.sqrt(z)))/z;
     if(z<-1e-8) return (Math.cosh(Math.sqrt(-z))-1)/(-z);
@@ -204,6 +308,7 @@
   return {
     AU_KM,GM_SUN_AU_DAY,solveKeplerElliptical,solveKeplerHyperbolic,
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS,trajectorySegment,
-    interpolateTrajectory,sampledStateAt,propagateState
+    interpolateTrajectory,sampledStateAt,adaptiveTrajectoryPoints,
+    osculatingOrbitPoints,propagateState
   };
 });

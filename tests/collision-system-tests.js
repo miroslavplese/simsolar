@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict');
 const {
-  sweptSphereImpact,linearImpactTime,impactStillInProgress,mergeKinematics,
+  sweptSphereImpact,refinedSweptSphereImpact,
+  linearImpactTime,impactStillInProgress,mergeKinematics,
   mergedRadius,estimatedRadiusKm
 }=require('../src/collision-system.js');
 
@@ -34,6 +35,24 @@ assert.equal(
   ),
   null
 );
+const refinedLinear=refinedSweptSphereImpact(
+  0,10,
+  time=>({x:10-2*time,y:0,z:0}),
+  ()=>stationary,
+  2
+);
+assert.ok(Math.abs(refinedLinear.time-4)<1e-12);
+const curvedFalsePositive=refinedSweptSphereImpact(
+  0,1,
+  time=>({
+    x:2*Math.cos(Math.PI*(1-time)),
+    y:2*Math.sin(Math.PI*(1-time)),
+    z:0
+  }),
+  ()=>stationary,
+  0.5
+);
+assert.equal(curvedFalsePositive,null);
 
 const merged=mergeKinematics(
   {mu:1,x:-1,y:0,z:0,vx:2,vy:0,vz:0},
