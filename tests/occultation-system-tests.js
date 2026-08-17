@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const {
-  angularRadius,circleOverlapArea,apparentOccultation,
+  angularRadius,apparentSeparation,circleOverlapArea,apparentOccultation,
   findOccultationEvents
 }=require('../src/occultation-system.js');
 const {AU_KM,sampledStateAt}=require('../src/trajectory-math.js');
@@ -13,6 +13,9 @@ assert.equal(circleOverlapArea(1,1,2),0);
 assert.ok(Math.abs(circleOverlapArea(1,1,0)-Math.PI)<1e-12);
 
 const observer={x:0,y:0,z:0};
+assert.ok(Math.abs(apparentSeparation(
+  observer,{x:1,y:0,z:0},{x:0,y:1,z:0}
+)-Math.PI/2)<1e-12);
 const source={x:10,y:0,z:0};
 let event=apparentOccultation(
   observer,source,{x:5,y:0,z:0},1,0.6

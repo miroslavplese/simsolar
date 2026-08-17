@@ -30,13 +30,15 @@
 
   #datebox{ position:absolute; top:14px; right:20px; font-family:var(--mono); font-size:12px; color:var(--ink); text-align:right; pointer-events:none; }
   #datebox .yy{ font-size:20px; font-weight:600; color:var(--accent); display:block; }
+  #timeOut{ display:none; margin-top:2px; color:var(--ink); font-size:10px; letter-spacing:.04em; }
+  #stage.observatory-active #timeOut{ display:block; }
   #modelOut{ display:block; margin-top:3px; color:var(--ink-dim); font-size:8px; letter-spacing:.05em; }
 
   #dock{
     position:absolute; left:50%; bottom:20px; transform:translateX(-50%);
     display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center; max-width:94vw;
     background:rgba(17,22,42,0.88); border:1px solid var(--line); border-radius:14px;
-    padding:9px 14px; backdrop-filter: blur(10px); box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    padding:9px 36px 9px 14px; backdrop-filter: blur(10px); box-shadow: 0 8px 30px rgba(0,0,0,0.4);
   }
   #mainToolbar{
     position:absolute; top:14px; left:50%; transform:translateX(-50%);
@@ -45,8 +47,8 @@
     backdrop-filter:blur(10px); box-shadow:0 6px 24px rgba(0,0,0,.35);
   }
   #mainToolbar .btn{ font-size:16px; }
-  #mainToolbar .viewControl{ position:relative; font-size:17px; }
-  #mainToolbar .viewControl #viewPreset{
+  .viewControl{ position:relative; font-size:17px; }
+  .viewControl #viewPreset{
     position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer;
   }
   .btn{ width:34px; height:34px; border-radius:9px; border:1px solid var(--line); background:#161c34; color:var(--ink); cursor:pointer;
@@ -208,6 +210,32 @@
   #impactPanel .actions{ display:flex; gap:6px; margin-top:9px; }
   #impactPanel .actions button{ flex:1; }
   #impactMergeBtn:disabled{ opacity:.35; cursor:not-allowed; }
+  #observatoryPanel{
+    position:absolute; top:62px; left:20px; width:250px;
+    background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+  #observatoryPanel .heading{ color:#7fd8ff; font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+  #observatoryPanel label{ display:block; margin-top:7px; color:var(--ink-dim); font-size:8px; text-transform:uppercase; letter-spacing:.05em; }
+  #observatoryPanel select, #observatoryPanel input[type=number]{
+    width:100%; height:29px; margin-top:3px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); padding:0 7px; font:9.5px var(--mono); outline:none;
+  }
+  #observatoryPanel .coordinateRow{ display:flex; gap:7px; }
+  #observatoryPanel .coordinateRow label{ flex:1; }
+  #observatoryPanel .checkRow{
+    display:flex; align-items:center; gap:7px; margin-top:9px; color:var(--ink-dim);
+    font-size:8.5px; cursor:pointer;
+  }
+  #observatoryPanel .checkRow input{ accent-color:var(--accent); }
+  #observatoryReadout{ margin-top:8px; padding-top:7px; border-top:1px solid var(--line); color:#7380a8; font-size:8px; line-height:1.5; }
+  #stage.observatory-active #orbits{ display:none; }
+  #stage.observatory-active #legend,
+  #stage.observatory-active #missionPanel,
+  #stage.observatory-active #bodyPanel,
+  #stage.observatory-active #impactPanel,
+  #stage.observatory-active #perfPanel,
+  #stage.observatory-active #card{ display:none!important; }
   .btn.active{ border-color:var(--accent); color:var(--accent); }
   .btn:disabled{ opacity:.35; cursor:not-allowed; }
   .movable-panel{ cursor:grab; touch-action:none; }
@@ -220,6 +248,7 @@
     #eventList{ max-height:80px; }
     #bodyPanel{ left:20px; top:230px; width:230px; }
     #impactPanel{ left:20px; top:400px; width:230px; }
+    #observatoryPanel{ top:108px; width:230px; }
     #aboutPanel{ width:calc(100vw - 40px); }
   }
 </style>
@@ -234,7 +263,7 @@
     aria-label="About Orrery" aria-expanded="false">
     Orrery <b>·</b> Solar System &amp; Spacecraft<br>JPL ephemerides · 3D projection
   </button>
-  <div id="datebox"><span class="yy" id="yearOut">2026</span><span id="dateOut">01 Jan</span><span id="modelOut">JPL EPHEMERIS</span></div>
+  <div id="datebox"><span class="yy" id="yearOut">2026</span><span id="dateOut">01 Jan</span><span id="timeOut">00:00:00 UTC</span><span id="modelOut">JPL EPHEMERIS</span></div>
 
   <div id="mainToolbar" aria-label="Main controls">
     <button class="btn active" id="legendBtn" type="button"
@@ -247,29 +276,26 @@
       title="Introduce a massive body" aria-label="Introduce a massive body"
       aria-expanded="false">✦</button>
     <button class="btn" id="occultationBtn" type="button"
-      title="Eclipses and transits (E)" aria-label="Eclipses and transits"
+      title="Sky events (E)" aria-label="Eclipses, transits, and alignments"
       aria-expanded="false">◐</button>
+    <button class="btn" id="observatoryBtn" type="button"
+      title="Observatory mode (O)" aria-label="Observatory mode"
+      aria-pressed="false">⌖</button>
     <button class="btn" id="impactBtn" type="button"
       title="Impact monitor" aria-label="Impact monitor"
       aria-expanded="false">⚠</button>
     <button class="btn" id="perfBtn" type="button"
       title="Frame-time profiler (P)" aria-label="Frame-time profiler"
       aria-expanded="false">∿</button>
+    <button class="btn active" id="dockBtn" type="button"
+      title="Time and view controls (T)" aria-label="Time and view controls"
+      aria-expanded="true">◴</button>
     <button class="btn" id="lagrangeBtn" type="button"
       title="Show L1-L5 for the selected system (G)" aria-label="Lagrange points"
       aria-pressed="false">L₅</button>
     <button class="btn" id="rotatingFrameBtn" type="button"
       title="Co-rotating frame for the selected system (R)" aria-label="Co-rotating frame"
       aria-pressed="false">↻</button>
-    <label class="btn viewControl" title="View preset">
-      <span aria-hidden="true">◎</span>
-      <select id="viewPreset" aria-label="View preset">
-        <option value="Current">CUSTOM</option>
-        <option value="Inner">INNER</option>
-        <option value="Outer">OUTER</option>
-        <option value="Deep">DEEP</option>
-      </select>
-    </label>
   </div>
 
   <div id="aboutPanel" class="panel-hidden">
@@ -282,8 +308,34 @@
       simulator with future N-body dynamics.
     </div>
     <div class="row"><span>Author</span><span>Miroslav Plese</span></div>
-    <div class="row"><span>Build</span><span>2026.08.17.132343</span></div>
+    <div class="row"><span>Build</span><span>2026.08.17.164202</span></div>
     <div class="copyright">Copyright © 2026 Miroslav Plese. All rights reserved.</div>
+  </div>
+  <div id="observatoryPanel" class="panel-hidden">
+    <button class="panel-close" id="observatoryClose" type="button"
+      title="Exit Observatory Mode" aria-label="Exit Observatory Mode">✕</button>
+    <div class="heading">Observatory Mode</div>
+    <label for="observatoryBody">Observer world</label>
+    <select id="observatoryBody"></select>
+    <label for="observatoryPreset">Location preset</label>
+    <select id="observatoryPreset"></select>
+    <div class="coordinateRow">
+      <label for="observatoryLatitude">Latitude
+        <input id="observatoryLatitude" type="number" min="-90" max="90" step="0.0001">
+      </label>
+      <label for="observatoryLongitude">Longitude
+        <input id="observatoryLongitude" type="number" min="-180" max="180" step="0.0001">
+      </label>
+    </div>
+    <label class="checkRow">
+      <input id="observatoryEnhance" type="checkbox" checked>
+      Enhance objects too small to see
+    </label>
+    <label class="checkRow">
+      <input id="observatoryPaths" type="checkbox">
+      Show trajectory and orbit lines
+    </label>
+    <div id="observatoryReadout">Drag to look around · wheel to zoom</div>
   </div>
 
   <div id="legend"></div>
@@ -307,20 +359,21 @@
     <button class="panel-close" id="occultationClose" type="button"
       title="Close eclipses and transits (E to reopen)"
       aria-label="Close eclipses and transits">✕</button>
-    <div class="heading">Eclipses &amp; transits</div>
+    <div class="heading">Eclipses, transits &amp; alignments</div>
     <div class="controlRow">
       <select id="occultationObserver" aria-label="Event observer"></select>
       <select id="occultationType" aria-label="Event type">
         <option value="all">ALL EVENTS</option>
         <option value="eclipse">ECLIPSES</option>
         <option value="transit">TRANSITS</option>
+        <option value="alignment">PLANET ALIGNMENTS</option>
       </select>
     </div>
     <div class="controlRow">
       <button class="timelineBtn" id="previousOccultationBtn" type="button">‹ PREVIOUS</button>
       <button class="timelineBtn" id="nextOccultationBtn" type="button">NEXT ›</button>
     </div>
-    <div id="occultationStatus">Choose an observer, then search for an event.</div>
+    <div id="occultationStatus">Choose an observer and event type, then search.</div>
   </div>
   <div id="perfPanel">
     <button class="panel-close" id="perfClose" type="button"
@@ -387,6 +440,9 @@ Velocity: not set</div>
   </div>
 
   <div id="dock">
+    <button class="panel-close" id="dockClose" type="button"
+      title="Close time and view controls (T to reopen)"
+      aria-label="Close time and view controls">✕</button>
     <div class="btn" id="rewBtn" title="Back 30 days">«</div>
     <div class="btn" id="playBtn" title="Play / Pause">▶</div>
     <div class="btn" id="fwdBtn" title="Forward 30 days">»</div>
@@ -399,6 +455,16 @@ Velocity: not set</div>
     <div class="sep"></div>
     <div class="btn" id="zoomInBtn" title="Zoom in">+</div>
     <div class="btn" id="zoomOutBtn" title="Zoom out">−</div>
+    <div class="sep"></div>
+    <label class="btn viewControl" title="View preset">
+      <span aria-hidden="true">◎</span>
+      <select id="viewPreset" aria-label="View preset">
+        <option value="Current">CUSTOM</option>
+        <option value="Inner">INNER</option>
+        <option value="Outer">OUTER</option>
+        <option value="Deep">DEEP</option>
+      </select>
+    </label>
     <div class="sep"></div>
     <div class="btn" id="todayBtn" title="Reset to today">⟲</div>
   </div>
@@ -414,6 +480,7 @@ Velocity: not set</div>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js"></script>
 <script src="src/star-field.js"></script>
+<script src="src/observatory-mode.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js"></script>
 <script src="src/body-lighting.js"></script>
@@ -438,6 +505,7 @@ Velocity: not set</div>
     document.getElementById('perfPanel'),
     document.getElementById('bodyPanel'),
     document.getElementById('impactPanel'),
+    document.getElementById('observatoryPanel'),
     document.getElementById('card'),
     document.getElementById('legend'),
     document.getElementById('dock')
@@ -514,8 +582,22 @@ Velocity: not set</div>
     lagrangePoints:calculateLagrangePoints,rotatingFrameYaw
   }=window.LagrangeSystem;
   const {
-    apparentOccultation,goldenMinimum
+    apparentOccultation,apparentSeparation,goldenMinimum
   }=window.OccultationSystem;
+  const {
+    SURFACES:OBSERVATORY_SURFACES,
+    surfaceDefinition:observatorySurfaceDefinition,
+    locationPresets:observatoryLocationPresets,
+    surfaceFrame:observatorySurfaceFrame,
+    horizontalDirection:observatoryHorizontalDirection,
+    horizontalCoordinates:observatoryHorizontalCoordinates,
+    cameraFrame:observatoryCameraFrame,
+    projectDirection:projectObservatoryDirection,
+    altitudeForDirection:observatoryAltitudeForDirection,
+    angularRadius:observatoryAngularRadius,
+    daylightFactor:observatoryDaylightFactor,
+    normalize:normalizeObservatoryVector
+  }=window.ObservatoryMode;
   const {
     refinedSweptSphereImpact,
     linearImpactTime,impactStillInProgress,mergeKinematics,
@@ -1038,8 +1120,13 @@ Velocity: not set</div>
   let playing = true;
   let dateNavigationRevision=0;
   let speedExp = Math.log10(5);
+  let observatorySpeedExp=0;
   let direction = 1;
-  function speedDaysPerSec(){ return Math.pow(10, speedExp); }
+  function speedDaysPerSec(){
+    return observatoryActive
+      ? Math.pow(10,observatorySpeedExp)/86400
+      : Math.pow(10,speedExp);
+  }
 
   let zoom = 1;
   const ZOOM_MIN = 0.018, ZOOM_MAX = 20000;
@@ -1059,6 +1146,19 @@ Velocity: not set</div>
   let viewYaw = 0, viewTilt = DEFAULT_TILT;
   let projectionRevision = 0;
   let orbitLayerDirty = true;
+  let observatoryActive=false;
+  let observatoryObserver=null;
+  let observatoryLatitude=51.4779;
+  let observatoryLongitude=0;
+  let observatoryAzimuth=180*DEG;
+  let observatoryAltitude=20*DEG;
+  let observatoryFov=70*DEG;
+  let observatoryEnhance=true;
+  let observatoryShowPaths=false;
+  let observatoryTimeZone='UTC';
+  let observatoryPreviousPlaying=true;
+  let observatoryProjectedBodies=[];
+  const observatoryPathCache=new Map();
   const BODY_PRESETS={
     star:{label:'Star',name:'New Star',mass:1.98847e30,color:'#ffd36a'},
     'black-hole':{label:'Black hole',name:'New Black Hole',mass:1.98847e31,color:'#9b7cff'},
@@ -1143,21 +1243,44 @@ Velocity: not set</div>
       occulter.parent===observer;
   }
 
+  function eventObserverState(observer,tDays){
+    const center=occultationSearchPositionForBody(observer,tDays);
+    const surface=observatorySurfaceDefinition(observer.name);
+    if(!center || !surface || observer!==observatoryObserver) return center;
+    const frame=observatorySurfaceFrame(
+      surface,tDays,observatoryLatitude,observatoryLongitude
+    );
+    return {
+      x:center.x+frame.up.x*observer.radius/AU_KM,
+      y:center.y+frame.up.y*observer.radius/AU_KM,
+      z:center.z+frame.up.z*observer.radius/AU_KM,
+      surfaceFrame:frame
+    };
+  }
+
   function occultationGeometryAt(observer,occulter,tDays){
     const local=isLocalOcculter(observer,occulter);
-    const observerState=local
-      ? positionForBody(observer,tDays)
-      : occultationSearchPositionForBody(observer,tDays);
+    const observerState=eventObserverState(observer,tDays);
     const occulterState=local
       ? positionForBody(occulter,tDays)
       : occultationSearchPositionForBody(occulter,tDays);
     if(!observerState || !occulterState){
       return {visible:false,clearance:Infinity,coverage:0};
     }
-    return apparentOccultation(
+    const geometry=apparentOccultation(
       observerState,{x:0,y:0,z:0},occulterState,
       SUN_RADIUS_KM/AU_KM,occulter.radius/AU_KM
     );
+    if(observerState.surfaceFrame){
+      const sunAltitude=observatoryAltitudeForDirection(
+        {x:-observerState.x,y:-observerState.y,z:-observerState.z},
+        observerState.surfaceFrame
+      );
+      geometry.sunAltitude=sunAltitude;
+      geometry.visible=geometry.visible &&
+        sunAltitude>=-geometry.sourceAngularRadius;
+    }
+    return geometry;
   }
 
   function occultationSearchPositionForBody(body,tDays){
@@ -1219,11 +1342,13 @@ Velocity: not set</div>
       -200*365.25,
       Math.min(HYBRID_MAX_DAYS,start+direction*settings.span)
     );
+    const sampleStart=start-direction*settings.step;
+    const sampleLimit=limit+direction*settings.step;
     const samples=[];
     let sampleCount=0;
     for(
-      let time=start;
-      direction>0 ? time<=limit : time>=limit;
+      let time=sampleStart;
+      direction>0 ? time<=sampleLimit : time>=sampleLimit;
       time+=direction*settings.step
     ){
       if(revision!==occultationSearchRevision) return null;
@@ -1241,7 +1366,13 @@ Velocity: not set</div>
             Math.max(before.time,after.time),
             34
           );
-          if(minimum.geometry.visible){
+          const directedDistance=
+            direction*(minimum.time-simDaysSinceJ2000);
+          if(
+            minimum.geometry.visible &&
+            directedDistance>1e-4 &&
+            directedDistance<=settings.span
+          ){
             return {
               time:minimum.time,
               observer,occulter:candidate,
@@ -1258,6 +1389,131 @@ Velocity: not set</div>
       }
     }
     return null;
+  }
+
+  function alignmentGeometryAt(observer,bodyA,bodyB,tDays){
+    const observerState=eventObserverState(observer,tDays);
+    const stateA=occultationSearchPositionForBody(bodyA,tDays);
+    const stateB=occultationSearchPositionForBody(bodyB,tDays);
+    if(!observerState || !stateA || !stateB){
+      return {visible:false,clearance:Infinity,separation:Infinity};
+    }
+    const separation=apparentSeparation(observerState,stateA,stateB);
+    let aboveHorizon=true;
+    if(observerState.surfaceFrame){
+      aboveHorizon=
+        observatoryAltitudeForDirection({
+          x:stateA.x-observerState.x,
+          y:stateA.y-observerState.y,
+          z:stateA.z-observerState.z
+        },observerState.surfaceFrame)>0 &&
+        observatoryAltitudeForDirection({
+          x:stateB.x-observerState.x,
+          y:stateB.y-observerState.y,
+          z:stateB.z-observerState.z
+        },observerState.surfaceFrame)>0;
+    }
+    return {
+      visible:separation<=DEG && aboveHorizon,
+      clearance:separation-DEG,
+      separation
+    };
+  }
+
+  async function searchPlanetAlignment(
+    observer,bodyA,bodyB,direction,maxDistance,revision
+  ){
+    const evaluate=time=>alignmentGeometryAt(
+      observer,bodyA,bodyB,time
+    );
+    const start=simDaysSinceJ2000+direction*1e-4;
+    const span=Math.min(maxDistance,365.25*20);
+    const limit=Math.max(
+      -200*365.25,
+      Math.min(HYBRID_MAX_DAYS,start+direction*span)
+    );
+    const sampleStart=start-direction;
+    const sampleLimit=limit+direction;
+    const samples=[];
+    let sampleCount=0;
+    for(
+      let time=sampleStart;
+      direction>0 ? time<=sampleLimit : time>=sampleLimit;
+      time+=direction
+    ){
+      if(revision!==occultationSearchRevision) return null;
+      samples.push({time,geometry:evaluate(time)});
+      if(samples.length>3) samples.shift();
+      if(samples.length===3){
+        const [before,current,after]=samples;
+        if(
+          current.geometry.clearance<=before.geometry.clearance &&
+          current.geometry.clearance<=after.geometry.clearance
+        ){
+          const minimum=goldenMinimum(
+            evaluate,
+            Math.min(before.time,after.time),
+            Math.max(before.time,after.time),
+            34
+          );
+          const directedDistance=
+            direction*(minimum.time-simDaysSinceJ2000);
+          if(
+            minimum.geometry.visible &&
+            directedDistance>1e-4 &&
+            directedDistance<=span
+          ){
+            return {
+              type:'alignment',
+              time:minimum.time,
+              observer,bodyA,bodyB,
+              geometry:minimum.geometry,
+              label:bodyA.name+'–'+bodyB.name+' conjunction'
+            };
+          }
+        }
+      }
+      if(++sampleCount%180===0){
+        await new Promise(resolve=>setTimeout(resolve,0));
+      }
+    }
+    return null;
+  }
+
+  async function findPlanetAlignment(
+    observer,direction,revision,status,maxDistance=365.25*20
+  ){
+    const alignmentBodies=planets.filter(
+      body=>body!==charon && body!==observer
+    );
+    const pairs=[];
+    for(let index=0;index<alignmentBodies.length;index++){
+      for(let other=index+1;other<alignmentBodies.length;other++){
+        pairs.push([alignmentBodies[index],alignmentBodies[other]]);
+      }
+    }
+    let nearest=null;
+    for(let index=0;index<pairs.length;index++){
+      if(revision!==occultationSearchRevision) return null;
+      const [bodyA,bodyB]=pairs[index];
+      status.textContent='Searching '+bodyA.name+'–'+bodyB.name+'… '+
+        Math.round(index/pairs.length*100)+'%';
+      const pairMaxDistance=nearest
+        ? Math.min(
+          maxDistance,Math.abs(nearest.time-simDaysSinceJ2000)
+        )
+        : maxDistance;
+      const event=await searchPlanetAlignment(
+        observer,bodyA,bodyB,direction,pairMaxDistance,revision
+      );
+      if(
+        event &&
+        (!nearest ||
+          Math.abs(event.time-simDaysSinceJ2000)<
+          Math.abs(nearest.time-simDaysSinceJ2000))
+      ) nearest=event;
+    }
+    return nearest;
   }
 
   async function findOccultation(direction){
@@ -1282,23 +1538,44 @@ Velocity: not set</div>
     });
     let nearest=null;
     try{
-      for(let index=0;index<candidates.length;index++){
-        if(revision!==occultationSearchRevision) return;
-        const candidate=candidates[index];
-        status.textContent='Searching '+candidate.name+'… '+
-          Math.round(index/candidates.length*100)+'%';
-        const maxDistance=nearest
-          ? Math.abs(nearest.time-simDaysSinceJ2000)
-          : 365.25*20;
-        const event=await searchCandidateOccultation(
-          observer,candidate,direction,maxDistance,revision
+      const eventType=document.getElementById('occultationType').value;
+      if(eventType==='alignment'){
+        nearest=await findPlanetAlignment(
+          observer,direction,revision,status
         );
-        if(
-          event &&
-          (!nearest ||
-            Math.abs(event.time-simDaysSinceJ2000)<
-            Math.abs(nearest.time-simDaysSinceJ2000))
-        ) nearest=event;
+      } else {
+        for(let index=0;index<candidates.length;index++){
+          if(revision!==occultationSearchRevision) return;
+          const candidate=candidates[index];
+          status.textContent='Searching '+candidate.name+'… '+
+            Math.round(index/candidates.length*100)+'%';
+          const maxDistance=nearest
+            ? Math.abs(nearest.time-simDaysSinceJ2000)
+            : 365.25*20;
+          const event=await searchCandidateOccultation(
+            observer,candidate,direction,maxDistance,revision
+          );
+          if(
+            event &&
+            (!nearest ||
+              Math.abs(event.time-simDaysSinceJ2000)<
+              Math.abs(nearest.time-simDaysSinceJ2000))
+          ) nearest=event;
+        }
+        if(eventType==='all'){
+          const alignment=await findPlanetAlignment(
+            observer,direction,revision,status,
+            nearest
+              ? Math.abs(nearest.time-simDaysSinceJ2000)
+              : 365.25*20
+          );
+          if(
+            alignment &&
+            (!nearest ||
+              Math.abs(alignment.time-simDaysSinceJ2000)<
+              Math.abs(nearest.time-simDaysSinceJ2000))
+          ) nearest=alignment;
+        }
       }
     } catch(error){
       if(revision===occultationSearchRevision){
@@ -1313,7 +1590,21 @@ Velocity: not set</div>
     }
     if(revision!==occultationSearchRevision) return;
     if(!nearest){
-      status.textContent='No event found in the 20-year search window.';
+      const startDate=new Date(
+        J2000+simDaysSinceJ2000*86400000
+      ).toISOString().slice(0,10);
+      const endDays=Math.max(
+        -200*365.25,
+        Math.min(
+          HYBRID_MAX_DAYS,
+          simDaysSinceJ2000+direction*365.25*20
+        )
+      );
+      const endDate=new Date(J2000+endDays*86400000)
+        .toISOString().slice(0,10);
+      status.textContent='No selected event visible from '+observer.name+
+        ' between '+(direction>0?startDate:endDate)+' and '+
+        (direction>0?endDate:startDate)+'.';
       return;
     }
     goToOccultationEvent(nearest);
@@ -1326,6 +1617,13 @@ Velocity: not set</div>
 
   function updateOccultationStatus(event,geometry){
     const status=document.getElementById('occultationStatus');
+    if(event.type==='alignment'){
+      status.innerHTML='<strong>'+event.label+'</strong><br>'+
+        'Visible from '+event.observer.name+' · '+
+        (geometry.separation/DEG).toFixed(3)+'° separation<br>'+
+        formatOccultationDate(event.time);
+      return;
+    }
     const coverage=(geometry.coverage*100).toFixed(
       geometry.coverage<0.01?2:1
     );
@@ -1341,21 +1639,12 @@ Velocity: not set</div>
     playing=false;
     playBtn.textContent='▶';
     setSelectedBody(event.observer);
-    setFollowTarget(event.observer);
-    const observer=positionForBody(event.observer,event.time);
-    const occulter=positionForBody(event.occulter,event.time);
-    const separation=Math.hypot(
-      observer.x-occulter.x,
-      observer.y-occulter.y,
-      observer.z-occulter.z
+    setObservatoryObserver(
+      event.observer,event.observer!==observatoryObserver
     );
-    zoom=Math.max(
-      ZOOM_MIN,Math.min(ZOOM_MAX,140/(AU_PX*Math.max(separation,1e-9)))
-    );
-    panX=0;
-    panY=0;
-    updateFollowCamera();
-    invalidateProjection();
+    setObservatoryMode(true,true);
+    aimObservatoryAtEvent(event);
+    setOccultationPanelVisible(true);
     updateOccultationStatus(event,event.geometry);
   }
 
@@ -2187,6 +2476,7 @@ Velocity: not set</div>
   function drawOccultationEvent(){
     if(!activeOccultationEvent) return;
     const event=activeOccultationEvent;
+    if(event.type==='alignment') return;
     const observer=positionForBody(event.observer,simDaysSinceJ2000);
     const occulter=positionForBody(event.occulter,simDaysSinceJ2000);
     if(!observer || !occulter) return;
@@ -2261,8 +2551,402 @@ Velocity: not set</div>
     ctx.restore();
   }
 
+  function observatoryObserverBodies(){
+    return [...planets,...moons].filter(body=>
+      !!observatorySurfaceDefinition(body.name)
+    );
+  }
+
+  function observatorySceneBodies(){
+    return [
+      sunReference,...planets,...moons,
+      ...(showSpacecraft?spacecraft:[]),
+      ...(showComets?comets:[]),
+      ...customBodies.filter(body=>
+        body.introducedAt<=simDaysSinceJ2000 &&
+        (body.retiredAt===undefined || simDaysSinceJ2000<body.retiredAt)
+      )
+    ];
+  }
+
+  function observatoryBodyRadiusAu(body){
+    if(body===sunReference) return SUN_RADIUS_KM/AU_KM;
+    return (body.radius||0)/AU_KM;
+  }
+
+  function observatoryBodyMarkerRadius(body,physicalRadius){
+    if(!observatoryEnhance) return Math.max(0.25,physicalRadius);
+    if(body===sunReference) return Math.max(physicalRadius,3);
+    if(body.kind==='spacecraft') return Math.max(physicalRadius,3.2);
+    if(body.kind==='comet') return Math.max(physicalRadius,2.6);
+    return Math.max(physicalRadius,2.2);
+  }
+
+  function observatoryDirection(from,to){
+    return {
+      x:to.x-from.x,
+      y:to.y-from.y,
+      z:to.z-from.z
+    };
+  }
+
+  function strokeObservatoryCurve(points,camera,color,width){
+    ctx.beginPath();
+    let drawing=false;
+    for(const direction of points){
+      if(!direction){
+        drawing=false;
+        continue;
+      }
+      const projected=projectObservatoryDirection(
+        direction,camera,W,H,observatoryFov
+      );
+      if(
+        !projected ||
+        projected.x<-W || projected.x>W*2 ||
+        projected.y<-H || projected.y>H*2
+      ){
+        drawing=false;
+        continue;
+      }
+      if(drawing) ctx.lineTo(projected.x,projected.y);
+      else {
+        ctx.moveTo(projected.x,projected.y);
+        drawing=true;
+      }
+    }
+    ctx.strokeStyle=color;
+    ctx.lineWidth=width;
+    ctx.stroke();
+  }
+
+  function drawObservatoryGrid(frame,camera){
+    const gridColor='rgba(184,211,232,0.14)';
+    for(const altitudeDeg of [0,15,30,45,60,75]){
+      const points=[];
+      for(let azimuthDeg=0;azimuthDeg<=360;azimuthDeg+=3){
+        points.push(observatoryHorizontalDirection(
+          frame,azimuthDeg*DEG,altitudeDeg*DEG
+        ));
+      }
+      strokeObservatoryCurve(
+        points,camera,
+        altitudeDeg===0?'rgba(210,230,242,0.34)':gridColor,
+        altitudeDeg===0?1.2:0.7
+      );
+    }
+    for(let azimuthDeg=0;azimuthDeg<360;azimuthDeg+=30){
+      const points=[];
+      for(let altitudeDeg=0;altitudeDeg<=90;altitudeDeg+=2){
+        points.push(observatoryHorizontalDirection(
+          frame,azimuthDeg*DEG,altitudeDeg*DEG
+        ));
+      }
+      strokeObservatoryCurve(points,camera,gridColor,0.7);
+    }
+    ctx.save();
+    ctx.font='10px "SF Mono", Consolas, monospace';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    for(const [label,azimuth] of [['N',0],['E',90],['S',180],['W',270]]){
+      const projected=projectObservatoryDirection(
+        observatoryHorizontalDirection(frame,azimuth*DEG,1.5*DEG),
+        camera,W,H,observatoryFov
+      );
+      if(!projected || projected.x<10 || projected.x>W-10 ||
+         projected.y<10 || projected.y>H-10) continue;
+      ctx.fillStyle='rgba(220,235,245,0.75)';
+      ctx.fillText(label,projected.x,projected.y);
+    }
+    ctx.restore();
+  }
+
+  function drawObservatoryAtmosphere(surface,sunAltitude,horizonY){
+    const daylight=observatoryDaylightFactor(
+      sunAltitude,surface.atmosphereDensity||0
+    );
+    skyCtx.fillStyle='#050812';
+    skyCtx.fillRect(0,0,W,H);
+    if(daylight>0){
+      const color=surface.atmosphere||'#4d8ed8';
+      const topAlpha=0.18*daylight;
+      const horizonAlpha=Math.min(0.92,0.4+0.48*daylight)*
+        (surface.atmosphereDensity||0);
+      const gradient=skyCtx.createLinearGradient(0,0,0,H);
+      gradient.addColorStop(0,hexToRgba(color,topAlpha));
+      gradient.addColorStop(
+        Math.max(0.05,Math.min(0.95,horizonY/H)),
+        hexToRgba(color,horizonAlpha)
+      );
+      gradient.addColorStop(1,hexToRgba(color,topAlpha));
+      skyCtx.fillStyle=gradient;
+      skyCtx.fillRect(0,0,W,H);
+    }
+    return daylight;
+  }
+
+  function drawObservatoryStars(frame,camera,daylight){
+    const count=Math.max(1800,Math.min(8000,Math.ceil((W*H)/550)));
+    if(stars.length!==count) stars=StarField.createStars(count);
+    const fovScale=Math.min(3,70*DEG/observatoryFov);
+    for(const star of stars){
+      const altitude=observatoryAltitudeForDirection(star,frame);
+      if(altitude<0) continue;
+      const projected=projectObservatoryDirection(
+        star,camera,W,H,observatoryFov
+      );
+      if(!projected || projected.x<0 || projected.x>W ||
+         projected.y<0 || projected.y>H) continue;
+      const horizonFade=Math.min(1,Math.max(0,altitude/(8*DEG)));
+      const alpha=star.alpha*horizonFade*(1-daylight*0.96);
+      if(alpha<0.015) continue;
+      skyCtx.beginPath();
+      skyCtx.fillStyle=`rgba(232,236,247,${alpha})`;
+      skyCtx.arc(
+        projected.x,projected.y,star.radius*fovScale,0,Math.PI*2
+      );
+      skyCtx.fill();
+    }
+  }
+
+  function drawObservatoryGround(surface,horizonY,daylight){
+    const groundTop=Math.max(0,Math.min(H,horizonY));
+    if(groundTop>=H) return;
+    const gradient=ctx.createLinearGradient(0,groundTop,0,H);
+    gradient.addColorStop(0,hexToRgba(
+      surface.atmosphere||surface.ground,
+      surface.atmosphereDensity ? 0.88 : 1
+    ));
+    gradient.addColorStop(0.08,surface.ground);
+    gradient.addColorStop(1,daylight>0?surface.ground:'#12131a');
+    ctx.fillStyle=gradient;
+    ctx.fillRect(0,groundTop,W,H-groundTop);
+  }
+
+  function observatoryLocalOrbitPoints(body,parent,origin,centralMu){
+    if(!parent || !origin) return [];
+    const speedSq=origin.vx**2+origin.vy**2+origin.vz**2;
+    const radius=Math.hypot(origin.x,origin.y,origin.z);
+    const semimajor=-centralMu/(speedSq-2*centralMu/radius);
+    if(!(semimajor>0) || !Number.isFinite(semimajor)) return [];
+    const period=2*Math.PI*Math.sqrt(semimajor**3/centralMu);
+    const points=[];
+    for(let index=0;index<=96;index++){
+      const relative=propagateState(
+        origin,period*index/96,centralMu
+      );
+      points.push({
+        x:parent.x+relative.x,
+        y:parent.y+relative.y,
+        z:parent.z+relative.z
+      });
+    }
+    return points;
+  }
+
+  function observatoryPathWorldPoints(body){
+    const bucket=Math.floor(simDaysSinceJ2000*24);
+    const cached=observatoryPathCache.get(body);
+    if(cached?.bucket===bucket) return cached.points;
+    const current=positionForBody(body,simDaysSinceJ2000);
+    let points=[];
+    if(current && body.kind==='moon'){
+      const parent=positionForBody(body.parent,simDaysSinceJ2000);
+      const origin=integratedMoonRelativeStateAt(
+        body,simDaysSinceJ2000
+      );
+      const system=moonInitial.state.systems.find(
+        item=>item.parentName===body.parentName
+      );
+      points=observatoryLocalOrbitPoints(
+        body,parent,origin,system.parentMu+origin.mu
+      );
+    } else if(current && body===charon){
+      const pluto=planets.find(candidate=>candidate.name==='Pluto');
+      const parent=positionForBody(pluto,simDaysSinceJ2000);
+      points=observatoryLocalOrbitPoints(body,parent,{
+        x:current.x-parent.x,
+        y:current.y-parent.y,
+        z:current.z-parent.z,
+        vx:current.vx-parent.vx,
+        vy:current.vy-parent.vy,
+        vz:current.vz-parent.vz
+      },GM_BY_BODY.Pluto+GM_BY_BODY.Charon);
+    } else if(current && body.kind==='planet'){
+      points=osculatingOrbitPoints(
+        current,GM_BY_BODY.Sun+(GM_BY_BODY[body.name]||0),192
+      );
+    } else if(current && body.kind==='custom'){
+      points=ensureHybridTrail(body,simDaysSinceJ2000);
+    } else if(current && (body.kind==='spacecraft'||body.kind==='comet')){
+      points=getOrbitWorldPoints(body);
+    }
+    observatoryPathCache.set(body,{bucket,points});
+    return points;
+  }
+
+  function drawObservatoryPaths(observerPosition,frame,camera){
+    const bodies=[
+      ...planets,...moons,
+      ...(showSpacecraft?spacecraft:[]),
+      ...(showComets?comets:[]),
+      ...customBodies.filter(body=>
+        body.introducedAt<=simDaysSinceJ2000 &&
+        (body.retiredAt===undefined || simDaysSinceJ2000<body.retiredAt)
+      )
+    ];
+    ctx.save();
+    for(const body of bodies){
+      if(body===observatoryObserver) continue;
+      const worldPoints=observatoryPathWorldPoints(body);
+      if(worldPoints.length<2) continue;
+      const directions=worldPoints.map(point=>{
+        const offset=observatoryDirection(observerPosition,point);
+        if(Math.hypot(offset.x,offset.y,offset.z)<1e-12) return null;
+        const direction=normalizeObservatoryVector(offset);
+        return observatoryAltitudeForDirection(direction,frame)>=0
+          ? direction
+          : null;
+      });
+      ctx.setLineDash(
+        body.kind==='spacecraft'||body.kind==='comet' ? [5,4] : []
+      );
+      strokeObservatoryCurve(
+        directions,camera,
+        hexToRgba(
+          body.color||'#99a4c8',
+          body===selected ? 0.75 : 0.3
+        ),
+        body===selected ? 1.4 : 0.8
+      );
+    }
+    ctx.restore();
+  }
+
+  function drawObservatoryBody(
+    body,position,distance,observerPosition,frame,camera
+  ){
+    const offset=observatoryDirection(observerPosition,position);
+    const direction=normalizeObservatoryVector(offset);
+    const angularRadius=observatoryAngularRadius(
+      observatoryBodyRadiusAu(body),distance
+    );
+    const altitude=observatoryAltitudeForDirection(direction,frame);
+    if(altitude<-angularRadius) return;
+    const projected=projectObservatoryDirection(
+      direction,camera,W,H,observatoryFov
+    );
+    if(!projected) return;
+    const physicalRadius=Math.min(
+      H*2,projected.focal*Math.tan(angularRadius)
+    );
+    const radius=observatoryBodyMarkerRadius(body,physicalRadius);
+    if(
+      projected.x+radius<0 || projected.x-radius>W ||
+      projected.y+radius<0 || projected.y-radius>H
+    ) return;
+    const color=body.color||'#e8ecf7';
+    if(body===sunReference){
+      const glow=ctx.createRadialGradient(
+        projected.x,projected.y,radius,
+        projected.x,projected.y,Math.max(radius*4,14)
+      );
+      glow.addColorStop(0,'rgba(255,229,150,0.8)');
+      glow.addColorStop(1,'rgba(255,190,70,0)');
+      ctx.fillStyle=glow;
+      ctx.beginPath();
+      ctx.arc(
+        projected.x,projected.y,Math.max(radius*4,14),0,Math.PI*2
+      );
+      ctx.fill();
+    }
+    ctx.fillStyle=body===sunReference?'#fff1c7':color;
+    ctx.beginPath();
+    ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
+    ctx.fill();
+    if(body===selected){
+      ctx.strokeStyle='#f2b544';
+      ctx.lineWidth=1.4;
+      ctx.beginPath();
+      ctx.arc(projected.x,projected.y,radius+4,0,Math.PI*2);
+      ctx.stroke();
+    }
+    ctx.font='9px "SF Mono", Consolas, monospace';
+    ctx.fillStyle=body===selected?'#f2b544':'rgba(232,236,247,0.72)';
+    ctx.fillText(body.name,projected.x+radius+5,projected.y-4);
+    observatoryProjectedBodies.push({
+      body,x:projected.x,y:projected.y,r:Math.max(7,radius)
+    });
+  }
+
+  function drawObservatory(){
+    const surface=observatorySurfaceDefinition(observatoryObserver?.name);
+    const center=observatoryObserver &&
+      positionForBody(observatoryObserver,simDaysSinceJ2000);
+    if(!surface || !center){
+      setObservatoryMode(false);
+      return;
+    }
+    const frame=observatorySurfaceFrame(
+      surface,simDaysSinceJ2000,observatoryLatitude,observatoryLongitude
+    );
+    const camera=observatoryCameraFrame(
+      frame,observatoryAzimuth,observatoryAltitude
+    );
+    const observerPosition={
+      x:center.x+frame.up.x*observatoryObserver.radius/AU_KM,
+      y:center.y+frame.up.y*observatoryObserver.radius/AU_KM,
+      z:center.z+frame.up.z*observatoryObserver.radius/AU_KM
+    };
+    const sunPosition=positionForBody(sunReference,simDaysSinceJ2000);
+    const sunDirection=observatoryDirection(observerPosition,sunPosition);
+    const sunAltitude=observatoryAltitudeForDirection(sunDirection,frame);
+    const focal=H/(2*Math.tan(observatoryFov/2));
+    const horizonY=H/2+focal*Math.tan(observatoryAltitude);
+    const daylight=drawObservatoryAtmosphere(
+      surface,sunAltitude,horizonY
+    );
+    drawObservatoryStars(frame,camera,daylight);
+    ctx.clearRect(0,0,W,H);
+    observatoryProjectedBodies=[];
+    if(observatoryShowPaths){
+      drawObservatoryPaths(observerPosition,frame,camera);
+    }
+    const bodyEntries=[];
+    for(const body of observatorySceneBodies()){
+      if(body===observatoryObserver) continue;
+      const position=positionForBody(body,simDaysSinceJ2000);
+      if(!position) continue;
+      const distance=Math.hypot(
+        position.x-observerPosition.x,
+        position.y-observerPosition.y,
+        position.z-observerPosition.z
+      );
+      if(distance>0) bodyEntries.push({body,position,distance});
+    }
+    bodyEntries.sort((a,b)=>b.distance-a.distance);
+    for(const {body,position,distance} of bodyEntries){
+      drawObservatoryBody(
+        body,position,distance,observerPosition,frame,camera
+      );
+    }
+    drawObservatoryGrid(frame,camera);
+    drawObservatoryGround(surface,horizonY,daylight);
+    const readout=document.getElementById('observatoryReadout');
+    readout.textContent=
+      'Az '+((observatoryAzimuth/DEG+360)%360).toFixed(1)+'° · Alt '+
+      (observatoryAltitude/DEG).toFixed(1)+'° · FOV '+
+      (observatoryFov/DEG).toFixed(0)+'°\n'+
+      'Drag to look around · wheel to zoom';
+  }
+
   function draw(){
     updateRotatingReferenceFrame();
+    if(observatoryActive){
+      drawObservatory();
+      updateDateUI();
+      return;
+    }
     drawStars(false);
     updateFollowCamera();
     const nextMoonVisibilityKey=moonVisibilityKey();
@@ -2531,12 +3215,31 @@ Velocity: not set</div>
     const ms = J2000 + simDaysSinceJ2000*86400000;
     const d = new Date(ms);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const year = String(d.getUTCFullYear());
-    const date = String(d.getUTCDate()).padStart(2,'0')+' '+months[d.getUTCMonth()];
+    let year=String(d.getUTCFullYear());
+    let date=String(d.getUTCDate()).padStart(2,'0')+' '+months[d.getUTCMonth()];
+    let time=
+      String(d.getUTCHours()).padStart(2,'0')+':'+
+      String(d.getUTCMinutes()).padStart(2,'0')+':'+
+      String(d.getUTCSeconds()).padStart(2,'0')+' UTC';
+    if(observatoryActive){
+      const parts=new Intl.DateTimeFormat('en-GB',{
+        timeZone:observatoryTimeZone,
+        year:'numeric',month:'short',day:'2-digit',
+        hour:'2-digit',minute:'2-digit',second:'2-digit',
+        hourCycle:'h23',timeZoneName:'short'
+      }).formatToParts(d);
+      const value=type=>parts.find(part=>part.type===type)?.value||'';
+      year=value('year');
+      date=value('day')+' '+value('month');
+      time=value('hour')+':'+value('minute')+':'+value('second')+' '+
+        value('timeZoneName');
+    }
     const yearOut = document.getElementById('yearOut');
     const dateOut = document.getElementById('dateOut');
+    const timeOut = document.getElementById('timeOut');
     if(yearOut.textContent !== year) yearOut.textContent = year;
     if(dateOut.textContent !== date) dateOut.textContent = date;
+    if(timeOut.textContent !== time) timeOut.textContent = time;
     const dateInput=document.getElementById('dateInput');
     const iso=d.toISOString().slice(0,10);
     if(!dateInput.disabled && document.activeElement!==dateInput && dateInput.value!==iso){
@@ -2995,6 +3698,12 @@ Velocity: not set</div>
     select.addEventListener('change',()=>{
       occultationSearchRevision++;
       activeOccultationEvent=null;
+      const observer=occultationObservers.find(
+        body=>body.name===select.value
+      );
+      if(observatorySurfaceDefinition(observer?.name)){
+        setObservatoryObserver(observer);
+      }
       document.getElementById('previousOccultationBtn').disabled=false;
       document.getElementById('nextOccultationBtn').disabled=false;
       document.getElementById('occultationStatus').textContent=
@@ -3030,11 +3739,28 @@ Velocity: not set</div>
     );
     if(visible && occultationObservers.includes(selected)){
       document.getElementById('occultationObserver').value=selected.name;
+      if(observatorySurfaceDefinition(selected.name)){
+        setObservatoryObserver(selected);
+      }
     }
   }
 
   // ---------- Interaction: hover + pointer rotate/pan/pinch/tap ----------
+  function observatoryHitTest(mx,my){
+    let best=null;
+    let bestDistance=Infinity;
+    for(const entry of observatoryProjectedBodies){
+      const distance=Math.hypot(mx-entry.x,my-entry.y);
+      if(distance<=entry.r+5 && distance<=bestDistance){
+        best=entry.body;
+        bestDistance=distance;
+      }
+    }
+    return best;
+  }
+
   function hitTest(mx,my){
+    if(observatoryActive) return observatoryHitTest(mx,my);
     const list = visibleBodies();
     const marker = list.find(b=> b.kind==='lagrange' && b._screen &&
       Math.hypot(mx-b._screen.x,my-b._screen.y)<b._screen.r+6) ||
@@ -3100,6 +3826,7 @@ Velocity: not set</div>
   function pointerDragStart(x,y){
     return {
       x,y,panX,panY,yaw:viewYaw,tilt:viewTilt,
+      observatoryAzimuth,observatoryAltitude,observatoryFov,
       rotationPivot:selectedRotationPivot()
     };
   }
@@ -3128,14 +3855,17 @@ Velocity: not set</div>
     scene.setPointerCapture(e.pointerId);
     activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
     if(activePointers.size===1){
-      dragMode = spaceHeld ? 'pan' : 'rotate';
+      dragMode = observatoryActive ? 'observatory' : spaceHeld ? 'pan' : 'rotate';
       dragMoved = false;
       dragStartInfo=pointerDragStart(e.clientX,e.clientY);
       tapStart = {x:e.clientX, y:e.clientY, t:performance.now()};
       scene.style.cursor = 'grabbing';
     } else if(activePointers.size===2){
       const [a,b] = pointersArray();
-      pinchStartInfo = { dist:dist(a,b), mid:midpoint(a,b), zoom, panX, panY };
+      pinchStartInfo = {
+        dist:dist(a,b),mid:midpoint(a,b),zoom,panX,panY,
+        observatoryFov
+      };
       dragMode = 'two'; dragMoved = true; tapStart = null;
     }
   });
@@ -3148,7 +3878,15 @@ Velocity: not set</div>
     if(!activePointers.has(e.pointerId)) return;
     activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
 
-    if(dragMode==='rotate' && activePointers.size===1){
+    if(dragMode==='observatory' && activePointers.size===1){
+      const dx=e.clientX-dragStartInfo.x;
+      const dy=e.clientY-dragStartInfo.y;
+      if(Math.hypot(dx,dy)>6) dragMoved=true;
+      observatoryAzimuth=dragStartInfo.observatoryAzimuth-dx*0.004;
+      observatoryAltitude=Math.max(
+        -89*DEG,Math.min(89*DEG,dragStartInfo.observatoryAltitude+dy*0.003)
+      );
+    } else if(dragMode==='rotate' && activePointers.size===1){
       const dx=e.clientX-dragStartInfo.x, dy=e.clientY-dragStartInfo.y;
       if(Math.hypot(dx,dy)>6) dragMoved=true;
       const rotation=rotationFromDrag(dragStartInfo.yaw,dragStartInfo.tilt,dx,dy);
@@ -3187,6 +3925,12 @@ Velocity: not set</div>
       const newDist = dist(a,b);
       const mid = midpoint(a,b);
       const scale = newDist / pinchStartInfo.dist;
+      if(observatoryActive){
+        observatoryFov=Math.max(
+          8*DEG,Math.min(120*DEG,pinchStartInfo.observatoryFov/scale)
+        );
+        return;
+      }
       const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pinchStartInfo.zoom*scale));
       // anchor zoom at the pinch's original midpoint, then add any midpoint drift as pan
       const preX = (pinchStartInfo.mid.x - cx - pinchStartInfo.panX)/pinchStartInfo.zoom;
@@ -3226,7 +3970,7 @@ Velocity: not set</div>
       scene.style.cursor = 'grab';
     } else if(activePointers.size===1){
       const [p] = pointersArray();
-      dragMode = spaceHeld ? 'pan' : 'rotate';
+      dragMode = observatoryActive ? 'observatory' : spaceHeld ? 'pan' : 'rotate';
       dragMoved = true;
       dragStartInfo=pointerDragStart(p.x,p.y);
     }
@@ -3395,6 +4139,7 @@ Velocity: not set</div>
     moonSnapshotCache.clear();
     moonExternalCache.clear();
     hybridTrailCache.clear();
+    observatoryPathCache.clear();
     orbitLayerDirty=true;
   }
   function branchFromStates(tDays,currentState,currentMoonState){
@@ -3530,6 +4275,198 @@ Velocity: not set</div>
     setSelectedBody(body);
     closeBodyPanel();
   }
+
+  function applyObservatoryPreset(index){
+    const preset=observatoryLocationPresets(observatoryObserver.name)[index];
+    if(!preset) return;
+    observatoryLatitude=preset.latitude;
+    observatoryLongitude=preset.longitude;
+    observatoryTimeZone=preset.timeZone||'UTC';
+    document.getElementById('observatoryLatitude').value=
+      observatoryLatitude.toFixed(4);
+    document.getElementById('observatoryLongitude').value=
+      observatoryLongitude.toFixed(4);
+  }
+
+  function buildObservatoryPresets(selectFirst){
+    const select=document.getElementById('observatoryPreset');
+    select.innerHTML='';
+    for(const [index,preset] of observatoryLocationPresets(
+      observatoryObserver.name
+    ).entries()){
+      const option=document.createElement('option');
+      option.value=String(index);
+      option.textContent=preset.name.toUpperCase();
+      select.appendChild(option);
+    }
+    const custom=document.createElement('option');
+    custom.value='custom';
+    custom.textContent='CUSTOM COORDINATES';
+    select.appendChild(custom);
+    if(selectFirst){
+      const presets=observatoryLocationPresets(observatoryObserver.name);
+      const defaultIndex=observatoryObserver.name==='Earth'
+        ? Math.max(0,presets.findIndex(preset=>preset.name==='Greenwich'))
+        : 0;
+      select.value=String(defaultIndex);
+      applyObservatoryPreset(defaultIndex);
+    }
+  }
+
+  function setObservatoryObserver(body,selectFirst=true){
+    if(!body || !observatorySurfaceDefinition(body.name)) return;
+    if(body===observatoryObserver && !selectFirst){
+      document.getElementById('observatoryBody').value=body.name;
+      return;
+    }
+    observatoryObserver=body;
+    document.getElementById('observatoryBody').value=body.name;
+    buildObservatoryPresets(selectFirst);
+  }
+
+  function aimObservatoryAtEvent(event){
+    const surface=observatorySurfaceDefinition(event.observer.name);
+    const observerCenter=positionForBody(event.observer,event.time);
+    if(!surface || !observerCenter) return;
+    const frame=observatorySurfaceFrame(
+      surface,event.time,observatoryLatitude,observatoryLongitude
+    );
+    const observerPosition={
+      x:observerCenter.x+frame.up.x*event.observer.radius/AU_KM,
+      y:observerCenter.y+frame.up.y*event.observer.radius/AU_KM,
+      z:observerCenter.z+frame.up.z*event.observer.radius/AU_KM
+    };
+    let direction;
+    if(event.type==='alignment'){
+      const stateA=positionForBody(event.bodyA,event.time);
+      const stateB=positionForBody(event.bodyB,event.time);
+      if(!stateA || !stateB) return;
+      const directionA=normalizeObservatoryVector(
+        observatoryDirection(observerPosition,stateA)
+      );
+      const directionB=normalizeObservatoryVector(
+        observatoryDirection(observerPosition,stateB)
+      );
+      direction={
+        x:directionA.x+directionB.x,
+        y:directionA.y+directionB.y,
+        z:directionA.z+directionB.z
+      };
+      observatoryFov=20*DEG;
+    } else {
+      direction=observatoryDirection(
+        observerPosition,positionForBody(sunReference,event.time)
+      );
+      observatoryFov=12*DEG;
+    }
+    const coordinates=observatoryHorizontalCoordinates(direction,frame);
+    observatoryAzimuth=coordinates.azimuth;
+    observatoryAltitude=coordinates.altitude;
+  }
+
+  function buildObservatoryControls(){
+    const select=document.getElementById('observatoryBody');
+    for(const body of observatoryObserverBodies()){
+      const option=document.createElement('option');
+      option.value=body.name;
+      option.textContent=body.name.toUpperCase();
+      select.appendChild(option);
+    }
+    setObservatoryObserver(
+      observatoryObserverBodies().find(body=>body.name==='Earth')
+    );
+    select.addEventListener('change',()=>{
+      setObservatoryObserver(
+        observatoryObserverBodies().find(body=>body.name===select.value)
+      );
+    });
+    document.getElementById('observatoryPreset').addEventListener(
+      'change',event=>{
+        if(event.target.value!=='custom'){
+          applyObservatoryPreset(Number(event.target.value));
+        }
+      }
+    );
+    function updateCoordinates(){
+      const latitude=Number(
+        document.getElementById('observatoryLatitude').value
+      );
+      const longitude=Number(
+        document.getElementById('observatoryLongitude').value
+      );
+      if(!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+      observatoryLatitude=Math.max(-90,Math.min(90,latitude));
+      observatoryLongitude=Math.max(-180,Math.min(180,longitude));
+      observatoryTimeZone='UTC';
+      document.getElementById('observatoryPreset').value='custom';
+    }
+    document.getElementById('observatoryLatitude').addEventListener(
+      'input',updateCoordinates
+    );
+    document.getElementById('observatoryLongitude').addEventListener(
+      'input',updateCoordinates
+    );
+    document.getElementById('observatoryEnhance').addEventListener(
+      'change',event=>{ observatoryEnhance=event.target.checked; }
+    );
+    document.getElementById('observatoryPaths').addEventListener(
+      'change',event=>{ observatoryShowPaths=event.target.checked; }
+    );
+  }
+
+  function setObservatoryMode(enabled,preservePlayback=false){
+    const wasActive=observatoryActive;
+    if(enabled && !wasActive) observatoryPreviousPlaying=playing;
+    observatoryActive=enabled;
+    if(enabled){
+      resetBodyInsertion();
+      if(activeImpact){
+        ignoredImpactKey=activeImpact.key;
+        activeImpact=null;
+        updateImpactPanel();
+      }
+      if(!preservePlayback){
+        playing=true;
+        playBtn.textContent='⏸';
+      }
+      const selectedObserver=observatoryObserverBodies().find(
+        body=>body===selected
+      );
+      if(selectedObserver && selectedObserver!==observatoryObserver){
+        setObservatoryObserver(selectedObserver);
+      }
+    }
+    document.getElementById('stage').classList.toggle(
+      'observatory-active',enabled
+    );
+    document.getElementById('observatoryPanel').classList.toggle(
+      'panel-hidden',!enabled
+    );
+    const button=document.getElementById('observatoryBtn');
+    button.classList.toggle('active',enabled);
+    button.setAttribute('aria-pressed',String(enabled));
+    const slider=document.getElementById('speedSlider');
+    if(enabled){
+      slider.min='0';
+      slider.max='3.6';
+      slider.step='0.01';
+      slider.value=String(observatorySpeedExp);
+    } else {
+      slider.min='-2';
+      slider.max='4.2';
+      slider.step='0.01';
+      slider.value=String(speedExp);
+    }
+    updateSpeedLabel();
+    if(!enabled){
+      playing=observatoryPreviousPlaying;
+      playBtn.textContent=playing?'⏸':'▶';
+      skyCtx.clearRect(0,0,W,H);
+      drawStars(true);
+      invalidateProjection();
+    }
+  }
+
   document.getElementById('bodyType').addEventListener('change',applyBodyPreset);
   document.getElementById('bodyPlaceBtn').addEventListener('click',beginBodyPlacement);
   document.getElementById('bodyInsertBtn').addEventListener('click',insertDraftBody);
@@ -3557,6 +4494,12 @@ Velocity: not set</div>
   document.getElementById('rotatingFrameBtn').addEventListener('click',()=>{
     setRotatingReferenceFrame(!rotatingReferenceFrame);
   });
+  document.getElementById('observatoryBtn').addEventListener('click',()=>{
+    setObservatoryMode(!observatoryActive);
+  });
+  document.getElementById('observatoryClose').addEventListener(
+    'click',()=>setObservatoryMode(false)
+  );
   document.getElementById('addBodyBtn').addEventListener('click',()=>{
     const panel=document.getElementById('bodyPanel');
     const visible=panel.classList.toggle('show');
@@ -3602,6 +4545,13 @@ Velocity: not set</div>
   const speedSlider = document.getElementById('speedSlider');
   const speedVal = document.getElementById('speedVal');
   function updateSpeedLabel(){
+    if(observatoryActive){
+      const multiplier=Math.pow(10,observatorySpeedExp);
+      speedVal.textContent=multiplier<10
+        ? multiplier.toFixed(1)+'× real time'
+        : Math.round(multiplier)+'× real time';
+      return;
+    }
     const dps = speedDaysPerSec();
     let txt;
     if(dps < 1) txt = dps.toFixed(2)+' days/sec';
@@ -3609,7 +4559,14 @@ Velocity: not set</div>
     else txt = (dps/365.25).toFixed(1)+' yrs/sec';
     speedVal.textContent = (direction<0?'−':'')+txt;
   }
-  speedSlider.addEventListener('input', (e)=>{ speedExp = parseFloat(e.target.value); updateSpeedLabel(); });
+  speedSlider.addEventListener('input', (e)=>{
+    if(observatoryActive){
+      observatorySpeedExp=parseFloat(e.target.value);
+    } else {
+      speedExp=parseFloat(e.target.value);
+    }
+    updateSpeedLabel();
+  });
   updateSpeedLabel();
 
   function stopAtHybridLimit(){
@@ -3620,9 +4577,31 @@ Velocity: not set</div>
       'Future N-body navigation currently ends at 2100-01-01.';
   }
 
-  document.getElementById('zoomInBtn').addEventListener('click', ()=>{ applyZoom(zoom*1.35, cx, cy); });
-  document.getElementById('zoomOutBtn').addEventListener('click', ()=>{ applyZoom(zoom/1.35, cx, cy); });
-  scene.addEventListener('wheel', (e)=>{ e.preventDefault(); applyZoom(zoom*(e.deltaY<0?1.1:0.9), e.clientX, e.clientY); }, {passive:false});
+  document.getElementById('zoomInBtn').addEventListener('click', ()=>{
+    if(observatoryActive){
+      observatoryFov=Math.max(8*DEG,observatoryFov/1.25);
+    } else {
+      applyZoom(zoom*1.35,cx,cy);
+    }
+  });
+  document.getElementById('zoomOutBtn').addEventListener('click', ()=>{
+    if(observatoryActive){
+      observatoryFov=Math.min(120*DEG,observatoryFov*1.25);
+    } else {
+      applyZoom(zoom/1.35,cx,cy);
+    }
+  });
+  scene.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    if(observatoryActive){
+      const factor=e.deltaY<0?0.9:1.1;
+      observatoryFov=Math.max(
+        8*DEG,Math.min(120*DEG,observatoryFov*factor)
+      );
+    } else {
+      applyZoom(zoom*(e.deltaY<0?1.1:0.9),e.clientX,e.clientY);
+    }
+  }, {passive:false});
 
   let activeViewPreset='Current';
   let profilerVisible=false;
@@ -3667,7 +4646,8 @@ Velocity: not set</div>
       legend:['legendBtn'],
       missionPanel:['missionBtn'],
       occultationPanel:['occultationBtn'],
-      impactPanel:['impactBtn']
+      impactPanel:['impactBtn'],
+      dock:['dockBtn']
     }[id]||[];
     for(const buttonId of buttonIds){
       const button=document.getElementById(buttonId);
@@ -3682,6 +4662,12 @@ Velocity: not set</div>
 
   document.getElementById('perfBtn').addEventListener('click',toggleProfiler);
   document.getElementById('perfClose').addEventListener('click',()=>setProfilerVisible(false));
+  document.getElementById('dockBtn').addEventListener(
+    'click',()=>togglePanel('dock')
+  );
+  document.getElementById('dockClose').addEventListener(
+    'click',()=>setPanelVisible('dock',false)
+  );
   document.getElementById('title').addEventListener(
     'click',()=>togglePanel('aboutPanel')
   );
@@ -3729,7 +4715,7 @@ Velocity: not set</div>
         spaceHeld=true;
         spaceDragOccurred=false;
         spaceToggleArmed=true;
-        if(activePointers.size===1){
+        if(activePointers.size===1 && !observatoryActive){
           const [p]=pointersArray();
           dragMode='pan';
           dragStartInfo={x:p.x,y:p.y,panX,panY,yaw:viewYaw,tilt:viewTilt};
@@ -3742,8 +4728,10 @@ Velocity: not set</div>
     if(e.code==='KeyP') toggleProfiler();
     if(e.code==='KeyM') togglePanel('missionPanel');
     if(e.code==='KeyL') togglePanel('legend');
+    if(e.code==='KeyT') togglePanel('dock');
     if(e.code==='KeyG') setLagrangeVisibility(!showLagrangePoints);
     if(e.code==='KeyR') setRotatingReferenceFrame(!rotatingReferenceFrame);
+    if(e.code==='KeyO') setObservatoryMode(!observatoryActive);
     if(e.code==='KeyE'){
       const panel=document.getElementById('occultationPanel');
       setOccultationPanelVisible(panel.classList.contains('panel-hidden'));
@@ -3778,8 +4766,12 @@ Velocity: not set</div>
     }
     if(playing){
       const previousDays=simDaysSinceJ2000;
-      const nextDays=simDaysSinceJ2000+direction*speedDaysPerSec()*dt;
-      const impact=direction>0 ? detectImpact(previousDays,nextDays) : null;
+      const playbackDirection=observatoryActive?1:direction;
+      const nextDays=simDaysSinceJ2000+
+        playbackDirection*speedDaysPerSec()*dt;
+      const impact=playbackDirection>0
+        ? detectImpact(previousDays,nextDays)
+        : null;
       if(impact){
         handleImpact(impact);
       } else {
@@ -3799,6 +4791,7 @@ Velocity: not set</div>
 
   buildMissionTimeline();
   buildOccultationControls();
+  buildObservatoryControls();
   buildLegend();
   updateLagrangeControls();
   resize();

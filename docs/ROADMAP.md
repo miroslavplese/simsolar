@@ -109,8 +109,39 @@ introduced.
 - [ ] Consider deterministic debris generation with explicit performance limits
   only if fragmentation becomes a useful interactive scenario.
 
+## Future feature concepts
+
+- [ ] Add a mission planner with maneuver nodes, delta-v controls, and trajectory
+  previews.
+- [ ] Add saved and shareable scenarios, including URL-based simulation state.
+- [ ] Add a close-approach analyzer with encounter time, minimum distance, and
+  relative velocity.
+- [ ] Add guided scenarios and tours for missions, eclipses, asteroid deflection,
+  and unusual gravitational encounters.
+- [ ] Add an optional catalog of notable asteroids, near-Earth objects, and
+  historical comets.
+- [ ] Add a spacecraft builder with mass, propulsion, fuel, thrust, and staged
+  maneuvers.
+- [ ] Add a searchable event timeline for conjunctions, eclipses, perihelia,
+  impacts, and close encounters.
+- [ ] Add optional relativistic effects, including Mercury's perihelion
+  precession and appropriate black-hole visualization.
+- [ ] Package the application as an installable offline-capable Progressive Web
+  App with fullscreen and home-screen support.
+
 ## Completed
 
+- [x] 2026-08-17 - Added surface observatory mode for modeled solid planets and
+  moons with latitude/longitude presets, drag-and-zoom sky navigation,
+  atmosphere-aware daylight, true angular sizes, labels, horizon coordinates,
+  and selectable visibility enhancement.
+- [x] 2026-08-17 - Added DST-aware civil time for Earth city presets, scaled
+  Observatory Mode time acceleration, surface-visible eclipse and transit
+  navigation, and one-degree planet-conjunction search.
+- [x] 2026-08-17 - Added optional projected orbit and trajectory guides to
+  Observatory Mode, hidden by default.
+- [x] 2026-08-17 - Moved view presets into the closable time/view dock and added
+  a synchronized top-toolbar toggle.
 - [x] 2026-08-14 - Replaced static screen-space stars with a deterministic
   celestial sphere that responds to camera and co-rotating-frame orientation.
 - [x] 2026-08-14 - Added observer-based solar eclipse and transit search,

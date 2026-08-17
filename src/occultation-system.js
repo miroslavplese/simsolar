@@ -19,7 +19,22 @@
     if(!(radius>0) || !(distance>radius)){
       throw new RangeError('Angular radius requires a positive radius and exterior observer.');
     }
+
     return Math.asin(clamp(radius/distance,0,1));
+  }
+
+  function apparentSeparation(observer,targetA,targetB){
+    const a=vectorFrom(observer,targetA);
+    const b=vectorFrom(observer,targetB);
+    const distanceA=Math.hypot(a.x,a.y,a.z);
+    const distanceB=Math.hypot(b.x,b.y,b.z);
+    if(!(distanceA>0) || !(distanceB>0)){
+      throw new RangeError('Apparent separation requires distinct targets.');
+    }
+    const cosine=clamp(
+      (a.x*b.x+a.y*b.y+a.z*b.z)/(distanceA*distanceB),-1,1
+    );
+    return Math.acos(cosine);
   }
 
   function circleOverlapArea(radiusA,radiusB,separation){
@@ -164,7 +179,7 @@
   }
 
   return {
-    angularRadius,circleOverlapArea,apparentOccultation,
+    angularRadius,apparentSeparation,circleOverlapArea,apparentOccultation,
     goldenMinimum,findOccultationEvents
   };
 });

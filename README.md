@@ -17,8 +17,13 @@ web server is required.
 - Future-only Newtonian N-body gravity initialized from JPL state vectors
 - Hierarchical major-moon dynamics with external and mutual perturbations
 - Selectable L1-L5 markers and co-rotating Sun-planet or planet-moon views
-- Observer-based solar eclipse and planetary transit search with apparent-disk previews
+- Surface-observer eclipse, planetary transit, and one-degree planet-conjunction
+  search with direct Observatory Mode navigation
 - Deterministic celestial star sphere that follows camera and co-rotating-frame motion
+- Surface observatory mode for solid planets and moons with location presets,
+  configurable coordinates, atmospheric daylight, horizon coordinates, and
+  true-angular-size sky objects, optional orbit/trajectory guides, scaled time,
+  and local civil-time display
 - Interactive insertion of configurable stars, black holes, planets, and comets
 - Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
 - Animated simulation clock with adjustable speed and direction
@@ -26,7 +31,9 @@ web server is required.
 - Automatic zoom/focus/follow from the body list and spacecraft mission events
 - Rolling average and p95 frame-time profiler for each view preset
 - Pointer orbit rotation, Space-drag or two-finger pan, pinch/wheel zoom, movable panels, and view presets
-- Panel shortcuts: `M` mission timeline, `L` body/craft list, and `P` frame-time profiler
+- Panel shortcuts: `M` mission timeline, `L` body/craft list, `T` time/view
+  controls, and `P` frame-time profiler
+- Observatory shortcut: `O`
 - Selection cards with mass, orbital information, and Wikipedia links
 - Sun-directed sphere lighting, depth-aware occultation, and shadowed planetary rings
 - Planet and spacecraft trajectory hit testing
@@ -48,6 +55,7 @@ web server is required.
 | `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
 | `src/view-transform.js` | Camera rotation and view-space transformation helpers |
 | `src/star-field.js` | Deterministic celestial-sphere generation and camera projection |
+| `src/observatory-mode.js` | Surface frames, horizontal coordinates, sky projection, and daylight calculations |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
 | `src/body-lighting.js` | Lambert sphere lighting and geometric shadow tests |
@@ -59,6 +67,7 @@ web server is required.
 | `src/nbody-simulation.js` | Barycentric Newtonian integration and checkpoint replay |
 | `tests/trajectory-tests.js` | Dependency-free numerical regression suite |
 | `tests/star-field-tests.js` | Star generation and camera-relative projection tests |
+| `tests/observatory-mode-tests.js` | Surface-frame and horizontal sky-projection tests |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
 | `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
 | `tests/body-lighting-tests.js` | Illumination and planet-shadow geometry tests |
