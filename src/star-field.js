@@ -3,30 +3,62 @@
   if(typeof module==='object' && module.exports) module.exports=api;
   root.StarField=api;
 })(typeof globalThis!=='undefined' ? globalThis : this,function(){
-  function seededRandom(seed){
-    let state=seed>>>0;
-    return function(){
-      state=(1664525*state+1013904223)>>>0;
-      return state/4294967296;
+  const DEG=Math.PI/180;
+  const OBLIQUITY=23.4392911*DEG;
+
+  function clamp(value,min,max){
+    return Math.max(min,Math.min(max,value));
+  }
+
+  function bvToRgb(bv){
+    if(!Number.isFinite(bv)) return [232,236,247];
+    const value=clamp(bv,-0.4,2);
+    if(value<0.4){
+      const blend=(value+0.4)/0.8;
+      return [
+        Math.round(170+85*blend),
+        Math.round(195+45*blend),
+        255
+      ];
+    }
+    const blend=(value-0.4)/1.6;
+    return [
+      255,
+      Math.round(240-75*blend),
+      Math.round(235-155*blend)
+    ];
+  }
+
+  function catalogStar(record){
+    const [hip,raDegrees,decDegrees,magnitude,bv]=record;
+    const ra=raDegrees*DEG;
+    const dec=decDegrees*DEG;
+    const cosDec=Math.cos(dec);
+    const equatorial={
+      x:cosDec*Math.cos(ra),
+      y:cosDec*Math.sin(ra),
+      z:Math.sin(dec)
+    };
+    const flux=10**(-0.4*(magnitude+1.46));
+    return {
+      hip,
+      x:equatorial.x,
+      y:equatorial.y*Math.cos(OBLIQUITY)+
+        equatorial.z*Math.sin(OBLIQUITY),
+      z:-equatorial.y*Math.sin(OBLIQUITY)+
+        equatorial.z*Math.cos(OBLIQUITY),
+      magnitude,
+      radius:0.28+1.7*flux**0.2,
+      alpha:clamp(0.16+0.84*flux**0.28,0.16,1),
+      rgb:bvToRgb(bv).join(',')
     };
   }
 
-  function createStars(count,seed){
-    const random=seededRandom(seed===undefined?0x51a7f13d:seed);
-    const stars=[];
-    for(let index=0;index<count;index++){
-      const z=random()*2-1;
-      const angle=random()*Math.PI*2;
-      const radial=Math.sqrt(Math.max(0,1-z*z));
-      stars.push({
-        x:radial*Math.cos(angle),
-        y:radial*Math.sin(angle),
-        z,
-        radius:0.25+random()*1.15,
-        alpha:0.16+random()*0.62
-      });
+  function createStars(records){
+    if(!Array.isArray(records)){
+      throw new TypeError('Star catalog records must be an array.');
     }
-    return stars;
+    return records.map(catalogStar);
   }
 
   function cameraCoordinates(direction,yaw,tilt){
@@ -53,5 +85,5 @@
     return {x,y,radius:star.radius,alpha:star.alpha,depth:camera.depth};
   }
 
-  return {createStars,cameraCoordinates,projectStar};
+  return {OBLIQUITY,bvToRgb,catalogStar,createStars,cameraCoordinates,projectStar};
 });

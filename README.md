@@ -19,7 +19,8 @@ web server is required.
 - Selectable L1-L5 markers and co-rotating Sun-planet or planet-moon views
 - Surface-observer eclipse, planetary transit, and one-degree planet-conjunction
   search with direct Observatory Mode navigation
-- Deterministic celestial star sphere that follows camera and co-rotating-frame motion
+- 8,870-star Hipparcos celestial sphere with catalog positions, Johnson V
+  magnitudes, B−V colors, and a cached offscreen rendering backdrop
 - Surface observatory mode for solid planets and moons with location presets,
   configurable coordinates, atmospheric daylight, horizon coordinates, and
   true-angular-size sky objects, optional orbit/trajectory guides, scaled time,
@@ -48,6 +49,7 @@ web server is required.
 | `data/moon-cutoff-states.js` | Generated NASA/JPL Horizons major-moon cutoff vectors |
 | `data/spacecraft-trajectories.js` | Generated NASA/JPL Horizons trajectory samples |
 | `data/comet-ephemerides.js` | Generated NASA/JPL Horizons comet state vectors |
+| `data/hipparcos-stars.js` | Generated naked-eye Hipparcos star catalog from CDS VizieR |
 | `docs/DESIGN.md` | Architecture, data model, numerical assumptions, and design decisions |
 | `docs/ROADMAP.md` | Progress tracker and prioritized improvement backlog |
 | `src/trajectory-math.js` | Shared interpolation and two-body propagation module |
@@ -78,6 +80,7 @@ web server is required.
 | `tests/occultation-system-tests.js` | Eclipse, transit, overlap, and event-search tests |
 | `tests/nbody-tests.js` | Conservation, continuity, and deterministic replay tests |
 | `tools/fetch-trajectories.py` | Reproducible Horizons data generator |
+| `tools/fetch-stars.py` | Reproducible Hipparcos catalog generator |
 
 ## Current limitations
 
@@ -101,9 +104,11 @@ web server is required.
   cutoff vectors; historical planetary and mutual perturbations are not replayed.
 - Future moon dynamics cover 13 major moons. Omitted satellites remain absorbed
   into each parent system's gravitational parameter.
-- Eclipse and transit events use center-of-body observers. Surface visibility
-  paths, atmospheric refraction, and formal contact times are not yet modeled.
+- Eclipse, transit, and conjunction searches use the configured surface
+  observer. Atmospheric refraction and formal contact times are not yet modeled.
 - Planet and spacecraft data is embedded in the application.
+- Star positions are Hipparcos ICRS catalog directions at epoch J1991.25;
+  proper motion and long-term precession are not yet applied.
 - Dynamic body positions and traveled trails are rendered every animation frame,
   except that off-screen heliocentric paths are suppressed in close moon views.
 - Interaction and visual regression tests are not yet automated.
