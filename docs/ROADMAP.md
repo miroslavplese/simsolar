@@ -141,6 +141,8 @@ introduced.
 
 ## Completed
 
+- [x] 2026-08-18 - Added a first-run guided tutorial with persistent completion,
+  responsive pointers, major-feature walkthroughs, and a toolbar restart action.
 - [x] 2026-08-17 - Replaced the generated random star sphere with 8,870
   Hipparcos stars through Johnson V magnitude 6.5, including catalog positions
   and B−V-derived colors.

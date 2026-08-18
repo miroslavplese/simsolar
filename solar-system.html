@@ -244,6 +244,52 @@
     opacity:0; pointer-events:none; transition:opacity .2s;
   }
   #scenarioStatus.show{ opacity:1; }
+  .tutorial-overlay{
+    position:fixed; inset:0; z-index:1000; pointer-events:none;
+    background:rgba(3,6,14,.72);
+  }
+  .tutorial-target{
+    z-index:1001!important; outline:3px solid var(--accent)!important;
+    outline-offset:4px; box-shadow:0 0 0 7px rgba(242,181,68,.18),
+      0 0 28px rgba(242,181,68,.5)!important;
+  }
+  .tutorial-tooltip{
+    position:fixed; z-index:1002; width:min(330px,calc(100vw - 28px));
+    padding:15px; border:1px solid #66552f; border-radius:12px;
+    background:rgba(17,22,42,.98); box-shadow:0 14px 50px rgba(0,0,0,.65);
+    font-family:var(--mono);
+  }
+  .tutorial-tooltip::before{
+    content:""; position:absolute; left:50%; width:12px; height:12px;
+    background:#11162a; border-left:1px solid #66552f;
+    border-top:1px solid #66552f; transform:translateX(-50%) rotate(45deg);
+  }
+  .tutorial-tooltip[data-placement="below"]::before{ top:-7px; }
+  .tutorial-tooltip[data-placement="above"]::before{
+    bottom:-7px; transform:translateX(-50%) rotate(225deg);
+  }
+  .tutorial-tooltip[data-placement="center"]::before{ display:none; }
+  .tutorial-progress{
+    color:var(--accent); font-size:8px; letter-spacing:.1em; margin-bottom:7px;
+  }
+  .tutorial-tooltip h2{
+    color:var(--ink); font:600 15px var(--sans); margin-bottom:7px;
+  }
+  .tutorial-tooltip p{
+    color:var(--ink-dim); font:11px/1.55 var(--sans); white-space:pre-line;
+  }
+  .tutorial-actions{
+    display:flex; align-items:center; gap:7px; margin-top:13px;
+  }
+  .tutorial-actions button{
+    height:29px; padding:0 10px; border:1px solid var(--line);
+    border-radius:7px; background:#161c34; color:var(--ink);
+    cursor:pointer; font:8.5px var(--mono);
+  }
+  .tutorial-actions button:hover{ border-color:var(--accent); color:var(--accent); }
+  .tutorial-actions button:disabled{ opacity:.3; cursor:default; }
+  .tutorial-actions .tutorial-skip{ margin-right:auto; color:var(--ink-dim); }
+  .tutorial-actions .tutorial-next{ border-color:#66552f; color:var(--accent); }
   .movable-panel{ cursor:grab; touch-action:none; }
   .movable-panel label{ cursor:default; }
   .movable-panel.panel-dragging{ cursor:grabbing; user-select:none; }
@@ -301,6 +347,8 @@
       aria-pressed="false">↻</button>
     <button class="btn" id="shareScenarioBtn" type="button"
       title="Copy a link to this scenario" aria-label="Copy scenario link">↗</button>
+    <button class="btn" id="tutorialBtn" type="button"
+      title="Restart guided tutorial" aria-label="Restart guided tutorial">?</button>
   </div>
   <div id="scenarioStatus" role="status" aria-live="polite"></div>
 
@@ -489,6 +537,7 @@ Velocity: not set</div>
 <script src="src/star-field.js"></script>
 <script src="src/observatory-mode.js"></script>
 <script src="src/scenario-state.js"></script>
+<script src="src/guided-tutorial.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js"></script>
 <script src="src/body-lighting.js"></script>
@@ -4845,7 +4894,143 @@ Velocity: not set</div>
     setPanelVisible(id,panel.classList.contains('panel-hidden'));
   }
 
+  const tutorialPanelIds=[
+    'legend','missionPanel','occultationPanel','impactPanel','dock'
+  ];
+  let tutorialSnapshot=null;
+
+  function tutorialPanelVisibility(){
+    return Object.fromEntries(tutorialPanelIds.map(id=>[
+      id,!document.getElementById(id).classList.contains('panel-hidden')
+    ]));
+  }
+
+  function prepareTutorialView(){
+    if(observatoryActive) setObservatoryMode(false,true);
+    setProfilerVisible(false);
+    document.getElementById('bodyPanel').classList.remove('show');
+    document.getElementById('addBodyBtn').classList.remove('active');
+    for(const id of tutorialPanelIds) setPanelVisible(id,false);
+    setPanelVisible('dock',true);
+  }
+
+  function restoreTutorialView(){
+    if(!tutorialSnapshot) return;
+    if(observatoryActive!==tutorialSnapshot.observatory){
+      setObservatoryMode(tutorialSnapshot.observatory,true);
+    }
+    for(const [id,visible] of Object.entries(tutorialSnapshot.panels)){
+      setPanelVisible(id,visible);
+    }
+    document.getElementById('bodyPanel').classList.toggle(
+      'show',tutorialSnapshot.bodyPanel
+    );
+    document.getElementById('addBodyBtn').classList.toggle(
+      'active',tutorialSnapshot.bodyPanel
+    );
+    tutorialSnapshot=null;
+  }
+
+  const guidedTutorial=GuidedTutorial.create({
+    document,
+    window,
+    onStart(){
+      tutorialSnapshot={
+        observatory:observatoryActive,
+        panels:tutorialPanelVisibility(),
+        bodyPanel:document.getElementById('bodyPanel').classList.contains('show')
+      };
+      prepareTutorialView();
+    },
+    onFinish:restoreTutorialView,
+    steps:[
+      {
+        title:'Welcome to SimSolar',
+        text:'Explore the Solar System across time, follow real mission trajectories, observe the sky from planetary surfaces, and experiment with gravity.\n\nUse NEXT to tour the essentials, or SKIP TUTORIAL at any time.'
+      },
+      {
+        target:'#scene',
+        title:'Navigate and select',
+        text:'Drag with the left mouse button to rotate. Hold the right button and drag to pan. Use the wheel to zoom.\n\nClick a body or trajectory to select it and open its properties. On touch screens, drag to rotate and use two fingers to pan and zoom.'
+      },
+      {
+        target:'#dock',
+        title:'Control time and view',
+        text:'Play, pause, jump by 30 days, change simulation speed, zoom, choose Inner/Outer/Deep presets, or return to today. Press T whenever you need to show or hide these controls.',
+        before(){
+          setPanelVisible('dock',true);
+        }
+      },
+      {
+        target:'#legend',
+        title:'Find and follow objects',
+        text:'Choose planets, moons, spacecraft, and comets here. Selecting an entry focuses it, follows its motion, and opens detailed properties.',
+        before(){
+          setPanelVisible('legend',true);
+        }
+      },
+      {
+        target:'#missionPanel',
+        title:'Replay historic missions',
+        text:'The mission timeline jumps to launches and flybys using bundled NASA/JPL trajectories. Choose a spacecraft or enter a UTC date, then open an event to follow it.',
+        before(){
+          setPanelVisible('legend',false);
+          setPanelVisible('missionPanel',true);
+        }
+      },
+      {
+        target:'#occultationPanel',
+        title:'Search the sky',
+        text:'Find eclipses, planetary transits, and close planet alignments for a selected surface observer. Results can open directly in Observatory Mode.',
+        before(){
+          setPanelVisible('missionPanel',false);
+          setOccultationPanelVisible(true);
+        }
+      },
+      {
+        target:'#observatoryPanel',
+        title:'Stand on another world',
+        text:'Observatory Mode shows the local sky from cities on Earth or modeled planetary surfaces. Choose a location, look around, accelerate time, and optionally show projected orbit paths.',
+        before(){
+          setOccultationPanelVisible(false);
+          setObservatoryMode(true,true);
+        }
+      },
+      {
+        target:'#addBodyBtn',
+        title:'Experiment with gravity',
+        text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Place it, set its velocity, and watch for predicted impacts.',
+        before(){
+          setObservatoryMode(false,true);
+        }
+      },
+      {
+        target:'#impactBtn',
+        title:'Monitor close encounters',
+        text:'The impact monitor predicts physical contact involving custom bodies. When a collision occurs, you can inspect it, continue, or merge custom bodies while conserving momentum.'
+      },
+      {
+        target:'#lagrangeBtn',
+        title:'Explore orbital geometry',
+        text:'Select a planet or moon, then click L₅ to reveal its five Lagrange points. The ↻ button beside it switches to a co-rotating frame.'
+      },
+      {
+        target:'#shareScenarioBtn',
+        title:'Share what you discover',
+        text:'Click ↗ to copy a link containing the current date, camera, selected object, visible layers, and Observatory setup. Anyone opening it sees the same scenario.'
+      },
+      {
+        target:'#tutorialBtn',
+        title:'You are ready to explore',
+        text:'The tutorial will not open automatically again after you finish or skip it. Click ? in the top toolbar whenever you want to replay it.\n\nKeyboard shortcuts include Space for play/pause and M, L, T, E, O, G, R, and P for major tools.'
+      }
+    ]
+  });
+
   document.getElementById('perfClose').addEventListener('click',()=>setProfilerVisible(false));
+  document.getElementById('tutorialBtn').addEventListener(
+    'click',()=>guidedTutorial.start()
+  );
   document.getElementById('dockBtn').addEventListener(
     'click',()=>togglePanel('dock')
   );
@@ -4959,6 +5144,9 @@ Velocity: not set</div>
   resize();
   window.addEventListener('resize', resize);
   requestAnimationFrame(loop);
+  if(guidedTutorial.shouldStart()){
+    window.setTimeout(()=>guidedTutorial.start(),500);
+  }
 })();
 </script>
 </body>

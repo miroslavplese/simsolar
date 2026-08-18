@@ -333,6 +333,17 @@ runtime dependency.
 - The UTC date input supports direct navigation independently of mission events.
 - Manual panning and view presets release the follow camera.
 
+The guided tutorial is offered automatically until the user finishes or skips
+it. Completion is stored in the `simsolar_tutorial_complete` cookie, with local
+storage as a fallback for direct-file environments, and the toolbar restart
+action remains available afterward. Tutorial progress is ephemeral and is not
+included in shareable scenario URLs.
+
+**Tutorial maintenance requirement:** every major user-facing feature addition,
+removal, renamed control, or changed workflow must review and update the guided
+tutorial in the same change. Target selectors, instructions, ordering, and
+feature coverage must remain synchronized with the current interface.
+
 ## Design constraints
 
 - Preserve direct browser execution without a required build step.
