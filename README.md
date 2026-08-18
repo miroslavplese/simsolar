@@ -30,6 +30,8 @@ web server is required.
 - Animated simulation clock with adjustable speed and direction
 - Versioned shareable scenario links that restore the date, playback, camera,
   visible object groups, selection, and Observatory location/view
+- First-run guided tutorial with responsive pointers, feature explanations,
+  completion persistence, and an always-available restart button
 - Mission timeline with launch/flyby jumps and UTC date navigation
 - Automatic zoom/focus/follow from the body list and spacecraft mission events
 - Rolling average and p95 frame-time profiler for each view preset
@@ -62,6 +64,7 @@ web server is required.
 | `src/star-field.js` | Deterministic celestial-sphere generation and camera projection |
 | `src/observatory-mode.js` | Surface frames, horizontal coordinates, sky projection, and daylight calculations |
 | `src/scenario-state.js` | Validated versioned encoding for shareable URL scenarios |
+| `src/guided-tutorial.js` | First-run persistence and responsive guided walkthrough UI |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
 | `src/body-lighting.js` | Lambert sphere lighting and geometric shadow tests |
@@ -75,6 +78,7 @@ web server is required.
 | `tests/star-field-tests.js` | Star generation and camera-relative projection tests |
 | `tests/observatory-mode-tests.js` | Surface-frame and horizontal sky-projection tests |
 | `tests/scenario-state-tests.js` | Shareable scenario encoding, URL, and validation tests |
+| `tests/guided-tutorial-tests.js` | Tutorial completion cookie and fallback persistence tests |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
 | `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
 | `tests/body-lighting-tests.js` | Illumination and planet-shadow geometry tests |
@@ -143,6 +147,9 @@ expected accuracy in `docs/DESIGN.md`. Track planned and completed work in
 When adding user-configurable state, decide whether it should survive in a
 shared scenario link. If so, update scenario capture, validation, restoration,
 version compatibility, and `tests/scenario-state-tests.js` together.
+When adding a major user-facing feature or changing an existing workflow,
+update the guided tutorial steps and instructions in the same change. The
+tutorial must always describe the current interface and its primary features.
 
 ## Test
 
