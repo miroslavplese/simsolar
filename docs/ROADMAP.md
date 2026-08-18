@@ -123,6 +123,13 @@ introduced.
   and unusual gravitational encounters.
 - [ ] Add an optional catalog of notable asteroids, near-Earth objects, and
   historical comets.
+- [ ] Add selectable background stars in Solar System and Observatory views.
+  - Build a spatial hit-test index from projected stars whenever the cached
+    backdrop refreshes, avoiding per-frame or full-catalog click scans.
+  - Extend generated Hipparcos records with names/designations, spectral type,
+    parallax/distance, and constellation where authoritative data is available.
+  - Show a star properties card and preserve star selection in shareable
+    scenario links.
 - [ ] Add a spacecraft builder with mass, propulsion, fuel, thrust, and staged
   maneuvers.
 - [ ] Add a searchable event timeline for conjunctions, eclipses, perihelia,
