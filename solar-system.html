@@ -237,6 +237,13 @@
   #stage.observatory-active #perfPanel{ display:none!important; }
   .btn.active{ border-color:var(--accent); color:var(--accent); }
   .btn:disabled{ opacity:.35; cursor:not-allowed; }
+  #scenarioStatus{
+    position:absolute; top:108px; left:50%; transform:translateX(-50%);
+    padding:7px 10px; border:1px solid var(--line); border-radius:8px;
+    background:rgba(17,22,42,.96); color:var(--accent); font:9px var(--mono);
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  #scenarioStatus.show{ opacity:1; }
   .movable-panel{ cursor:grab; touch-action:none; }
   .movable-panel label{ cursor:default; }
   .movable-panel.panel-dragging{ cursor:grabbing; user-select:none; }
@@ -292,7 +299,10 @@
     <button class="btn" id="rotatingFrameBtn" type="button"
       title="Co-rotating frame for the selected system (R)" aria-label="Co-rotating frame"
       aria-pressed="false">↻</button>
+    <button class="btn" id="shareScenarioBtn" type="button"
+      title="Copy a link to this scenario" aria-label="Copy scenario link">↗</button>
   </div>
+  <div id="scenarioStatus" role="status" aria-live="polite"></div>
 
   <div id="aboutPanel" class="panel-hidden">
     <button class="panel-close" id="aboutClose" type="button"
@@ -478,6 +488,7 @@ Velocity: not set</div>
 <script src="src/view-transform.js"></script>
 <script src="src/star-field.js"></script>
 <script src="src/observatory-mode.js"></script>
+<script src="src/scenario-state.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js"></script>
 <script src="src/body-lighting.js"></script>
@@ -4463,6 +4474,7 @@ Velocity: not set</div>
         activeImpact=null;
         updateImpactPanel();
       }
+
       if(!preservePlayback){
         playing=true;
         playBtn.textContent='⏸';
@@ -4508,6 +4520,126 @@ Velocity: not set</div>
     }
   }
 
+  function scenarioBodyByName(name){
+    if(!name) return null;
+    return [
+      sunReference,...planets,...moons,...spacecraft,...comets
+    ].find(body=>body.name===name)||null;
+  }
+
+  function currentScenarioState(){
+    return {
+      v:ScenarioState.VERSION,
+      t:Number(simDaysSinceJ2000.toFixed(6)),
+      playing,
+      speed:Number(speedExp.toFixed(4)),
+      direction,
+      selected:selected?.name||null,
+      follow:followTarget?.name||null,
+      view:{
+        zoom:Number(zoom.toFixed(6)),
+        panX:Number(panX.toFixed(2)),
+        panY:Number(panY.toFixed(2)),
+        yaw:Number(viewYaw.toFixed(6)),
+        tilt:Number(viewTilt.toFixed(6))
+      },
+      layers:{
+        spacecraft:showSpacecraft,
+        comets:showComets,
+        lagrange:showLagrangePoints,
+        rotating:rotatingReferenceFrame
+      },
+      observatory:observatoryActive ? {
+        body:observatoryObserver.name,
+        latitude:Number(observatoryLatitude.toFixed(6)),
+        longitude:Number(observatoryLongitude.toFixed(6)),
+        azimuth:Number(observatoryAzimuth.toFixed(6)),
+        altitude:Number(observatoryAltitude.toFixed(6)),
+        fov:Number(observatoryFov.toFixed(6)),
+        speed:Number(observatorySpeedExp.toFixed(4)),
+        enhance:observatoryEnhance,
+        paths:observatoryShowPaths,
+        timeZone:observatoryTimeZone
+      } : null
+    };
+  }
+
+  function applyScenarioState(state){
+    simDaysSinceJ2000=state.t;
+    speedExp=state.speed;
+    direction=state.direction;
+    zoom=state.view.zoom;
+    panX=state.view.panX;
+    panY=state.view.panY;
+    viewYaw=state.view.yaw;
+    viewTilt=state.view.tilt;
+    showSpacecraft=state.layers.spacecraft;
+    showComets=state.layers.comets;
+    showLagrangePoints=state.layers.lagrange;
+    rotatingReferenceFrame=state.layers.rotating;
+    const selectedBody=scenarioBodyByName(state.selected);
+    const followedBody=scenarioBodyByName(state.follow);
+    if(state.observatory){
+      const observer=observatoryObserverBodies().find(
+        body=>body.name===state.observatory.body
+      );
+      if(observer) setObservatoryObserver(observer);
+      observatoryLatitude=state.observatory.latitude;
+      observatoryLongitude=state.observatory.longitude;
+      observatoryAzimuth=state.observatory.azimuth;
+      observatoryAltitude=state.observatory.altitude;
+      observatoryFov=state.observatory.fov;
+      observatorySpeedExp=state.observatory.speed;
+      observatoryEnhance=state.observatory.enhance;
+      observatoryShowPaths=state.observatory.paths;
+      observatoryTimeZone=state.observatory.timeZone;
+      document.getElementById('observatoryPreset').value='custom';
+      document.getElementById('observatoryLatitude').value=
+        observatoryLatitude.toFixed(4);
+      document.getElementById('observatoryLongitude').value=
+        observatoryLongitude.toFixed(4);
+      document.getElementById('observatoryEnhance').checked=observatoryEnhance;
+      document.getElementById('observatoryPaths').checked=observatoryShowPaths;
+      setObservatoryMode(true,true);
+    }
+    setSelectedBody(selectedBody,false);
+    setFollowTarget(followedBody);
+    playing=state.playing;
+    playBtn.textContent=playing?'⏸':'▶';
+    const slider=document.getElementById('speedSlider');
+    slider.value=String(observatoryActive?observatorySpeedExp:speedExp);
+    updateSpeedLabel();
+    updateLagrangeControls();
+    buildLegend();
+    invalidateProjection();
+  }
+
+  let scenarioStatusTimer=null;
+  function showScenarioStatus(message,error=false){
+    const status=document.getElementById('scenarioStatus');
+    status.textContent=message;
+    status.style.color=error?'#ff8f9f':'var(--accent)';
+    status.classList.add('show');
+    clearTimeout(scenarioStatusTimer);
+    scenarioStatusTimer=setTimeout(()=>status.classList.remove('show'),2500);
+  }
+
+  async function copyScenarioLink(){
+    const url=ScenarioState.urlWithScenario(
+      window.location.href,currentScenarioState()
+    );
+    history.replaceState(null,'',url);
+    try{
+      if(!navigator.clipboard?.writeText){
+        throw new Error('Clipboard API is unavailable.');
+      }
+      await navigator.clipboard.writeText(url);
+      showScenarioStatus('SCENARIO LINK COPIED');
+    } catch(error){
+      showScenarioStatus('LINK READY IN THE ADDRESS BAR',true);
+    }
+  }
+
   document.getElementById('bodyType').addEventListener('change',applyBodyPreset);
   document.getElementById('bodyPlaceBtn').addEventListener('click',beginBodyPlacement);
   document.getElementById('bodyInsertBtn').addEventListener('click',insertDraftBody);
@@ -4540,6 +4672,9 @@ Velocity: not set</div>
   });
   document.getElementById('observatoryClose').addEventListener(
     'click',()=>setObservatoryMode(false)
+  );
+  document.getElementById('shareScenarioBtn').addEventListener(
+    'click',copyScenarioLink
   );
   document.getElementById('addBodyBtn').addEventListener('click',()=>{
     const panel=document.getElementById('bodyPanel');
@@ -4834,6 +4969,8 @@ Velocity: not set</div>
   buildMissionTimeline();
   buildOccultationControls();
   buildObservatoryControls();
+  const initialScenario=ScenarioState.scenarioFromUrl(window.location.href);
+  if(initialScenario) applyScenarioState(initialScenario);
   buildLegend();
   updateLagrangeControls();
   resize();
