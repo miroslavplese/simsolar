@@ -113,7 +113,10 @@ introduced.
 
 - [ ] Add a mission planner with maneuver nodes, delta-v controls, and trajectory
   previews.
-- [ ] Add saved and shareable scenarios, including URL-based simulation state.
+- [x] 2026-08-18 - Add versioned shareable URL scenarios that restore simulation
+  time, playback, camera, object visibility, selection, follow target, and
+  Observatory location/view state.
+- [ ] Add a named local scenario library for saving and reopening multiple setups.
 - [ ] Add a close-approach analyzer with encounter time, minimum distance, and
   relative velocity.
 - [ ] Add guided scenarios and tours for missions, eclipses, asteroid deflection,
