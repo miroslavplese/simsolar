@@ -139,6 +139,9 @@ bound integration time and checkpoint memory.
 Before changing orbital calculations, document the source, epoch, units, and
 expected accuracy in `docs/DESIGN.md`. Track planned and completed work in
 `docs/ROADMAP.md`, keeping tasks small enough to validate independently.
+When adding user-configurable state, decide whether it should survive in a
+shared scenario link. If so, update scenario capture, validation, restoration,
+version compatibility, and `tests/scenario-state-tests.js` together.
 
 ## Test
 
