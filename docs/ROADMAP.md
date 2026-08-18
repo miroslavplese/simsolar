@@ -131,6 +131,11 @@ introduced.
 
 ## Completed
 
+- [x] 2026-08-17 - Replaced the generated random star sphere with 8,870
+  Hipparcos stars through Johnson V magnitude 6.5, including catalog positions
+  and B−V-derived colors.
+- [x] 2026-08-18 - Moved Hipparcos rendering to a throttled offscreen backdrop
+  cache keyed by viewport, camera, FOV, surface frame, and daylight.
 - [x] 2026-08-17 - Added surface observatory mode for modeled solid planets and
   moons with latitude/longitude presets, drag-and-zoom sky navigation,
   atmosphere-aware daylight, true angular sizes, labels, horizon coordinates,
@@ -142,6 +147,9 @@ introduced.
   Observatory Mode, hidden by default.
 - [x] 2026-08-17 - Moved view presets into the closable time/view dock and added
   a synchronized top-toolbar toggle.
+- [x] 2026-08-17 - Enabled selected-object properties in Observatory Mode,
+  disabled incompatible toolbar actions there, and reduced profiler access to
+  its `P` keyboard shortcut.
 - [x] 2026-08-14 - Replaced static screen-space stars with a deterministic
   celestial sphere that responds to camera and co-rotating-frame orientation.
 - [x] 2026-08-14 - Added observer-based solar eclipse and transit search,
