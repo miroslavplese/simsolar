@@ -3847,14 +3847,11 @@ Velocity: not set</div>
   });
 
   const activePointers = new Map(); // pointerId -> {x,y}
-  let dragMode = null;   // 'rotate' | 'pan' | 'two' | null
+  let dragMode = null;   // 'rotate' | 'pan' | 'observatory' | 'two' | null
   let dragMoved = false;
   let dragStartInfo = null;
   let pinchStartInfo = null;
   let tapStart = null;        // {x,y,t}
-  let spaceHeld = false;
-  let spaceDragOccurred = false;
-  let spaceToggleArmed = false;
 
   function pointersArray(){ return Array.from(activePointers.values()); }
   function midpoint(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
@@ -3880,7 +3877,9 @@ Velocity: not set</div>
   }
 
   scene.addEventListener('pointerdown', (e)=>{
-    if(bodyInsertionPhase==='position'){
+    const rightMouseButton=e.pointerType==='mouse' && e.button===2;
+    if(e.pointerType==='mouse' && e.button!==0 && !rightMouseButton) return;
+    if(bodyInsertionPhase==='position' && !rightMouseButton){
       const position=screenToEcliptic(e.clientX,e.clientY);
       if(!position){
         document.getElementById('bodyInstructions').textContent=
@@ -3894,19 +3893,25 @@ Velocity: not set</div>
       updateBodyReadout();
       return;
     }
-    if(bodyInsertionPhase==='velocity'){
+    if(bodyInsertionPhase==='velocity' && !rightMouseButton){
       bodyVelocityPointer=e.pointerId;
       scene.setPointerCapture(e.pointerId);
       updateDraftVelocity(e.clientX,e.clientY);
       return;
     }
     scene.setPointerCapture(e.pointerId);
-    activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    activePointers.set(e.pointerId, {
+      x:e.clientX,y:e.clientY,pan:rightMouseButton
+    });
     if(activePointers.size===1){
-      dragMode = observatoryActive ? 'observatory' : spaceHeld ? 'pan' : 'rotate';
+      dragMode=observatoryActive
+        ? 'observatory'
+        : rightMouseButton ? 'pan' : 'rotate';
       dragMoved = false;
       dragStartInfo=pointerDragStart(e.clientX,e.clientY);
-      tapStart = {x:e.clientX, y:e.clientY, t:performance.now()};
+      tapStart=rightMouseButton
+        ? null
+        : {x:e.clientX,y:e.clientY,t:performance.now()};
       scene.style.cursor = 'grabbing';
     } else if(activePointers.size===2){
       const [a,b] = pointersArray();
@@ -3924,7 +3929,10 @@ Velocity: not set</div>
       return;
     }
     if(!activePointers.has(e.pointerId)) return;
-    activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const pointer=activePointers.get(e.pointerId);
+    activePointers.set(e.pointerId, {
+      x:e.clientX,y:e.clientY,pan:pointer.pan
+    });
 
     if(dragMode==='observatory' && activePointers.size===1){
       const dx=e.clientX-dragStartInfo.x;
@@ -3961,7 +3969,6 @@ Velocity: not set</div>
       const dx = e.clientX - dragStartInfo.x, dy = e.clientY - dragStartInfo.y;
       if(Math.hypot(dx,dy) > 6){
         dragMoved = true;
-        if(spaceHeld) spaceDragOccurred=true;
         setFollowTarget(null);
       }
       panX = dragStartInfo.panX + dx;
@@ -3986,7 +3993,6 @@ Velocity: not set</div>
       zoom = newZoom;
       panX = mid.x - cx - preX*zoom;
       panY = mid.y - cy - preY*zoom;
-      if(spaceHeld) spaceDragOccurred=true;
       setFollowTarget(null);
       selectViewPreset('Current');
       invalidateProjection();
@@ -4018,13 +4024,14 @@ Velocity: not set</div>
       scene.style.cursor = 'grab';
     } else if(activePointers.size===1){
       const [p] = pointersArray();
-      dragMode = observatoryActive ? 'observatory' : spaceHeld ? 'pan' : 'rotate';
+      dragMode=observatoryActive ? 'observatory' : p.pan ? 'pan' : 'rotate';
       dragMoved = true;
       dragStartInfo=pointerDragStart(p.x,p.y);
     }
   }
   scene.addEventListener('pointerup', endPointer);
   scene.addEventListener('pointercancel', endPointer);
+  scene.addEventListener('contextmenu',e=>e.preventDefault());
   scene.addEventListener('pointerleave', (e)=>{
     if(e.pointerType==='mouse' && activePointers.size===0 && hovered){
       hovered=null;
@@ -4888,16 +4895,8 @@ Velocity: not set</div>
     const shortcutBlocked=['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)||e.target.isContentEditable;
     if(e.code==='Space' && !shortcutBlocked){
       e.preventDefault();
-      if(!e.repeat){
-        spaceHeld=true;
-        spaceDragOccurred=false;
-        spaceToggleArmed=true;
-        if(activePointers.size===1 && !observatoryActive){
-          const [p]=pointersArray();
-          dragMode='pan';
-          dragStartInfo={x:p.x,y:p.y,panX,panY,yaw:viewYaw,tilt:viewTilt};
-        }
-      }
+      if(!e.repeat) playBtn.click();
+      return;
     }
     if(shortcutBlocked) return;
     if(e.key==='-'){ direction = -direction; updateSpeedLabel(); }
@@ -4914,22 +4913,6 @@ Velocity: not set</div>
       setOccultationPanelVisible(panel.classList.contains('panel-hidden'));
     }
   });
-  window.addEventListener('keyup',(e)=>{
-    if(e.code!=='Space' || !spaceToggleArmed) return;
-    e.preventDefault();
-    spaceHeld=false;
-    spaceToggleArmed=false;
-    if(!spaceDragOccurred && activePointers.size===0){
-      cancelDateNavigation();
-      playing=!playing;
-      playBtn.textContent=playing?'⏸':'▶';
-    }
-  });
-  window.addEventListener('blur',()=>{
-    spaceHeld=false;
-    spaceToggleArmed=false;
-  });
-
   // ---------- Main loop ----------
   let lastT = performance.now();
   function loop(t){

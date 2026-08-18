@@ -309,7 +309,8 @@ runtime dependency.
 - When an object is selected, one-pointer rotation preserves that object's
   screen position and uses it as the camera pivot; clearing selection restores
   the Sun as the rotation pivot.
-- Space plus one-pointer dragging pans the projected scene.
+- Right-button dragging pans the projected scene and suppresses the canvas
+  context menu.
 - Two pointers pan by midpoint movement and perform anchored pinch zoom.
 - Dragging any non-interactive area of a panel repositions that panel while
   preserving normal behavior for its links, buttons, inputs, and list items.
@@ -324,8 +325,7 @@ runtime dependency.
 - Selecting a spacecraft from the legend or canvas synchronizes the mission
   selector, event list, and follow control to that spacecraft. The mission
   panel opens while a spacecraft is selected and closes when it is unselected.
-- Tapping Space toggles playback; holding Space while dragging pans. Minus
-  reverses time direction.
+- Space toggles playback. Minus reverses time direction.
 - The view preset selector resets rotation, zoom, and pan for inner, outer, and
   deep-space scales.
 - Mission timeline events pause playback, select and follow the spacecraft, and

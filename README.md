@@ -33,7 +33,8 @@ web server is required.
 - Mission timeline with launch/flyby jumps and UTC date navigation
 - Automatic zoom/focus/follow from the body list and spacecraft mission events
 - Rolling average and p95 frame-time profiler for each view preset
-- Pointer orbit rotation, Space-drag or two-finger pan, pinch/wheel zoom, movable panels, and view presets
+- Pointer orbit rotation, right-button drag or two-finger pan, pinch/wheel zoom,
+  movable panels, and view presets
 - Panel shortcuts: `M` mission timeline, `L` body/craft list, `T` time/view
   controls, and `P` frame-time profiler
 - Observatory shortcut: `O`
