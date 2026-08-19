@@ -3411,6 +3411,21 @@ Velocity: not set</div>
         : 'rgba(232,236,247,0.72)';
       ctx.fillText('Sun',sunP.x+sunR+6,sunP.y+3);
     }
+    sunReference._screen={
+      x:sunP.x,y:sunP.y,r:Math.max(sunR,6),occulted:false
+    };
+    if(sunDiskVisible && (sunReference===selected || sunReference===hovered)){
+      ctx.strokeStyle='rgba(242,181,68,0.9)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.arc(sunP.x,sunP.y,sunR+5,0,Math.PI*2);
+      ctx.stroke();
+      ctx.font='10px "SF Mono", Consolas, monospace';
+      ctx.fillStyle=sunReference===selected
+        ? '#f2b544'
+        : 'rgba(232,236,247,0.72)';
+      ctx.fillText('Sun',sunP.x+sunR+6,sunP.y+3);
+    }
 
     if(companionLink){
       ctx.beginPath();
