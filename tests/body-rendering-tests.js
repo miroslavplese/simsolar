@@ -3,6 +3,7 @@ const {
   AU_KM,
   smoothstep,
   physicalRadiusPixels,
+  zoomForPhysicalRadius,
   maximumZoomForRadius,
   planetMarkerRadiusPixels,
   customMarkerRadiusPixels,
@@ -16,6 +17,15 @@ assert.equal(smoothstep(20,50,10),0);
 assert.equal(smoothstep(20,50,35),0.5);
 assert.equal(smoothstep(20,50,60),1);
 assert.equal(physicalRadiusPixels(AU_KM,2,46),92);
+assert.equal(
+  physicalRadiusPixels(2438,zoomForPhysicalRadius(2438,46,70),46),
+  70
+);
+assert.ok(
+  zoomForPhysicalRadius(2438,46,70)>
+  zoomForPhysicalRadius(6052,46,70)
+);
+assert.equal(zoomForPhysicalRadius(0,46,70),null);
 const earthMaximum=maximumZoomForRadius({
   radiusKm:6371,auPixels:46,viewportPixels:700
 });

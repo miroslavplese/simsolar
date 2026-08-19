@@ -16,6 +16,12 @@
     return radiusKm/AU_KM*zoom*auPixels;
   }
 
+  function zoomForPhysicalRadius(radiusKm,auPixels,targetPixels,maxZoom){
+    if(!(radiusKm>0) || !(auPixels>0)) return null;
+    const zoom=(targetPixels||70)*AU_KM/(radiusKm*auPixels);
+    return Math.min(maxZoom||2000000,zoom);
+  }
+
   function maximumZoomForRadius(options){
     const baseMaximum=options.baseMaximum||20000;
     const hardMaximum=options.hardMaximum||2000000;
@@ -84,7 +90,8 @@
   }
 
   return {
-    AU_KM,smoothstep,physicalRadiusPixels,planetMarkerRadiusPixels,
+    AU_KM,smoothstep,physicalRadiusPixels,zoomForPhysicalRadius,
+    planetMarkerRadiusPixels,
     maximumZoomForRadius,customMarkerRadiusPixels,
     displayRadiusPixels,
     distanceToSegment,distanceToPolyline,pathSegmentsByDepth

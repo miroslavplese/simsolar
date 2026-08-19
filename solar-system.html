@@ -661,7 +661,8 @@ Velocity: not set</div>
   }=window.ViewTransform;
   const {
     displayRadiusPixels,planetMarkerRadiusPixels,customMarkerRadiusPixels,
-    distanceToPolyline,pathSegmentsByDepth,maximumZoomForRadius
+    distanceToPolyline,pathSegmentsByDepth,maximumZoomForRadius,
+    zoomForPhysicalRadius
   }=window.BodyRendering;
   const {
     inclinedVelocity:inclinedBodyVelocity,
@@ -3951,9 +3952,14 @@ Velocity: not set</div>
       const parentName=body.kind==='moon'
         ? body.parentName
         : body===charon ? 'Pluto' : body.name;
-      zoom=moonSystemFocusZoom(
+      const systemZoom=moonSystemFocusZoom(
         moonVisibilityDefinitions,parentName,AU_PX,70,BASE_ZOOM_MAX
-      )||zoomForDistance(Math.hypot(pos.x,pos.y,pos.z));
+      );
+      zoom=systemZoom||
+        (body.kind==='planet'
+          ? zoomForPhysicalRadius(body.radius,AU_PX,70,currentZoomMaximum())
+          : null)||
+        zoomForDistance(Math.hypot(pos.x,pos.y,pos.z));
       panX=0;
       panY=0;
     }

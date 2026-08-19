@@ -363,7 +363,9 @@ runtime dependency.
 - Close-view moon markers receive an expanded pointer target, and their dynamic
   parent-relative orbit polylines participate in trajectory hit testing.
 - Selecting a body from the body/craft list applies a distance-aware zoom,
-  centers the camera, and follows that body.
+  centers the camera, and follows that body. Planets with moons frame the local
+  moon system; planets without moons use their physical radius for an equivalent
+  close-body frame rather than falling back to a wide heliocentric view.
 - Selecting a spacecraft from the legend or canvas synchronizes the mission
   selector, event list, and follow control to that spacecraft. The mission
   panel opens while a spacecraft is selected and closes when it is unselected.
