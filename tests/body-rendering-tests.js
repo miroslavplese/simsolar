@@ -4,6 +4,7 @@ const {
   smoothstep,
   physicalRadiusPixels,
   planetMarkerRadiusPixels,
+  customMarkerRadiusPixels,
   displayRadiusPixels,
   distanceToSegment,
   distanceToPolyline
@@ -16,6 +17,10 @@ assert.equal(physicalRadiusPixels(AU_KM,2,46),92);
 assert.equal(planetMarkerRadiusPixels(6371),2.2);
 assert.ok(planetMarkerRadiusPixels(69911)>5);
 assert.equal(planetMarkerRadiusPixels(69911),Math.sqrt(69911)*0.022);
+assert.equal(customMarkerRadiusPixels('star'),7);
+assert.equal(customMarkerRadiusPixels('black-hole'),6);
+assert.equal(customMarkerRadiusPixels('planet'),5);
+assert.equal(customMarkerRadiusPixels('comet'),5);
 
 const marker=displayRadiusPixels({
   radiusKm:6371,zoom:1,auPixels:46,markerRadius:4,systemRadiusAu:0.00257

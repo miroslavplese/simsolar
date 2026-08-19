@@ -238,6 +238,14 @@ insertion date selects the prior branch; inserting after a rewind discards
 branches introduced later. The first version intentionally limits placement
 and velocity to the ecliptic plane.
 
+Custom bodies use the same estimated physical radii for collision geometry,
+close-view rendering, and apparent angular size in Observatory Mode. At system
+scale they retain selectable visibility markers; after sufficient zoom they
+transition to physical scale. Rendering follows the selected appearance:
+emissive glow for stars, a dark event-horizon disk and rim for black holes,
+Sun-lit spheres for planets, and illuminated nuclei with anti-solar tails for
+comets.
+
 Each forward playback interval checks swept physical spheres for every pair
 involving a custom body. Natural radii come from the body catalog; custom radii
 use type-specific mass estimates (stellar mass-radius scaling, Schwarzschild

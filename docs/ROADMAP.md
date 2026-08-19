@@ -141,6 +141,9 @@ introduced.
 
 ## Completed
 
+- [x] 2026-08-18 - Added physical-scale, appearance-specific rendering for
+  user-introduced stars, black holes, planets, and comets in both Solar System
+  and Observatory views.
 - [x] 2026-08-18 - Added a first-run guided tutorial with persistent completion,
   responsive pointers, major-feature walkthroughs, and a toolbar restart action.
 - [x] 2026-08-17 - Replaced the generated random star sphere with 8,870

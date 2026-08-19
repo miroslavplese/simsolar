@@ -649,7 +649,8 @@ Velocity: not set</div>
     viewCoordinates,rotationFromDrag,panForRotationPivot
   }=window.ViewTransform;
   const {
-    displayRadiusPixels,planetMarkerRadiusPixels,distanceToPolyline
+    displayRadiusPixels,planetMarkerRadiusPixels,customMarkerRadiusPixels,
+    distanceToPolyline
   }=window.BodyRendering;
   const {
     normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor
@@ -2261,6 +2262,7 @@ Velocity: not set</div>
 
   function markerRadiusForBody(body,isSun){
     if(isSun) return 6;
+    if(body.kind==='custom') return customMarkerRadiusPixels(body.appearance);
     if(body.kind==='moon'){
       return Math.max(2.2,Math.min(6,Math.sqrt(body.radius)*0.1));
     }
@@ -2397,6 +2399,67 @@ Velocity: not set</div>
     ctx.fillStyle=body.color;
     ctx.arc(x,y,radiusRendering.radius,0,Math.PI*2);
     ctx.fill();
+  }
+
+  function drawCustomStar(body,x,y,radius,scaleAccurate,context=ctx){
+    const glowRadius=Math.max(radius*(scaleAccurate?3.2:2.2),12);
+    const glow=context.createRadialGradient(x,y,radius*0.25,x,y,glowRadius);
+    glow.addColorStop(0,hexToRgba(body.color,1));
+    glow.addColorStop(0.35,hexToRgba(body.color,0.72));
+    glow.addColorStop(1,hexToRgba(body.color,0));
+    context.fillStyle=glow;
+    context.beginPath();
+    context.arc(x,y,glowRadius,0,Math.PI*2);
+    context.fill();
+    context.fillStyle='#fff4d8';
+    context.beginPath();
+    context.arc(x,y,radius,0,Math.PI*2);
+    context.fill();
+  }
+
+  function drawCustomBlackHole(body,x,y,radius,context=ctx){
+    context.fillStyle='#020307';
+    context.beginPath();
+    context.arc(x,y,radius,0,Math.PI*2);
+    context.fill();
+    context.strokeStyle=body.color;
+    context.lineWidth=Math.max(1,Math.min(3,radius*0.16));
+    context.beginPath();
+    context.arc(x,y,radius*1.18,0,Math.PI*2);
+    context.stroke();
+  }
+
+  function drawCustomCometTail(body,x,y,radius,sunX,sunY,context=ctx){
+    const dx=x-sunX,dy=y-sunY;
+    const length=Math.hypot(dx,dy)||1;
+    const tailLength=Math.max(14,Math.min(100,radius*7));
+    const endX=x+dx/length*tailLength;
+    const endY=y+dy/length*tailLength;
+    const tail=context.createLinearGradient(x,y,endX,endY);
+    tail.addColorStop(0,hexToRgba(body.color,0.72));
+    tail.addColorStop(1,hexToRgba(body.color,0));
+    context.strokeStyle=tail;
+    context.lineWidth=Math.max(2,radius*0.8);
+    context.beginPath();
+    context.moveTo(x,y);
+    context.lineTo(endX,endY);
+    context.stroke();
+  }
+
+  function drawCustomBody(body,pos,x,y,radiusRendering,sunScreen){
+    const radius=radiusRendering.radius;
+    if(body.appearance==='star'){
+      drawCustomStar(body,x,y,radius,radiusRendering.scaleAccurate);
+    } else if(body.appearance==='black-hole'){
+      drawCustomBlackHole(body,x,y,radius);
+    } else {
+      if(body.appearance==='comet'){
+        drawCustomCometTail(
+          body,x,y,radius,sunScreen.x,sunScreen.y
+        );
+      }
+      drawBodySphere(body,pos,x,y,radiusRendering);
+    }
   }
 
   function drawMoonOrbits(posByBody){
@@ -2662,6 +2725,12 @@ Velocity: not set</div>
   function observatoryBodyMarkerRadius(body,physicalRadius){
     if(!observatoryEnhance) return Math.max(0.25,physicalRadius);
     if(body===sunReference) return Math.max(physicalRadius,3);
+    if(body.kind==='custom'){
+      return Math.max(
+        physicalRadius,
+        Math.max(2.5,customMarkerRadiusPixels(body.appearance)/2)
+      );
+    }
     if(body.kind==='spacecraft') return Math.max(physicalRadius,3.2);
     if(body.kind==='comet') return Math.max(physicalRadius,2.6);
     return Math.max(physicalRadius,2.2);
@@ -2921,7 +2990,7 @@ Velocity: not set</div>
   }
 
   function drawObservatoryBody(
-    body,position,distance,observerPosition,frame,camera
+    body,position,distance,observerPosition,frame,camera,sunProjected
   ){
     const offset=observatoryDirection(observerPosition,position);
     const direction=normalizeObservatoryVector(offset);
@@ -2943,7 +3012,43 @@ Velocity: not set</div>
       projected.y+radius<0 || projected.y-radius>H
     ) return;
     const color=body.color||'#e8ecf7';
-    if(body===sunReference){
+    if(body.kind==='custom'){
+      if(body.appearance==='star'){
+        drawCustomStar(
+          body,projected.x,projected.y,radius,
+          physicalRadius>=radius-1e-6
+        );
+      } else if(body.appearance==='black-hole'){
+        drawCustomBlackHole(body,projected.x,projected.y,radius);
+      } else {
+        if(body.appearance==='comet' && sunProjected){
+          drawCustomCometTail(
+            body,projected.x,projected.y,radius,
+            sunProjected.x,sunProjected.y
+          );
+        }
+        const lightX=sunProjected
+          ? sunProjected.x-projected.x
+          : -1;
+        const lightY=sunProjected
+          ? sunProjected.y-projected.y
+          : -1;
+        const lightLength=Math.hypot(lightX,lightY)||1;
+        const lit=ctx.createRadialGradient(
+          projected.x+lightX/lightLength*radius*0.35,
+          projected.y+lightY/lightLength*radius*0.35,
+          Math.max(0.1,radius*0.08),
+          projected.x,projected.y,Math.max(0.2,radius*1.15)
+        );
+        lit.addColorStop(0,color);
+        lit.addColorStop(0.72,hexToRgba(color,0.8));
+        lit.addColorStop(1,'rgba(2,3,7,0.92)');
+        ctx.fillStyle=lit;
+        ctx.beginPath();
+        ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
+        ctx.fill();
+      }
+    } else if(body===sunReference){
       const glow=ctx.createRadialGradient(
         projected.x,projected.y,radius,
         projected.x,projected.y,Math.max(radius*4,14)
@@ -2956,11 +3061,16 @@ Velocity: not set</div>
         projected.x,projected.y,Math.max(radius*4,14),0,Math.PI*2
       );
       ctx.fill();
+      ctx.fillStyle='#fff1c7';
+      ctx.beginPath();
+      ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle=color;
+      ctx.beginPath();
+      ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
+      ctx.fill();
     }
-    ctx.fillStyle=body===sunReference?'#fff1c7':color;
-    ctx.beginPath();
-    ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
-    ctx.fill();
     if(body===selected){
       ctx.strokeStyle='#f2b544';
       ctx.lineWidth=1.4;
@@ -2997,6 +3107,10 @@ Velocity: not set</div>
     };
     const sunPosition=positionForBody(sunReference,simDaysSinceJ2000);
     const sunDirection=observatoryDirection(observerPosition,sunPosition);
+    const sunProjected=projectObservatoryDirection(
+      normalizeObservatoryVector(sunDirection),
+      camera,W,H,observatoryFov
+    );
     const sunAltitude=observatoryAltitudeForDirection(sunDirection,frame);
     const focal=H/(2*Math.tan(observatoryFov/2));
     const horizonY=H/2+focal*Math.tan(observatoryAltitude);
@@ -3024,7 +3138,7 @@ Velocity: not set</div>
     bodyEntries.sort((a,b)=>b.distance-a.distance);
     for(const {body,position,distance} of bodyEntries){
       drawObservatoryBody(
-        body,position,distance,observerPosition,frame,camera
+        body,position,distance,observerPosition,frame,camera,sunProjected
       );
     }
     drawObservatoryGrid(frame,camera);
@@ -3212,18 +3326,16 @@ Velocity: not set</div>
         ctx.fillText(b.name,px+radius+5,py-5);
         b._screen={x:px,y:py,r:Math.max(radius,6)};
       } else if(b.kind==='custom'){
-        const r=b.appearance==='star' ? 7 : b.appearance==='black-hole' ? 6 : 5;
-        if(b.appearance==='black-hole'){
-          ctx.fillStyle='#05050a';
-          ctx.strokeStyle=b.color;
-          ctx.lineWidth=2;
-          ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-        } else {
-          ctx.fillStyle=b.color;
-          if(b.appearance==='star'){ ctx.shadowColor=b.color; ctx.shadowBlur=12; }
-          ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
-          ctx.shadowBlur=0;
+        const radiusRendering=bodyRadiusRendering(b,false);
+        const r=radiusRendering.radius;
+        if(b===selected){
+          ctx.beginPath();
+          ctx.strokeStyle='rgba(242,181,68,0.9)';
+          ctx.lineWidth=1.5;
+          ctx.arc(px,py,r+5,0,Math.PI*2);
+          ctx.stroke();
         }
+        drawCustomBody(b,pos,px,py,radiusRendering,sunP);
         ctx.font='9.5px "SF Mono", Consolas, monospace';
         ctx.fillStyle=b===selected?b.color:'rgba(232,236,247,0.6)';
         ctx.fillText(b.name,px+r+6,py+3);
@@ -5007,7 +5119,7 @@ Velocity: not set</div>
         target:'#addBodyBtn',
         interactive:true,
         title:'Experiment with gravity',
-        text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Place it, set its velocity, and watch for predicted impacts.',
+        text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Place it, set its velocity, and watch for predicted impacts. Zoom in—or enter Observatory Mode—to see its physical size and appearance.',
         before(){
           setObservatoryMode(false,true);
         }

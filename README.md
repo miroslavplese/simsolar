@@ -26,6 +26,8 @@ web server is required.
   true-angular-size sky objects, optional orbit/trajectory guides, scaled time,
   and local civil-time display
 - Interactive insertion of configurable stars, black holes, planets, and comets
+- Physical-scale close rendering and Observatory visibility for custom bodies,
+  with appearance-specific stars, black holes, planets, and comets
 - Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
 - Animated simulation clock with adjustable speed and direction
 - Versioned shareable scenario links that restore the date, playback, camera,
