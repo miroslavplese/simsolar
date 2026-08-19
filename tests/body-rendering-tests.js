@@ -7,7 +7,8 @@ const {
   customMarkerRadiusPixels,
   displayRadiusPixels,
   distanceToSegment,
-  distanceToPolyline
+  distanceToPolyline,
+  pathSegmentsByDepth
 }=require('../src/body-rendering.js');
 
 assert.equal(smoothstep(20,50,10),0);
@@ -46,5 +47,19 @@ assert.equal(close.scaleAccurate,true);
 assert.equal(distanceToSegment(5,3,0,0,10,0),3);
 assert.equal(distanceToSegment(-2,0,0,0,10,0),2);
 assert.equal(distanceToPolyline(10,4,[{x:0,y:0},{x:10,y:0},{x:10,y:10}]),0);
+
+const depthPoints=[
+  {x:0,y:0,depth:8},
+  {x:1,y:0,depth:10},
+  {x:2,y:0,depth:12},
+  {x:3,y:0,depth:6}
+];
+assert.deepEqual(pathSegmentsByDepth(depthPoints,10,false),[
+  [depthPoints[0],depthPoints[1]],
+  [depthPoints[2],depthPoints[3]]
+]);
+assert.deepEqual(pathSegmentsByDepth(depthPoints,10,true),[
+  [depthPoints[1],depthPoints[2]]
+]);
 
 console.log('Body rendering tests passed.');
