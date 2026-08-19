@@ -194,6 +194,10 @@
     width:100%; height:29px; margin-top:3px; border:1px solid var(--line); border-radius:7px;
     background:#10162a; color:var(--ink); padding:0 7px; font:9.5px var(--mono); outline:none;
   }
+  #bodyPanel label span{ float:right; color:var(--accent); }
+  #bodyPanel input[type=range]{
+    height:14px; padding:0; border:0; background:var(--line);
+  }
   #bodyPanel .actions{ display:flex; gap:6px; margin-top:9px; }
   #bodyPanel .actions button{ flex:1; }
   #bodyPanel button:disabled{ opacity:.35; cursor:not-allowed; }
@@ -460,7 +464,11 @@
     <input id="bodyName" type="text" maxlength="40" value="New Star">
     <label for="bodyMass">Mass (kg)</label>
     <input id="bodyMass" type="number" min="1" max="1e35" step="any" value="1.98847e30">
-    <div id="bodyInstructions">Press PLACE, then tap the ecliptic plane to set position.</div>
+    <label for="bodyInclination">Orbital inclination
+      <span id="bodyInclinationValue">0°</span>
+    </label>
+    <input id="bodyInclination" type="range" min="0" max="180" step="1" value="0">
+    <div id="bodyInstructions">Choose an inclination, press PLACE, then tap the ecliptic plane to set an orbital node.</div>
     <div id="bodyReadout">Position: not set
 Velocity: not set</div>
     <div class="actions">
@@ -541,6 +549,7 @@ Velocity: not set</div>
 <script src="src/guided-tutorial.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js"></script>
+<script src="src/body-placement.js"></script>
 <script src="src/body-lighting.js"></script>
 <script src="src/moon-system.js"></script>
 <script src="src/ring-system.js"></script>
@@ -652,6 +661,10 @@ Velocity: not set</div>
     displayRadiusPixels,planetMarkerRadiusPixels,customMarkerRadiusPixels,
     distanceToPolyline
   }=window.BodyRendering;
+  const {
+    inclinedVelocity:inclinedBodyVelocity,
+    orbitalInclination:bodyOrbitalInclination
+  }=window.BodyPlacement;
   const {
     normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor
   }=window.BodyLighting;
@@ -1912,8 +1925,12 @@ Velocity: not set</div>
     const velocity=bodyDraft.speedKmS==null
       ? 'Velocity: not set'
       : 'Velocity: '+bodyDraft.speedKmS.toFixed(2)+' km/s  ('+
-        bodyDraft.direction.x.toFixed(3)+', '+bodyDraft.direction.y.toFixed(3)+', 0)';
-    readout.textContent=position+'\n'+velocity;
+        bodyDraft.direction.x.toFixed(3)+', '+
+        bodyDraft.direction.y.toFixed(3)+', '+
+        bodyDraft.direction.z.toFixed(3)+')';
+    const inclination='Inclination: '+
+      Number(document.getElementById('bodyInclination').value).toFixed(0)+'°';
+    readout.textContent=position+'\n'+velocity+'\n'+inclination;
   }
 
   function resetBodyInsertion(){
@@ -1923,7 +1940,7 @@ Velocity: not set</div>
     document.getElementById('bodyInsertBtn').disabled=true;
     document.getElementById('bodyPlaceBtn').textContent='PLACE';
     document.getElementById('bodyInstructions').textContent=
-      'Press PLACE, then tap the ecliptic plane to set position.';
+      'Choose an inclination, press PLACE, then tap the ecliptic plane to set an orbital node.';
     updateBodyReadout();
   }
 
@@ -1938,12 +1955,33 @@ Velocity: not set</div>
       bodyDraft.position.x,bodyDraft.position.y,bodyDraft.position.z
     );
     const screenLength=Math.hypot(screenX-startScreen.x,screenY-startScreen.y);
-    bodyDraft.direction={x:dx/length,y:dy/length,z:0};
     bodyDraft.speedKmS=Math.min(1000,screenLength*0.5);
-    bodyDraft.velocity={
-      x:bodyDraft.direction.x*bodyDraft.speedKmS*86400/AU_KM,
-      y:bodyDraft.direction.y*bodyDraft.speedKmS*86400/AU_KM,
+    bodyDraft.planarVelocity={
+      x:dx/length*bodyDraft.speedKmS*86400/AU_KM,
+      y:dy/length*bodyDraft.speedKmS*86400/AU_KM,
       z:0
+    };
+    applyDraftInclination();
+  }
+
+  function applyDraftInclination(){
+    const input=document.getElementById('bodyInclination');
+    const degrees=Number(input.value);
+    document.getElementById('bodyInclinationValue').textContent=degrees+'°';
+    if(!bodyDraft?.position || !bodyDraft.planarVelocity){
+      updateBodyReadout();
+      return;
+    }
+    bodyDraft.velocity=inclinedBodyVelocity(
+      bodyDraft.position,bodyDraft.planarVelocity,degrees*DEG
+    );
+    const magnitude=Math.hypot(
+      bodyDraft.velocity.x,bodyDraft.velocity.y,bodyDraft.velocity.z
+    );
+    bodyDraft.direction={
+      x:bodyDraft.velocity.x/magnitude,
+      y:bodyDraft.velocity.y/magnitude,
+      z:bodyDraft.velocity.z/magnitude
     };
     updateBodyReadout();
   }
@@ -2284,7 +2322,7 @@ Velocity: not set</div>
       const endpoint=project(
         bodyDraft.position.x+bodyDraft.direction.x,
         bodyDraft.position.y+bodyDraft.direction.y,
-        bodyDraft.position.z
+        bodyDraft.position.z+bodyDraft.direction.z
       );
       const dx=endpoint.x-marker.x, dy=endpoint.y-marker.y;
       const length=Math.hypot(dx,dy)||1;
@@ -3506,13 +3544,18 @@ Velocity: not set</div>
       return;
     }
     rowEcc.style.display=custom?'none':'';
-    rowIncl.style.display=custom?'none':'';
+    rowIncl.style.display='';
     if(!pos){
       document.getElementById('cardDist').textContent = selected.kind==='comet'?'Outside data range':'Not launched';
       document.getElementById('cardSpeed').textContent = '—';
       if(!custom){
         document.getElementById('cardEcc').textContent = selected.e.toFixed(3);
         document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
+      } else {
+        document.getElementById('cardIncl').textContent=
+          Number.isFinite(selected.initialInclination)
+            ? selected.initialInclination.toFixed(0)+'° initial'
+            : '—';
       }
       rowPeriod.style.display='none';
       const noteEl = document.getElementById('cardNote');
@@ -3528,6 +3571,13 @@ Velocity: not set</div>
     if(!custom){
       document.getElementById('cardEcc').textContent = selected.e.toFixed(3) + (selected.e>1?' (hyperbolic)':'');
       document.getElementById('cardIncl').textContent = selected.i.toFixed(2)+'°';
+    } else {
+      const inclination=bodyOrbitalInclination(pos,{
+        x:pos.vx,y:pos.vy,z:pos.vz
+      });
+      document.getElementById('cardIncl').textContent=inclination===null
+        ? 'Radial trajectory'
+        : (inclination/DEG).toFixed(2)+'°';
     }
     if(custom){
       rowPeriod.style.display='none';
@@ -4034,7 +4084,7 @@ Velocity: not set</div>
       bodyDraft.position=position;
       bodyInsertionPhase='velocity';
       document.getElementById('bodyInstructions').textContent=
-        'Drag on the main view to set direction and speed; arrow length controls speed.';
+        'Drag to set direction and speed; the inclination slider tilts the velocity out of the ecliptic.';
       updateBodyReadout();
       return;
     }
@@ -4214,7 +4264,10 @@ Velocity: not set</div>
     }
     playing=false;
     playBtn.textContent='▶';
-    bodyDraft={position:null,velocity:null,direction:null,speedKmS:null};
+    bodyDraft={
+      position:null,planarVelocity:null,velocity:null,
+      direction:null,speedKmS:null
+    };
     bodyInsertionPhase='position';
     document.getElementById('bodyInsertBtn').disabled=true;
     document.getElementById('bodyPlaceBtn').textContent='RESTART';
@@ -4464,6 +4517,9 @@ Velocity: not set</div>
       category:preset.label,
       appearance:document.getElementById('bodyType').value,
       name,massKg,color:preset.color,
+      initialInclination:Number(
+        document.getElementById('bodyInclination').value
+      ),
       radius:estimatedRadiusKm(
         document.getElementById('bodyType').value,massKg
       ),
@@ -4793,6 +4849,9 @@ Velocity: not set</div>
   }
 
   document.getElementById('bodyType').addEventListener('change',applyBodyPreset);
+  document.getElementById('bodyInclination').addEventListener(
+    'input',applyDraftInclination
+  );
   document.getElementById('bodyPlaceBtn').addEventListener('click',beginBodyPlacement);
   document.getElementById('bodyInsertBtn').addEventListener('click',insertDraftBody);
   document.getElementById('bodyClose').addEventListener('click',closeBodyPanel);
@@ -5102,7 +5161,7 @@ Velocity: not set</div>
         target:'#addBodyBtn',
         interactive:true,
         title:'Experiment with gravity',
-        text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Place it, set its velocity, and watch for predicted impacts. Zoom in—or enter Observatory Mode—to see its physical size and appearance.',
+        text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Choose a 0–180° inclination, place its orbital node, set velocity, and watch for predicted impacts. Zoom in—or enter Observatory Mode—to see its physical size and appearance.',
         before(){
           setObservatoryMode(false,true);
         }

@@ -103,8 +103,11 @@ introduced.
     longer blocks the animation thread.
 - [x] 2026-08-13 - Add interactive ecliptic-plane insertion for configurable
   stars, black holes, planets, and comets at the current future date.
-- [ ] Extend custom-body placement and velocity controls from the ecliptic plane
-  to full 3D.
+- [x] 2026-08-19 - Add 0–180 degree custom-body orbital inclination by treating
+  the ecliptic placement point as an orbital node and rotating the drafted
+  velocity into the selected plane.
+- [ ] Extend custom-body position controls beyond an ecliptic-plane orbital node
+  to unrestricted 3D placement.
 - [x] 2026-08-16 - Add deterministic adaptive substeps for fast Newtonian
   encounters involving custom massive bodies.
 - [ ] Investigate relativistic corrections and singularity regularization as a
