@@ -661,7 +661,7 @@ Velocity: not set</div>
   }=window.ViewTransform;
   const {
     displayRadiusPixels,planetMarkerRadiusPixels,customMarkerRadiusPixels,
-    distanceToPolyline,pathSegmentsByDepth
+    distanceToPolyline,pathSegmentsByDepth,maximumZoomForRadius
   }=window.BodyRendering;
   const {
     inclinedVelocity:inclinedBodyVelocity,
@@ -1238,7 +1238,7 @@ Velocity: not set</div>
   }
 
   let zoom = 1;
-  const ZOOM_MIN = 0.018, ZOOM_MAX = 20000;
+  const ZOOM_MIN=0.018,BASE_ZOOM_MAX=20000,HARD_ZOOM_MAX=2000000;
   let selected = null;
   let hovered = null;
   let showLagrangePoints=false;
@@ -1860,7 +1860,9 @@ Velocity: not set</div>
       secondary.x-primary.x,secondary.y-primary.y,secondary.z-primary.z
     );
     const viewport=Math.max(320,Math.min(W||900,H||700));
-    zoom=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX,viewport/(AU_PX*5*separation)));
+    zoom=Math.max(
+      ZOOM_MIN,Math.min(BASE_ZOOM_MAX,viewport/(AU_PX*5*separation))
+    );
     panX=0;
     panY=0;
     setFollowTarget(system.secondary);
@@ -2080,8 +2082,31 @@ Velocity: not set</div>
   }
 
   // Change zoom while keeping the point under (anchorX,anchorY) visually fixed.
+  function activeZoomBody(){
+    if(selected?.radius>0 || selected===sunReference) return selected;
+    if(followTarget?.radius>0 || followTarget===sunReference) return followTarget;
+    return null;
+  }
+
+  function currentZoomMaximum(){
+    const body=activeZoomBody();
+    const radiusKm=body===sunReference ? SUN_RADIUS_KM : body?.radius;
+    return maximumZoomForRadius({
+      radiusKm,
+      auPixels:AU_PX,
+      viewportPixels:Math.max(320,Math.min(W||900,H||700)),
+      baseMaximum:BASE_ZOOM_MAX,
+      hardMaximum:HARD_ZOOM_MAX
+    });
+  }
+
+  function constrainedZoom(newZoom){
+    if(newZoom<=zoom) return Math.max(ZOOM_MIN,newZoom);
+    return Math.min(currentZoomMaximum(),newZoom);
+  }
+
   function applyZoom(newZoom, anchorX, anchorY){
-    newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom));
+    newZoom=constrainedZoom(newZoom);
     const preX = (anchorX - cx - panX)/zoom;
     const preY = (anchorY - cy - panY)/zoom;
     zoom = newZoom;
@@ -3927,7 +3952,7 @@ Velocity: not set</div>
         ? body.parentName
         : body===charon ? 'Pluto' : body.name;
       zoom=moonSystemFocusZoom(
-        moonVisibilityDefinitions,parentName,AU_PX,70,ZOOM_MAX
+        moonVisibilityDefinitions,parentName,AU_PX,70,BASE_ZOOM_MAX
       )||zoomForDistance(Math.hypot(pos.x,pos.y,pos.z));
       panX=0;
       panY=0;
@@ -3947,7 +3972,7 @@ Velocity: not set</div>
   function zoomForEvent(event){
     const parentName=event.target==='Pluto & Charon'?'Pluto':event.target;
     return moonSystemFocusZoom(
-      moonVisibilityDefinitions,parentName,AU_PX,70,ZOOM_MAX
+      moonVisibilityDefinitions,parentName,AU_PX,70,BASE_ZOOM_MAX
     )||zoomForTarget(event.target);
   }
 
@@ -4357,7 +4382,7 @@ Velocity: not set</div>
         );
         return;
       }
-      const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pinchStartInfo.zoom*scale));
+      const newZoom=constrainedZoom(pinchStartInfo.zoom*scale);
       // anchor zoom at the pinch's original midpoint, then add any midpoint drift as pan
       const preX = (pinchStartInfo.mid.x - cx - pinchStartInfo.panX)/pinchStartInfo.zoom;
       const preY = (pinchStartInfo.mid.y - cy - pinchStartInfo.panY)/pinchStartInfo.zoom;
