@@ -62,10 +62,21 @@
     return closest;
   }
 
+  function pathSegmentsByDepth(points,centerDepth,front){
+    const segments=[];
+    for(let i=0;i<points.length-1;i++){
+      const averageDepth=(points[i].depth+points[i+1].depth)/2;
+      if((averageDepth>=centerDepth)===front){
+        segments.push([points[i],points[i+1]]);
+      }
+    }
+    return segments;
+  }
+
   return {
     AU_KM,smoothstep,physicalRadiusPixels,planetMarkerRadiusPixels,
     customMarkerRadiusPixels,
     displayRadiusPixels,
-    distanceToSegment,distanceToPolyline
+    distanceToSegment,distanceToPolyline,pathSegmentsByDepth
   };
 });
