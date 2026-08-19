@@ -246,8 +246,9 @@
   #scenarioStatus.show{ opacity:1; }
   .tutorial-overlay{
     position:fixed; inset:0; z-index:1000; pointer-events:none;
-    background:rgba(3,6,14,.72);
+    background:rgba(3,6,14,.72); transition:background .2s;
   }
+  .tutorial-overlay.tutorial-overlay-clear{ background:transparent; }
   .tutorial-target{
     z-index:1001!important; outline:3px solid var(--accent)!important;
     outline-offset:4px; box-shadow:0 0 0 7px rgba(242,181,68,.18),
@@ -4950,11 +4951,13 @@ Velocity: not set</div>
       },
       {
         target:'#scene',
+        interactive:true,
         title:'Navigate and select',
         text:'Drag with the left mouse button to rotate. Hold the right button and drag to pan. Use the wheel to zoom.\n\nClick a body or trajectory to select it and open its properties. On touch screens, drag to rotate and use two fingers to pan and zoom.'
       },
       {
         target:'#dock',
+        interactive:true,
         title:'Control time and view',
         text:'Play, pause, jump by 30 days, change simulation speed, zoom, choose Inner/Outer/Deep presets, or return to today. Press T whenever you need to show or hide these controls.',
         before(){
@@ -4963,6 +4966,7 @@ Velocity: not set</div>
       },
       {
         target:'#legend',
+        interactive:true,
         title:'Find and follow objects',
         text:'Choose planets, moons, spacecraft, and comets here. Selecting an entry focuses it, follows its motion, and opens detailed properties.',
         before(){
@@ -4971,6 +4975,7 @@ Velocity: not set</div>
       },
       {
         target:'#missionPanel',
+        interactive:true,
         title:'Replay historic missions',
         text:'The mission timeline jumps to launches and flybys using bundled NASA/JPL trajectories. Choose a spacecraft or enter a UTC date, then open an event to follow it.',
         before(){
@@ -4980,6 +4985,7 @@ Velocity: not set</div>
       },
       {
         target:'#occultationPanel',
+        interactive:true,
         title:'Search the sky',
         text:'Find eclipses, planetary transits, and close planet alignments for a selected surface observer. Results can open directly in Observatory Mode.',
         before(){
@@ -4989,6 +4995,7 @@ Velocity: not set</div>
       },
       {
         target:'#observatoryPanel',
+        interactive:true,
         title:'Stand on another world',
         text:'Observatory Mode shows the local sky from cities on Earth or modeled planetary surfaces. Choose a location, look around, accelerate time, and optionally show projected orbit paths.',
         before(){
@@ -4998,6 +5005,7 @@ Velocity: not set</div>
       },
       {
         target:'#addBodyBtn',
+        interactive:true,
         title:'Experiment with gravity',
         text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Place it, set its velocity, and watch for predicted impacts.',
         before(){
@@ -5006,16 +5014,19 @@ Velocity: not set</div>
       },
       {
         target:'#impactBtn',
+        interactive:true,
         title:'Monitor close encounters',
         text:'The impact monitor predicts physical contact involving custom bodies. When a collision occurs, you can inspect it, continue, or merge custom bodies while conserving momentum.'
       },
       {
         target:'#lagrangeBtn',
+        interactive:true,
         title:'Explore orbital geometry',
         text:'Select a planet or moon, then click L₅ to reveal its five Lagrange points. The ↻ button beside it switches to a co-rotating frame.'
       },
       {
         target:'#shareScenarioBtn',
+        interactive:true,
         title:'Share what you discover',
         text:'Click ↗ to copy a link containing the current date, camera, selected object, visible layers, and Observatory setup. Anyone opening it sees the same scenario.'
       },

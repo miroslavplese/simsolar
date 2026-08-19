@@ -136,6 +136,7 @@
       clearTarget();
       index=Math.max(0,Math.min(steps.length-1,nextIndex));
       const step=steps[index];
+      overlay.classList.toggle('tutorial-overlay-clear',step.interactive===true);
       step.before?.();
       target=resolveTarget(step);
       if(target){
