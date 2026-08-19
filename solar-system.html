@@ -2032,11 +2032,19 @@ Velocity: not set</div>
     }
   }
 
+  function moonSystemForBody(body){
+    if(body?.kind==='moon') return body.parentName;
+    return body===charon ? 'Pluto' : null;
+  }
+
   function isMoonSystemVisible(parentName){
     if(!moonSystemVisibleAtZoom(
       moonVisibilityDefinitions,parentName,zoom,AU_PX,50
     )) return false;
     if(!W || !H) return false;
+    const activeSystem=moonSystemForBody(selected)||
+      moonSystemForBody(followTarget);
+    if(activeSystem===parentName) return true;
     const parent=planets.find(body=>body.name===parentName);
     const pos=parent && positionForBody(parent,simDaysSinceJ2000);
     if(!pos) return false;
