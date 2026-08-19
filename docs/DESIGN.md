@@ -122,6 +122,37 @@ length is illustrative rather than a physical coma or dust-tail simulation.
 Long paths use an adaptive point budget while retaining the original dense
 perihelion samples.
 
+## Mission planning
+
+`src/mission-planner.js` provides a dependency-free patched-conic planner. A
+universal-variable Lambert solver evaluates prograde short- and long-way,
+zero-revolution heliocentric transfers. Window search samples each waypoint's
+date interval, evaluates up to 32 branch combinations per route, and ranks
+candidates using Earth departure delta-v, powered gravity-assist corrections,
+arrival relative speed, and an infeasible-assist penalty.
+
+Planetary assists compare the required incoming/outgoing hyperbolic-excess turn
+against the maximum turn available at the configured flyby altitude. The UI
+reports excess powered correction rather than silently accepting an impossible
+unpowered flyby. Final targets may be planets, major moons, bundled comets, or
+active custom bodies. Moon targets currently use their heliocentric state
+directly; a parent-centric sphere-of-influence arrival leg is deferred.
+
+The planner prepares global and hierarchical-moon N-body checkpoints before a
+future search, then queries the same heliocentric states used by rendering.
+Selected Lambert arcs are sampled for the static orbit layer, while preview
+playback interpolates a spacecraft marker along those physically propagated
+samples. Encounter entries jump the main simulation clock to their waypoint.
+
+Plans use a compact versioned schema. Named plans are stored in local storage;
+only waypoint windows, flyby altitudes, and selected route times/branch mask are
+serialized. Derived route polylines are recomputed after load. Scenario version
+2 optionally embeds the active compact plan, while version-1 links remain
+accepted. The 2100 simulation limit also bounds planner searches.
+Custom-body targets remain local because current scenario links do not serialize
+the custom body's branched N-body history; sharing such a plan is rejected with
+an explicit status rather than producing a link that cannot be restored.
+
 ## Gravity model
 
 The runtime uses a hybrid historical/future model:
@@ -355,8 +386,9 @@ runtime dependency.
 - Two pointers pan by midpoint movement and perform anchored pinch zoom.
 - Dragging any non-interactive area of a panel repositions that panel while
   preserving normal behavior for its links, buttons, inputs, and list items.
-- Mission, body/craft, and profiler panels can be closed directly and toggled
-  with `M`, `L`, and `P`, respectively. Mission and profiler start hidden.
+- Mission timeline, mission planner, body/craft, and profiler panels can be
+  closed directly and toggled with `M`, `W`, `L`, and `P`, respectively.
+  Timeline, planner, and profiler start hidden.
 - Wheel and buttons apply anchored zoom.
 - The zoom ceiling remains conservative for system navigation, then scales
   inversely with the physical radius of the selected or followed body so small

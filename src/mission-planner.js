@@ -308,6 +308,7 @@
     options=options||{};
     const samplesPerWindow=clamp(options.samplesPerWindow||5,2,9);
     const maxCandidates=options.maxCandidates||8;
+    const maxCombinations=options.maxCombinations||256;
     const timeSets=plan.waypoints.map((waypoint,index)=>sampleWindow(
       waypoint.earliest,waypoint.latest,
       index===plan.waypoints.length-1
@@ -326,8 +327,11 @@
     }
     const routes=[];
     const chosen=[];
+    let combinations=0;
     function visit(index){
       if(index===plan.waypoints.length){
+        if(combinations>=maxCombinations) return;
+        combinations++;
         try{
           routes.push(evaluateRoute(chosen,options));
         } catch(error){
@@ -337,6 +341,7 @@
       }
       const waypoint=plan.waypoints[index];
       for(const time of timeSets[index]){
+        if(combinations>=maxCombinations) break;
         if(chosen.length && time<=chosen[chosen.length-1].time) continue;
         const resolved=waypointState(waypoint,time);
         if(!resolved) continue;
@@ -350,6 +355,65 @@
     return routes.slice(0,maxCandidates);
   }
 
+  function routeFromPlanSelection(plan,stateAt,options){
+    if(!validatePlan(plan) || !Array.isArray(plan.selectedTimes)){
+      return null;
+    }
+    const waypoints=plan.waypoints.map((waypoint,index)=>{
+      const time=plan.selectedTimes[index];
+      const state=stateAt(waypoint.body,time);
+      return state ? {
+        name:waypoint.body,role:waypoint.role,time,state,
+        altitudeKm:waypoint.altitudeKm
+      } : null;
+    });
+    if(waypoints.some(waypoint=>!waypoint)) return null;
+    if(Number.isInteger(plan.selectedLongWayMask)){
+      try{
+        return routeForBranches(
+          waypoints,plan.selectedLongWayMask,options||{}
+        );
+      } catch(error){
+        if(!(error instanceof RangeError)) throw error;
+      }
+    }
+    return evaluateRoute(waypoints,options);
+  }
+
+  function sampleRoute(route,stateAt,count){
+    if(!route || !Array.isArray(route.legs) || typeof stateAt!=='function'){
+      throw new TypeError('Route sampling requires a solved route and stateAt.');
+    }
+    return route.legs.map(leg=>{
+      if(!stateAt(leg.from,leg.startTime)){
+        throw new RangeError('Route body state is unavailable.');
+      }
+      return {
+        from:leg.from,to:leg.to,startTime:leg.startTime,endTime:leg.endTime,
+        points:sampleTransfer(leg.solution,leg.startTime,count||160)
+      };
+    });
+  }
+
+  function stateAlongSamples(sampledRoute,time){
+    if(!Array.isArray(sampledRoute)) return null;
+    const leg=sampledRoute.find(candidate=>
+      time>=candidate.startTime && time<=candidate.endTime
+    );
+    if(!leg) return null;
+    const points=leg.points;
+    const exact=(time-leg.startTime)/(leg.endTime-leg.startTime)*
+      (points.length-1);
+    const lower=Math.max(0,Math.min(points.length-1,Math.floor(exact)));
+    const upper=Math.min(points.length-1,lower+1);
+    const fraction=exact-lower;
+    return {
+      x:points[lower].x+(points[upper].x-points[lower].x)*fraction,
+      y:points[lower].y+(points[upper].y-points[lower].y)*fraction,
+      z:points[lower].z+(points[upper].z-points[lower].z)*fraction
+    };
+  }
+
   function validName(value){
     return typeof value==='string' && value.trim().length>0 && value.length<=80;
   }
@@ -361,7 +425,7 @@
     if(plan.waypoints[0].body!=='Earth' ||
        plan.waypoints[0].role!=='departure' ||
        plan.waypoints[plan.waypoints.length-1].role!=='target') return false;
-    return plan.waypoints.every((waypoint,index)=>{
+    const waypointsValid=plan.waypoints.every((waypoint,index)=>{
       const expectedRole=index===0
         ? 'departure'
         : index===plan.waypoints.length-1 ? 'target' : 'assist';
@@ -372,6 +436,19 @@
         (waypoint.altitudeKm===undefined ||
           Number.isFinite(waypoint.altitudeKm) && waypoint.altitudeKm>=0);
     });
+    if(!waypointsValid) return false;
+    if(plan.selectedTimes!==undefined){
+      if(!Array.isArray(plan.selectedTimes) ||
+         plan.selectedTimes.length!==plan.waypoints.length ||
+         plan.selectedTimes.some(time=>!Number.isFinite(time))) return false;
+      for(let index=1;index<plan.selectedTimes.length;index++){
+        if(!(plan.selectedTimes[index]>plan.selectedTimes[index-1])) return false;
+      }
+    }
+    return plan.selectedLongWayMask===undefined ||
+      Number.isInteger(plan.selectedLongWayMask) &&
+      plan.selectedLongWayMask>=0 &&
+      plan.selectedLongWayMask<(1<<(plan.waypoints.length-1));
   }
 
   function clonePlan(plan){ return JSON.parse(JSON.stringify(plan)); }
@@ -407,6 +484,7 @@
   return {
     PLAN_VERSION,STORAGE_KEY,MAX_WAYPOINTS,
     solveLambert,sampleTransfer,flybyAssessment,evaluateRoute,searchRoutes,
+    routeFromPlanSelection,sampleRoute,stateAlongSamples,
     validatePlan,loadPlans,savePlan,deletePlan,
     vector,add,subtract,scale,dot,cross,magnitude,speedKmS
   };

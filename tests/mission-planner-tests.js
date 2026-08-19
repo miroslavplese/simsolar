@@ -4,6 +4,7 @@ const {
 }=require('../src/trajectory-math.js');
 const {
   solveLambert,sampleTransfer,flybyAssessment,evaluateRoute,searchRoutes,
+  routeFromPlanSelection,sampleRoute,stateAlongSamples,
   validatePlan,loadPlans,savePlan,deletePlan
 }=require('../src/mission-planner.js');
 
@@ -85,6 +86,28 @@ const searched=searchRoutes(plan,(name,time)=>
 );
 assert.equal(searched.length,1);
 close(searched[0].departureDeltaVKmS,0,1e-6,'searched departure delta-v');
+const selectedPlan={
+  ...plan,
+  selectedTimes:[0,quarterPeriod],
+  selectedLongWayMask:searched[0].longWayMask
+};
+assert.equal(validatePlan(selectedPlan),true);
+const restoredRoute=routeFromPlanSelection(
+  selectedPlan,
+  name=>name==='Earth' ? earthStart : targetEnd
+);
+close(restoredRoute.arrivalSpeedKmS,0,1e-6,'restored arrival speed');
+const sampledRoute=sampleRoute(
+  restoredRoute,name=>name==='Earth' ? earthStart : targetEnd,21
+);
+assert.equal(sampledRoute[0].points.length,22);
+const routeMidpoint=stateAlongSamples(sampledRoute,quarterPeriod/2);
+close(
+  Math.hypot(routeMidpoint.x,routeMidpoint.y),1,2e-3,
+  'sampled route midpoint radius'
+);
+assert.equal(stateAlongSamples(sampledRoute,-1),null);
+assert.equal(validatePlan({...selectedPlan,selectedTimes:[1,0]}),false);
 
 const values=new Map();
 const storage={

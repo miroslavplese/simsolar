@@ -1,12 +1,14 @@
 (function(root,factory){
-  const api=factory();
+  const api=factory(root);
   if(typeof module==='object' && module.exports) module.exports=api;
   if(root) root.ScenarioState=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+})(typeof globalThis!=='undefined'?globalThis:this,function(root){
   'use strict';
 
-  const VERSION=1;
+  const VERSION=2;
+  const LEGACY_VERSION=1;
   const PARAM='scenario';
+  let missionPlannerApi=null;
 
   function finite(value,min,max){
     return typeof value==='number' && Number.isFinite(value) &&
@@ -28,8 +30,33 @@
     }
   }
 
+  function getMissionPlanner(){
+    if(missionPlannerApi) return missionPlannerApi;
+    if(root && root.MissionPlanner) return missionPlannerApi=root.MissionPlanner;
+    if(typeof module==='object' && module.exports){
+      try{
+        missionPlannerApi=require('./mission-planner.js');
+      } catch(error){
+        missionPlannerApi=null;
+      }
+    }
+    return missionPlannerApi;
+  }
+
+  function validMissionPlan(value){
+    if(value===null) return true;
+    const missionPlanner=getMissionPlanner();
+    try{
+      return !!missionPlanner &&
+        typeof missionPlanner.validatePlan==='function' &&
+        missionPlanner.validatePlan(value);
+    } catch(error){
+      return false;
+    }
+  }
+
   function validate(state){
-    if(!state || state.v!==VERSION) return false;
+    if(!state || (state.v!==LEGACY_VERSION && state.v!==VERSION)) return false;
     if(!finite(state.t,-200000,100000)) return false;
     if(typeof state.playing!=='boolean') return false;
     if(!finite(state.speed,-2,4.2)) return false;
@@ -45,19 +72,22 @@
     if(!layers || ['spacecraft','comets','lagrange','rotating'].some(
       key=>typeof layers[key]!=='boolean'
     )) return false;
-    if(state.observatory===null) return true;
-    const obs=state.observatory;
-    return !!obs &&
-      typeof obs.body==='string' && obs.body.length<=80 &&
-      finite(obs.latitude,-90,90) &&
-      finite(obs.longitude,-180,180) &&
-      finite(obs.azimuth,0,Math.PI*2) &&
-      finite(obs.altitude,-Math.PI/2,Math.PI/2) &&
-      finite(obs.fov,8*Math.PI/180,120*Math.PI/180) &&
-      finite(obs.speed,0,3.6) &&
-      typeof obs.enhance==='boolean' &&
-      typeof obs.paths==='boolean' &&
-      validTimeZone(obs.timeZone);
+    if(state.observatory!==null){
+      const obs=state.observatory;
+      if(!(!!obs &&
+        typeof obs.body==='string' && obs.body.length<=80 &&
+        finite(obs.latitude,-90,90) &&
+        finite(obs.longitude,-180,180) &&
+        finite(obs.azimuth,0,Math.PI*2) &&
+        finite(obs.altitude,-Math.PI/2,Math.PI/2) &&
+        finite(obs.fov,8*Math.PI/180,120*Math.PI/180) &&
+        finite(obs.speed,0,3.6) &&
+        typeof obs.enhance==='boolean' &&
+        typeof obs.paths==='boolean' &&
+        validTimeZone(obs.timeZone))) return false;
+    }
+    if(state.v===VERSION && !('missionPlan' in state)) return false;
+    return state.v!==VERSION || validMissionPlan(state.missionPlan);
   }
 
   function base64Encode(text){
@@ -81,7 +111,9 @@
 
   function encode(state){
     if(!validate(state)) throw new TypeError('Invalid scenario state.');
-    return base64Encode(JSON.stringify(state))
+    const scenario={...state,v:VERSION};
+    scenario.missionPlan=state.v===VERSION ? state.missionPlan : null;
+    return base64Encode(JSON.stringify(scenario))
       .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   }
 

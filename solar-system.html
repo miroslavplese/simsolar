@@ -154,6 +154,62 @@
   #eventList .event:hover, #eventList .event.active{ background:rgba(255,255,255,.06); color:var(--ink); }
   #eventList .event span{ color:var(--accent); margin-right:7px; }
   #eventDetail{ min-height:25px; margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+  #plannerPanel{
+    position:absolute; top:74px; right:20px; width:min(620px,calc(100vw - 40px));
+    max-height:calc(100vh - 150px); overflow:auto;
+    background:rgba(17,22,42,0.96); border:1px solid #66552f; border-radius:12px;
+    padding:12px; backdrop-filter:blur(12px); font-family:var(--mono);
+  }
+  #plannerPanel .heading{ color:var(--accent); font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:9px; }
+  .plannerTop{ display:grid; grid-template-columns:1fr auto auto; gap:6px; margin-right:28px; }
+  #plannerPanel input, #plannerPanel select{
+    min-width:0; height:29px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); font:9px var(--mono); padding:0 7px;
+    color-scheme:dark;
+  }
+  #plannerLibrary{ max-width:185px; }
+  .plannerTabs{ display:flex; gap:4px; margin:10px 0; border-bottom:1px solid var(--line); }
+  .plannerTabs button{
+    flex:1; padding:7px 4px; border:0; border-bottom:2px solid transparent;
+    background:transparent; color:var(--ink-dim); cursor:pointer; font:8.5px var(--mono);
+  }
+  .plannerTabs button.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .plannerPane{ display:none; }
+  .plannerPane.active{ display:block; }
+  .plannerGrid{ display:grid; grid-template-columns:1fr 1fr; gap:9px 12px; }
+  .plannerField{ display:flex; flex-direction:column; gap:4px; color:#7d87ab; font-size:8px; letter-spacing:.06em; text-transform:uppercase; }
+  .plannerDateRange{ display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+  .plannerActions{ display:flex; gap:6px; justify-content:flex-end; margin-top:10px; }
+  .plannerActions .primary{ border-color:#806a35; color:var(--accent); }
+  #plannerAssistList{ display:flex; flex-direction:column; gap:6px; }
+  .plannerAssist{ display:grid; grid-template-columns:1fr 1.2fr 1.2fr .8fr 28px; gap:5px; }
+  .plannerIconButton{ border:1px solid var(--line); border-radius:7px; background:#161c34; color:var(--ink-dim); cursor:pointer; }
+  .plannerEmpty{ padding:16px 8px; text-align:center; color:#687295; font-size:9px; line-height:1.5; }
+  #plannerRouteList{ display:flex; flex-direction:column; gap:5px; max-height:235px; overflow:auto; }
+  .plannerRoute{
+    display:flex; flex-direction:column; gap:4px; width:100%; padding:8px;
+    border:1px solid var(--line); border-radius:8px; background:#10162a;
+    color:var(--ink); text-align:left; cursor:pointer; font:8.5px var(--mono);
+  }
+  .plannerRoute.selected{ border-color:var(--accent); background:#1b2138; }
+  .plannerRoute b{ color:var(--accent); font-weight:500; }
+  .plannerRoute span{ color:var(--ink-dim); }
+  #plannerManeuverList{ display:flex; flex-direction:column; gap:5px; }
+  .plannerManeuver{
+    display:grid; grid-template-columns:16px 1fr; width:100%; padding:7px;
+    border:1px solid var(--line); border-radius:8px; background:#10162a;
+    color:var(--ink); text-align:left; cursor:pointer; font:9px var(--mono);
+  }
+  .plannerManeuver small{ grid-column:2; color:var(--ink-dim); margin-top:3px; line-height:1.4; }
+  .plannerNodeDot{ width:8px; height:8px; margin-top:2px; border-radius:50%; background:#72e6c1; box-shadow:0 0 8px #72e6c1; }
+  .plannerNodeDot.flyby{ background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .plannerNodeDot.target{ background:#ff8f9f; box-shadow:0 0 8px #ff8f9f; }
+  .plannerMetrics{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .plannerMetric{ padding:9px 7px; border:1px solid var(--line); border-radius:8px; background:#10162a; }
+  .plannerMetric span{ display:block; color:#687295; font-size:7.5px; letter-spacing:.07em; text-transform:uppercase; }
+  .plannerMetric b{ display:block; color:var(--accent); font-size:11px; margin-top:5px; font-weight:500; }
+  #plannerStatus{ min-height:14px; margin-top:8px; color:#72e6c1; font-size:8.5px; }
+  #plannerStatus.error{ color:#ff8f9f; }
   #occultationPanel{
     position:absolute; top:74px; right:310px; width:270px;
     background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
@@ -306,6 +362,12 @@
     #bodyPanel{ left:20px; top:230px; width:230px; }
     #impactPanel{ left:20px; top:400px; width:230px; }
     #observatoryPanel{ top:108px; width:230px; }
+    #plannerPanel{ top:108px; width:calc(100vw - 40px); max-height:calc(100vh - 180px); }
+    .plannerTop, .plannerGrid{ grid-template-columns:1fr; }
+    #plannerLibrary{ max-width:none; }
+    .plannerAssist{ grid-template-columns:1fr 1fr; }
+    .plannerAssist .plannerIconButton{ min-height:28px; }
+    .plannerMetrics{ grid-template-columns:1fr 1fr; }
     #aboutPanel{ width:calc(100vw - 40px); }
   }
 </style>
@@ -329,6 +391,9 @@
     <button class="btn" id="missionBtn" type="button"
       title="Mission timeline (M)" aria-label="Mission timeline"
       aria-expanded="false">🚀</button>
+    <button class="btn" id="plannerBtn" type="button"
+      title="Mission planner (W)" aria-label="Mission planner"
+      aria-expanded="false">⌁</button>
     <button class="btn" id="addBodyBtn" type="button"
       title="Introduce a massive body" aria-label="Introduce a massive body"
       aria-expanded="false">✦</button>
@@ -414,6 +479,75 @@
     <div id="eventList"></div>
     <div id="eventDetail">Choose an event to jump to its date and follow the spacecraft.</div>
   </div>
+    <div id="plannerPanel" class="panel-hidden">
+      <button class="panel-close" id="plannerClose" type="button"
+        title="Close mission planner (W to reopen)" aria-label="Close mission planner">✕</button>
+      <div class="heading">Mission planner · Patched conics</div>
+      <div class="plannerTop">
+        <input id="plannerName" type="text" maxlength="80" aria-label="Mission name">
+        <select id="plannerLibrary" aria-label="Saved missions"></select>
+        <button class="timelineBtn" id="plannerNewBtn" type="button">NEW</button>
+      </div>
+      <div class="plannerTabs" role="tablist">
+        <button class="active" type="button" data-planner-tab="launch">1 · LAUNCH</button>
+        <button type="button" data-planner-tab="encounters">2 · ENCOUNTERS</button>
+        <button type="button" data-planner-tab="maneuvers">3 · MANEUVERS</button>
+        <button type="button" data-planner-tab="review">4 · REVIEW</button>
+      </div>
+      <div class="plannerPane active" data-planner-pane="launch">
+        <div class="plannerGrid">
+          <label class="plannerField">Departure body
+            <input value="Earth" disabled>
+          </label>
+          <label class="plannerField">Final target
+            <select id="plannerTarget"></select>
+          </label>
+          <label class="plannerField">Launch window
+            <span class="plannerDateRange">
+              <input id="plannerDepartureStart" type="date" max="2100-01-01">
+              <input id="plannerDepartureEnd" type="date" max="2100-01-01">
+            </span>
+          </label>
+          <label class="plannerField">Arrival window
+            <span class="plannerDateRange">
+              <input id="plannerArrivalStart" type="date" max="2100-01-01">
+              <input id="plannerArrivalEnd" type="date" max="2100-01-01">
+            </span>
+          </label>
+        </div>
+        <div class="plannerActions">
+          <button class="timelineBtn primary" data-planner-tab="encounters" type="button">NEXT · ENCOUNTERS</button>
+        </div>
+      </div>
+      <div class="plannerPane" data-planner-pane="encounters">
+        <div id="plannerAssistList"></div>
+        <div class="plannerActions">
+          <button class="timelineBtn" id="plannerAddAssistBtn" type="button">+ GRAVITY ASSIST</button>
+          <button class="timelineBtn primary" id="plannerSearchBtn" type="button">SEARCH WINDOWS</button>
+        </div>
+      </div>
+      <div class="plannerPane" data-planner-pane="maneuvers">
+        <div id="plannerManeuverList"></div>
+        <div class="plannerActions">
+          <button class="timelineBtn" data-planner-tab="review" type="button">REVIEW ROUTES</button>
+        </div>
+      </div>
+      <div class="plannerPane" data-planner-pane="review">
+        <div class="plannerMetrics">
+          <div class="plannerMetric"><span>Duration</span><b id="plannerMetricDuration">—</b></div>
+          <div class="plannerMetric"><span>Total Δv</span><b id="plannerMetricDeltaV">—</b></div>
+          <div class="plannerMetric"><span>Arrival speed</span><b id="plannerMetricArrival">—</b></div>
+          <div class="plannerMetric"><span>Assist status</span><b id="plannerMetricStatus">—</b></div>
+        </div>
+        <div id="plannerRouteList"></div>
+        <div class="plannerActions">
+          <button class="timelineBtn" id="plannerDeleteBtn" type="button">DELETE</button>
+          <button class="timelineBtn" id="plannerSaveBtn" type="button">SAVE</button>
+          <button class="timelineBtn primary" id="plannerPreviewBtn" type="button">PREVIEW FLIGHT</button>
+        </div>
+      </div>
+      <div id="plannerStatus" role="status" aria-live="polite">Choose dates, then search for candidate routes.</div>
+    </div>
   <div id="occultationPanel" class="panel-hidden">
     <button class="panel-close" id="occultationClose" type="button"
       title="Close eclipses and transits (E to reopen)"
@@ -542,6 +676,8 @@ Velocity: not set</div>
 <script src="data/hipparcos-stars.js"></script>
 <script src="src/trajectory-math.js"></script>
 <script src="src/mission-timeline.js"></script>
+<script src="src/mission-planner.js"></script>
+<script src="src/mission-planner-ui.js"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js"></script>
 <script src="src/star-field.js"></script>
@@ -572,6 +708,7 @@ Velocity: not set</div>
   const starBackdropCtx=starBackdrop.getContext('2d');
   PanelDrag.installMovablePanels([
     document.getElementById('missionPanel'),
+    document.getElementById('plannerPanel'),
     document.getElementById('occultationPanel'),
     document.getElementById('perfPanel'),
     document.getElementById('bodyPanel'),
@@ -1223,6 +1360,112 @@ Velocity: not set</div>
       return continuationPointAt(obj,tDays);
     }
     return bodyPosition(obj,tDays);
+  }
+
+  let missionPlannerController=null;
+  let activePlannerRoute=null;
+  let plannerRouteSamples=[];
+  let plannerPreviewActive=false;
+
+  function plannerBodyByName(name){
+    return [
+      ...planets,...moons,...comets,...customBodies
+    ].find(body=>body.name===name)||null;
+  }
+
+  function plannerStateAt(name,tDays){
+    const body=plannerBodyByName(name);
+    if(!body || body.kind==='custom' && tDays<body.introducedAt) return null;
+    return positionForBody(body,tDays);
+  }
+
+  function plannerBodyInfo(name){
+    const body=plannerBodyByName(name);
+    if(!body) return {};
+    const mu=body.kind==='custom'
+      ? massKgToMu(body.massKg)
+      : MOON_GM_BY_BODY[name]||GM_BY_BODY[name]||0;
+    return {mu,radiusKm:body.radius||0};
+  }
+
+  function plannerCatalog(){
+    return [
+      ...planets.map(body=>({
+        name:body.name,
+        assist:body.category!=='Moon' && !!GM_BY_BODY[body.name]
+      })),
+      ...moons.map(body=>({name:body.name,assist:false})),
+      ...comets.map(body=>({name:body.name,assist:false})),
+      ...customBodies.map(body=>({name:body.name,assist:false}))
+    ];
+  }
+
+  async function prepareMissionEphemerides(tDays,onProgress){
+    if(tDays<HYBRID_EPOCH_DAYS) return true;
+    if(tDays>HYBRID_MAX_DAYS){
+      throw new RangeError('Mission dates must be on or before 1 January 2100.');
+    }
+    const hybrid=await hybridBranchAt(tDays).simulator.prepareTo(tDays,{
+      chunkDays:180,
+      onProgress:progress=>onProgress?.(progress*0.4)
+    });
+    if(!hybrid) return false;
+    return moonBranchAt(tDays).simulator.prepareTo(tDays,{
+      chunkDays:30,
+      onProgress:progress=>onProgress?.(0.4+progress*0.6)
+    });
+  }
+
+  function setPlannerRoute(route){
+    activePlannerRoute=route;
+    plannerPreviewActive=false;
+    plannerRouteSamples=route
+      ? MissionPlanner.sampleRoute(route,plannerStateAt,180)
+      : [];
+    orbitLayerDirty=true;
+  }
+
+  function plannerNodeSelected(index){
+    if(!activePlannerRoute) return;
+    const waypoint=activePlannerRoute.waypoints[index];
+    const body=plannerBodyByName(waypoint.name);
+    simDaysSinceJ2000=waypoint.time;
+    playing=false;
+    playBtn.textContent='▶';
+    if(body){
+      setSelectedBody(body,false);
+      setFollowTarget(body);
+    }
+    invalidateProjection();
+  }
+
+  function previewPlannerRoute(){
+    if(!activePlannerRoute) return;
+    plannerPreviewActive=true;
+    simDaysSinceJ2000=activePlannerRoute.waypoints[0].time;
+    speedExp=Math.log10(Math.max(
+      5,Math.min(120,activePlannerRoute.durationDays/24)
+    ));
+    document.getElementById('speedSlider').value=String(speedExp);
+    setFollowTarget(null);
+    playing=true;
+    playBtn.textContent='⏸';
+    updateSpeedLabel();
+  }
+
+  function buildMissionPlanner(){
+    missionPlannerController=MissionPlannerUI.create({
+      document,window,j2000:J2000,
+      nowDays:()=>simDaysSinceJ2000,
+      catalog:plannerCatalog,
+      stateAt:plannerStateAt,
+      bodyInfo:plannerBodyInfo,
+      prepareTo:prepareMissionEphemerides,
+      storage:()=>window.localStorage,
+      onRouteChange:setPlannerRoute,
+      onNodeSelect:plannerNodeSelected,
+      onPreview:previewPlannerRoute
+    });
   }
 
   // ---------- Clock & view state ----------
@@ -2298,6 +2541,40 @@ Velocity: not set</div>
           }
         }
       }
+    }
+    if(plannerRouteSamples.length && !rotatingReferenceFrame){
+      orbitCtx.save();
+      orbitCtx.lineCap='round';
+      plannerRouteSamples.forEach((leg,index)=>{
+        orbitCtx.beginPath();
+        strokePath(orbitCtx,leg.points.map(point=>project(
+          point.x,point.y,point.z
+        )));
+        orbitCtx.strokeStyle=index%2
+          ? 'rgba(114,230,193,0.88)'
+          : 'rgba(242,181,68,0.9)';
+        orbitCtx.lineWidth=2.2;
+        orbitCtx.shadowColor=orbitCtx.strokeStyle;
+        orbitCtx.shadowBlur=5;
+        orbitCtx.stroke();
+      });
+      orbitCtx.shadowBlur=0;
+      for(const [index,waypoint] of activePlannerRoute.waypoints.entries()){
+        const state=plannerStateAt(waypoint.name,waypoint.time);
+        if(!state) continue;
+        const marker=project(state.x,state.y,state.z);
+        orbitCtx.beginPath();
+        orbitCtx.fillStyle=index===0
+          ? '#72e6c1'
+          : index===activePlannerRoute.waypoints.length-1
+            ? '#ff8f9f'
+            : '#f2b544';
+        orbitCtx.arc(marker.x,marker.y,4,0,Math.PI*2);
+        orbitCtx.fill();
+        orbitCtx.font='9px "SF Mono", Consolas, monospace';
+        orbitCtx.fillText(waypoint.name,marker.x+7,marker.y-6);
+      }
+      orbitCtx.restore();
     }
     orbitCtx.setLineDash([]);
     orbitLayerDirty = false;
@@ -3598,6 +3875,26 @@ Velocity: not set</div>
       }
     }
     drawOccultationEvent();
+    if(plannerRouteSamples.length){
+      const state=MissionPlanner.stateAlongSamples(
+        plannerRouteSamples,simDaysSinceJ2000
+      );
+      if(state){
+        const marker=project(state.x,state.y,state.z);
+        ctx.save();
+        ctx.shadowColor='#72e6c1';
+        ctx.shadowBlur=12;
+        ctx.fillStyle='#e9fff8';
+        ctx.beginPath();
+        ctx.arc(marker.x,marker.y,4.5,0,Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur=0;
+        ctx.font='9px "SF Mono", Consolas, monospace';
+        ctx.fillStyle='#72e6c1';
+        ctx.fillText('PLANNED SPACECRAFT',marker.x+8,marker.y-7);
+        ctx.restore();
+      }
+    }
     drawBodyInsertionPreview();
 
     updateDateUI();
@@ -4666,6 +4963,7 @@ Velocity: not set</div>
       notes:'Momentum-conserving remnant of '+a.name+' and '+b.name+'.'
     };
     customBodies.push(body);
+    missionPlannerController?.refreshTargets();
     activeImpact=null;
     ignoredImpactKey=null;
     clearSimulationCaches();
@@ -4742,6 +5040,7 @@ Velocity: not set</div>
       notes:'Introduced by the user as a massive Newtonian body.'
     };
     customBodies.push(body);
+    missionPlannerController?.refreshTargets();
     clearSimulationCaches();
     setSelectedBody(body);
     closeBodyPanel();
@@ -4918,7 +5217,7 @@ Velocity: not set</div>
     const button=document.getElementById('observatoryBtn');
     button.classList.toggle('active',enabled);
     button.setAttribute('aria-pressed',String(enabled));
-    for(const buttonId of ['legendBtn','missionBtn','addBodyBtn']){
+    for(const buttonId of ['legendBtn','missionBtn','plannerBtn','addBodyBtn']){
       document.getElementById(buttonId).disabled=enabled;
     }
     const slider=document.getElementById('speedSlider');
@@ -4983,7 +5282,8 @@ Velocity: not set</div>
         enhance:observatoryEnhance,
         paths:observatoryShowPaths,
         timeZone:observatoryTimeZone
-      } : null
+      } : null,
+      missionPlan:missionPlannerController?.plan()||null
     };
   }
 
@@ -5035,6 +5335,10 @@ Velocity: not set</div>
     updateLagrangeControls();
     buildLegend();
     invalidateProjection();
+    if(state.missionPlan){
+      missionPlannerController?.restore(state.missionPlan);
+      setPanelVisible('plannerPanel',true);
+    }
   }
 
   let scenarioStatusTimer=null;
@@ -5048,6 +5352,13 @@ Velocity: not set</div>
   }
 
   async function copyScenarioLink(){
+    const missionPlan=missionPlannerController?.plan();
+    if(missionPlan?.waypoints.some(waypoint=>
+      customBodies.some(body=>body.name===waypoint.body)
+    )){
+      showScenarioStatus('CUSTOM-BODY MISSION PLANS ARE LOCAL ONLY',true);
+      return;
+    }
     const url=ScenarioState.urlWithScenario(
       window.location.href,currentScenarioState()
     );
@@ -5249,6 +5560,7 @@ Velocity: not set</div>
       aboutPanel:['title'],
       legend:['legendBtn'],
       missionPanel:['missionBtn'],
+      plannerPanel:['plannerBtn'],
       occultationPanel:['occultationBtn'],
       impactPanel:['impactBtn'],
       dock:['dockBtn']
@@ -5265,7 +5577,7 @@ Velocity: not set</div>
   }
 
   const tutorialPanelIds=[
-    'legend','missionPanel','occultationPanel','impactPanel','dock'
+    'legend','missionPanel','plannerPanel','occultationPanel','impactPanel','dock'
   ];
   let tutorialSnapshot=null;
 
@@ -5353,12 +5665,22 @@ Velocity: not set</div>
         }
       },
       {
+        target:'#plannerPanel',
+        interactive:true,
+        title:'Design an interplanetary mission',
+        text:'Choose an Earth launch window and a final target, optionally add planetary gravity assists, then compare patched-conic routes. Open MANEUVERS to inspect each encounter, save plans locally, or preview the selected flight on the simulation.',
+        before(){
+          setPanelVisible('missionPanel',false);
+          setPanelVisible('plannerPanel',true);
+        }
+      },
+      {
         target:'#occultationPanel',
         interactive:true,
         title:'Search the sky',
         text:'Find eclipses, planetary transits, and close planet alignments for a selected surface observer. Results can open directly in Observatory Mode.',
         before(){
-          setPanelVisible('missionPanel',false);
+          setPanelVisible('plannerPanel',false);
           setOccultationPanelVisible(true);
         }
       },
@@ -5402,7 +5724,7 @@ Velocity: not set</div>
       {
         target:'#tutorialBtn',
         title:'You are ready to explore',
-        text:'The tutorial will not open automatically again after you finish or skip it. Click ? in the top toolbar whenever you want to replay it.\n\nKeyboard shortcuts include Space for play/pause and M, L, T, E, O, G, R, and P for major tools.'
+        text:'The tutorial will not open automatically again after you finish or skip it. Click ? in the top toolbar whenever you want to replay it.\n\nKeyboard shortcuts include Space for play/pause and W, M, L, T, E, O, G, R, and P for major tools.'
       }
     ]
   });
@@ -5430,6 +5752,12 @@ Velocity: not set</div>
     'click',()=>togglePanel('missionPanel')
   );
   document.getElementById('missionClose').addEventListener('click',()=>setPanelVisible('missionPanel',false));
+  document.getElementById('plannerBtn').addEventListener(
+    'click',()=>togglePanel('plannerPanel')
+  );
+  document.getElementById('plannerClose').addEventListener(
+    'click',()=>setPanelVisible('plannerPanel',false)
+  );
   document.getElementById('occultationBtn').addEventListener('click',()=>{
     const panel=document.getElementById('occultationPanel');
     setOccultationPanelVisible(panel.classList.contains('panel-hidden'));
@@ -5468,6 +5796,7 @@ Velocity: not set</div>
     if(e.repeat) return;
     if(e.code==='KeyP') toggleProfiler();
     if(e.code==='KeyM') togglePanel('missionPanel');
+    if(e.code==='KeyW') togglePanel('plannerPanel');
     if(e.code==='KeyL') togglePanel('legend');
     if(e.code==='KeyT') togglePanel('dock');
     if(e.code==='KeyG') setLagrangeVisibility(!showLagrangePoints);
@@ -5502,6 +5831,15 @@ Velocity: not set</div>
       } else {
         simDaysSinceJ2000=nextDays;
       }
+      if(
+        plannerPreviewActive && activePlannerRoute &&
+        simDaysSinceJ2000>=activePlannerRoute.waypoints.at(-1).time
+      ){
+        simDaysSinceJ2000=activePlannerRoute.waypoints.at(-1).time;
+        playing=false;
+        plannerPreviewActive=false;
+        playBtn.textContent='▶';
+      }
       if(simDaysSinceJ2000>=HYBRID_MAX_DAYS){
         stopAtHybridLimit();
       }
@@ -5515,6 +5853,7 @@ Velocity: not set</div>
   }
 
   buildMissionTimeline();
+  buildMissionPlanner();
   buildOccultationControls();
   buildObservatoryControls();
   const initialScenario=ScenarioState.scenarioFromUrl(window.location.href);

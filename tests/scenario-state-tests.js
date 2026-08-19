@@ -1,8 +1,8 @@
 const assert=require('node:assert/strict');
 const ScenarioState=require('../src/scenario-state.js');
+const MissionPlanner=require('../src/mission-planner.js');
 
-const state={
-  v:1,
+const coreState={
   t:9721.25,
   playing:false,
   speed:0.7,
@@ -25,36 +25,100 @@ const state={
   }
 };
 
-assert.equal(ScenarioState.validate(state),true);
-const encoded=ScenarioState.encode(state);
+const legacyState={
+  ...coreState,
+  v:1,
+};
+
+const noPlanState={
+  ...coreState,
+  v:2,
+  missionPlan:null
+};
+
+const missionPlan={
+  version:MissionPlanner.PLAN_VERSION,
+  id:'earth-mars-window',
+  name:'Earth to Mars window',
+  waypoints:[
+    {body:'Earth', role:'departure', earliest:100, latest:120},
+    {body:'Mars', role:'target', earliest:220, latest:260, altitudeKm:300}
+  ]
+};
+
+const plannedState={
+  ...coreState,
+  v:2,
+  missionPlan
+};
+
+function encodeLegacyScenario(state){
+  return Buffer.from(JSON.stringify(state),'utf8').toString('base64')
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+assert.equal(ScenarioState.VERSION,2);
+assert.equal(ScenarioState.validate(legacyState),true);
+assert.equal(ScenarioState.validate(noPlanState),true);
+assert.equal(ScenarioState.validate(plannedState),true);
+
+const encoded=ScenarioState.encode(plannedState);
 assert.match(encoded,/^[A-Za-z0-9_-]+$/);
-assert.deepEqual(ScenarioState.decode(encoded),state);
+assert.deepEqual(ScenarioState.decode(encoded),plannedState);
+
+const noPlanEncoded=ScenarioState.encode(noPlanState);
+assert.deepEqual(ScenarioState.decode(noPlanEncoded),noPlanState);
+
+const legacyEncoded=encodeLegacyScenario(legacyState);
+assert.deepEqual(ScenarioState.decode(legacyEncoded),legacyState);
 
 const url=ScenarioState.urlWithScenario(
-  'https://example.test/solar-system.html?keep=yes#old',state
+  'https://example.test/solar-system.html?keep=yes#old',plannedState
 );
 assert.equal(new URL(url).searchParams.get('keep'),'yes');
 assert.equal(new URL(url).hash,'');
-assert.deepEqual(ScenarioState.scenarioFromUrl(url),state);
+assert.deepEqual(ScenarioState.scenarioFromUrl(url),plannedState);
+
+const noPlanUrl=ScenarioState.urlWithScenario(
+  'https://example.test/solar-system.html?keep=yes#old',noPlanState
+);
+assert.deepEqual(ScenarioState.scenarioFromUrl(noPlanUrl),noPlanState);
+
+const legacyScenarioUrl=
+  `https://example.test/solar-system.html?keep=yes&scenario=${legacyEncoded}#old`;
+assert.deepEqual(ScenarioState.scenarioFromUrl(legacyScenarioUrl),legacyState);
 
 assert.equal(ScenarioState.decode('not-json'),null);
 assert.equal(ScenarioState.decode('x'.repeat(4097)),null);
-assert.equal(ScenarioState.validate({...state,v:2}),false);
-assert.equal(ScenarioState.validate({...state,t:Infinity}),false);
+assert.equal(ScenarioState.validate({...legacyState,v:2}),false);
+assert.equal(ScenarioState.validate({...noPlanState,v:2}),true);
 assert.equal(ScenarioState.validate({
-  ...state,view:{...state.view,zoom:500000}
+  ...noPlanState,
+  missionPlan:{...missionPlan,version:MissionPlanner.PLAN_VERSION+1}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,
+  missionPlan:{...missionPlan,waypoints:[missionPlan.waypoints[0]]}
+}),false);
+assert.equal(ScenarioState.validate({...noPlanState,t:Infinity}),false);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,view:{...noPlanState.view,zoom:500000}
 }),true);
 assert.equal(ScenarioState.validate({
-  ...state,view:{...state.view,zoom:2000001}
+  ...noPlanState,view:{...noPlanState.view,zoom:2000001}
 }),false);
 assert.equal(ScenarioState.validate({
-  ...state,
-  observatory:{...state.observatory,latitude:91}
+  ...noPlanState,
+  observatory:{...noPlanState.observatory,latitude:91}
 }),false);
 assert.equal(ScenarioState.validate({
-  ...state,
-  observatory:{...state.observatory,timeZone:'Not/A_Time_Zone'}
+  ...noPlanState,
+  observatory:{...noPlanState.observatory,timeZone:'Not/A_Time_Zone'}
 }),false);
-assert.throws(()=>ScenarioState.encode({...state,direction:0}),/Invalid/);
+assert.throws(()=>ScenarioState.encode({
+  ...noPlanState,
+  missionPlan:{...missionPlan,version:MissionPlanner.PLAN_VERSION+1}
+}),/Invalid/);
+assert.throws(()=>ScenarioState.encode({...noPlanState,direction:0}),/Invalid/);
 
 console.log('Scenario state tests passed.');

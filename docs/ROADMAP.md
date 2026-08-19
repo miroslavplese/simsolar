@@ -119,8 +119,11 @@ introduced.
 
 ## Future feature concepts
 
-- [ ] Add a mission planner with maneuver nodes, delta-v controls, and trajectory
-  previews.
+- [x] 2026-08-19 - Add a patched-conic mission planner with Earth departure
+  windows, planetary gravity assists, ranked Lambert routes, encounter nodes,
+  trajectory previews, local named saves, and shareable active plans.
+- [ ] Extend the mission planner with finite-burn and low-thrust maneuver editing,
+  multi-revolution Lambert branches, and parent-centric terminal moon targeting.
 - [x] 2026-08-18 - Add versioned shareable URL scenarios that restore simulation
   time, playback, camera, object visibility, selection, follow target, and
   Observatory location/view state.

@@ -39,11 +39,15 @@ web server is required.
 - First-run guided tutorial with responsive pointers, feature explanations,
   completion persistence, and an always-available restart button
 - Mission timeline with launch/flyby jumps and UTC date navigation
+- Patched-conic mission planner with Earth launch windows, optional planetary
+  gravity assists, ranked Lambert routes, maneuver/encounter details, animated
+  trajectory previews, local saves, and shareable active plans
 - Automatic zoom/focus/follow from the body list and spacecraft mission events
 - Rolling average and p95 frame-time profiler for each view preset
 - Pointer orbit rotation, right-button drag or two-finger pan, pinch/wheel zoom,
   movable panels, and view presets
-- Panel shortcuts: `M` mission timeline, `L` body/craft list, `T` time/view
+- Panel shortcuts: `W` mission planner, `M` mission timeline, `L` body/craft
+  list, `T` time/view
   controls, and `P` frame-time profiler
 - Observatory shortcut: `O`
 - Selection cards with physical mass, planetary-body radius, orbital
@@ -66,6 +70,8 @@ web server is required.
 | `docs/ROADMAP.md` | Progress tracker and prioritized improvement backlog |
 | `src/trajectory-math.js` | Shared interpolation and two-body propagation module |
 | `src/mission-timeline.js` | Shared mission navigation helpers |
+| `src/mission-planner.js` | Lambert solver, patched-conic route scoring, window search, and plan persistence |
+| `src/mission-planner-ui.js` | Mission-planner workflow, route comparison, maneuvers, saves, and previews |
 | `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
 | `src/view-transform.js` | Camera rotation and view-space transformation helpers |
 | `src/star-field.js` | Deterministic celestial-sphere generation and camera projection |
@@ -84,6 +90,8 @@ web server is required.
 | `src/occultation-system.js` | Apparent-disk overlap geometry and event refinement |
 | `src/nbody-simulation.js` | Barycentric Newtonian integration and checkpoint replay |
 | `tests/trajectory-tests.js` | Dependency-free numerical regression suite |
+| `tests/mission-planner-tests.js` | Lambert, flyby, route search, sampling, and persistence tests |
+| `tests/mission-planner-ui-tests.js` | Planner date, duration, and default-plan tests |
 | `tests/star-field-tests.js` | Star generation and camera-relative projection tests |
 | `tests/observatory-mode-tests.js` | Surface-frame and horizontal sky-projection tests |
 | `tests/scenario-state-tests.js` | Shareable scenario encoding, URL, and validation tests |
@@ -131,6 +139,14 @@ web server is required.
   proper motion and long-term precession are not yet applied.
 - Dynamic body positions and traveled trails are rendered every animation frame,
   except that off-screen heliocentric paths are suppressed in close moon views.
+- Planned transfers use zero-revolution heliocentric patched conics. Major moons
+  are treated as heliocentric encounter points rather than receiving a separate
+  parent-system capture leg, and finite burns, low-thrust flight, launch-site
+  geometry, navigation uncertainty, and multi-revolution Lambert solutions are
+  not modeled.
+- Custom bodies can be local mission targets, but their simulation branches are
+  not portable; plans that reference them can be saved locally but cannot be
+  included in a shareable scenario link.
 - Interaction and visual regression tests are not yet automated.
 - The interface has limited keyboard and screen-reader support.
 
