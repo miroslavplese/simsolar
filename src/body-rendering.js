@@ -20,6 +20,12 @@
     return Math.max(2.2,Math.min(Math.sqrt(radiusKm)*0.022,22));
   }
 
+  function customMarkerRadiusPixels(appearance){
+    if(appearance==='star') return 7;
+    if(appearance==='black-hole') return 6;
+    return 5;
+  }
+
   function displayRadiusPixels(options){
     const physical=physicalRadiusPixels(
       options.radiusKm,options.zoom,options.auPixels
@@ -58,6 +64,7 @@
 
   return {
     AU_KM,smoothstep,physicalRadiusPixels,planetMarkerRadiusPixels,
+    customMarkerRadiusPixels,
     displayRadiusPixels,
     distanceToSegment,distanceToPolyline
   };
