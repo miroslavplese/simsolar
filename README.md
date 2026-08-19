@@ -44,7 +44,8 @@ web server is required.
 - Panel shortcuts: `M` mission timeline, `L` body/craft list, `T` time/view
   controls, and `P` frame-time profiler
 - Observatory shortcut: `O`
-- Selection cards with mass, orbital information, and Wikipedia links
+- Selection cards with physical mass, planetary-body radius, orbital
+  information, and Wikipedia links
 - Sun-directed sphere lighting, depth-aware occultation, and shadowed planetary rings
 - Planet and spacecraft trajectory hit testing
 

@@ -493,9 +493,10 @@ Velocity: not set</div>
     <div class="kind" id="cardKind">—</div>
     <div class="name" id="cardName">—</div>
     <div class="row"><span>Mass</span><span id="cardMass">—</span></div>
-    <div class="row"><span>Distance from Sun</span><span id="cardDist">—</span></div>
+    <div class="row" id="rowRadius"><span>Radius</span><span id="cardRadius">—</span></div>
+    <div class="row" id="rowDist"><span>Distance from Sun</span><span id="cardDist">—</span></div>
     <div class="row" id="rowPeriod"><span>Orbital period</span><span id="cardPeriod">—</span></div>
-    <div class="row"><span>Speed</span><span id="cardSpeed">—</span></div>
+    <div class="row" id="rowSpeed"><span>Speed</span><span id="cardSpeed">—</span></div>
     <div class="row" id="rowEcc"><span>Eccentricity</span><span id="cardEcc">—</span></div>
     <div class="row" id="rowIncl"><span>Inclination</span><span id="cardIncl">—</span></div>
     <div class="note" id="cardNote"></div>
@@ -764,34 +765,40 @@ Velocity: not set</div>
   // perihelion/aphelion/period; orbit orientation approximated near Venus's plane.
   const spacecraft = [
     {kind:'spacecraft', name:'Voyager 1', color:'#ffd479', icon:'diamond',
+     massKg:721.9, massAtLaunch:true,
      a:-3.203, e:3.742, i:35.71, Omega:178.95, omega:-21.60, M0:1670.742, n:62.642/365.25, epochDays:2417.50,
      launch:'1977-09-05', notes:'Post-Saturn (1980) orbit shape from fitted NSSDC tracking data; position calibrated to its documented 100 AU crossing on 2006-08-15. Now the most distant human-made object.'},
     {kind:'spacecraft', name:'Voyager 2', color:'#ffb0e0', icon:'diamond',
+     massKg:721.9, massAtLaunch:true,
      a:-4.021, e:6.2853, i:78.92, Omega:101.65, omega:130.01, M0:1828.142, n:44.661/365.25, epochDays:8858.50,
      launch:'1977-08-20', notes:'Post-Neptune (1989) orbit shape from fitted NSSDC tracking data; position calibrated to a reported distance of 136.2 AU on 2024-04-03. Steep inclination is real -- a result of the final Neptune flyby geometry.'},
     {kind:'spacecraft', name:'Pioneer 10', color:'#8fd8a0', icon:'diamond',
+     massKg:258, massAtLaunch:true,
      a:-6.942, e:1.727, i:3.14, Omega:-28.57, omega:-13.45, M0:995.375, n:19.700/365.25, epochDays:8858.50,
      launch:'1972-03-03', notes:'Post-Jupiter (1973) orbit shape from fitted NSSDC tracking data; position calibrated to a reported distance of 136.2 AU on 2024-04-03. Silent since 2003 -- position shown is the coasted ballistic path.'},
     {kind:'spacecraft', name:'Pioneer 11', color:'#a0c8ff', icon:'diamond',
+     massKg:258.5, massAtLaunch:true,
      a:-8.059, e:2.161, i:16.63, Omega:160.40, omega:12.81, M0:523.950, n:15.668/365.25, epochDays:4634.50,
      launch:'1973-04-06', notes:'Post-Saturn (1979) orbit shape from fitted NSSDC tracking data; position calibrated to a reported distance of 86.4 AU on 2012-09-09. Silent since 1995 -- position shown is the coasted ballistic path.'},
     {kind:'spacecraft', name:'New Horizons', color:'#ff8f6b', icon:'diamond',
+     massKg:478, massAtLaunch:true,
      a:-5.5, e:1.40, i:2.3, Omega:100, omega:56.65, M0:253.85, n:0.076417, epochDays:daysSinceJ2000(Date.UTC(2015,6,14)),
      launch:'2006-01-19', notes:'Post-Jupiter (2007) hyperbolic orbit. Size/shape/speed from published elements (q=2.2 AU, e=1.40); orbit orientation fitted to the 2015 Pluto flyby rather than full ephemeris.'},
     {kind:'spacecraft', name:'Parker Solar Probe', color:'#ffe27a', icon:'diamond',
+     massKg:685, massAtLaunch:true,
      a:0.38793, e:0.8818, i:3.4, Omega:76.7, omega:90, M0:0, n:360/88.24, epochDays:daysSinceJ2000(Date.UTC(2024,11,24)),
      launch:'2018-08-12', notes:'Final orbit after 7th Venus flyby (Nov 2024): true perihelion 9.86 solar radii, aphelion ~0.73 AU, 88.2-day period. Orbit orientation approximated near Venus\'s orbital plane.'},
   ];
   const comets = [
-    {kind:'comet', name:'Halley', color:'#7ee7ff', e:0.967, i:162.26, period:27510, q:0.586, perihelion:'1986-02-09',
+    {kind:'comet', name:'Halley', color:'#7ee7ff', massKg:2.2e14, massEstimated:true, e:0.967, i:162.26, period:27510, q:0.586, perihelion:'1986-02-09',
      notes:'The best-known periodic comet; its retrograde orbit returns it to the inner solar system roughly every 75 years.'},
-    {kind:'comet', name:'Hale-Bopp', color:'#b8a6ff', e:0.995, i:89.4, period:925000, q:0.914, perihelion:'1997-04-01',
+    {kind:'comet', name:'Hale-Bopp', color:'#b8a6ff', massKg:1.9e14, massEstimated:true, e:0.995, i:89.4, period:925000, q:0.914, perihelion:'1997-04-01',
      notes:'A long-period comet that remained visible to the unaided eye for a record 18 months around its 1997 apparition.'},
-    {kind:'comet', name:'Encke', color:'#73e6b1', e:0.848, i:11.8, period:1204, q:0.339, perihelion:'2023-10-22',
+    {kind:'comet', name:'Encke', color:'#73e6b1', massKg:2.9e13, massEstimated:true, e:0.848, i:11.8, period:1204, q:0.339, perihelion:'2023-10-22',
      notes:'A short-period comet with the shortest known orbital period of a bright periodic comet, about 3.3 years.'},
-    {kind:'comet', name:'67P/Churyumov-Gerasimenko', color:'#ff9f80', e:0.641, i:7.04, period:2352, q:1.21, perihelion:'2015-08-13',
+    {kind:'comet', name:'67P/Churyumov-Gerasimenko', color:'#ff9f80', massKg:9.982e12, e:0.641, i:7.04, period:2352, q:1.21, perihelion:'2015-08-13',
      notes:'Destination of ESA\'s Rosetta mission and the Philae lander.'},
-    {kind:'comet', name:'NEOWISE', color:'#ffe28a', e:0.9992, i:128.9, period:2460000, q:0.295, perihelion:'2020-07-03',
+    {kind:'comet', name:'NEOWISE', color:'#ffe28a', massKg:3.3e13, massEstimated:true, e:0.9992, i:128.9, period:2460000, q:0.295, perihelion:'2020-07-03',
      notes:'A long-period comet that became a prominent naked-eye object in July 2020.'},
   ];
   const flybys = {
@@ -3485,7 +3492,19 @@ Velocity: not set</div>
   function fmtMass(body){
     if(body.kind==='lagrange') return '0 kg (equilibrium point)';
     const mass=body.massKg||MASS_KG[body.name];
-    return mass ? mass.toExponential(3).replace('e+','e')+' kg' : '0 kg (test particle)';
+    if(!mass) return '0 kg (test particle)';
+    const formatted=mass<1e6
+      ? mass.toLocaleString(undefined,{maximumFractionDigits:3})
+      : mass.toExponential(3).replace('e+','e');
+    return (body.massEstimated?'≈ ':'')+formatted+' kg'+
+      (body.massAtLaunch?' (at launch)':'');
+  }
+  function propertyRadiusKm(body){
+    if(body===sunReference) return SUN_RADIUS_KM;
+    if(body.kind==='planet' || body.kind==='moon' || body.kind==='custom'){
+      return body.radius;
+    }
+    return null;
   }
   function wikipediaTitleForBody(body){
     if(body.kind==='lagrange') return 'Lagrange point';
@@ -3516,21 +3535,30 @@ Velocity: not set</div>
     const rowPeriod=document.getElementById('rowPeriod');
     const rowEcc=document.getElementById('rowEcc');
     const rowIncl=document.getElementById('rowIncl');
+    const rowRadius=document.getElementById('rowRadius');
+    const rowDist=document.getElementById('rowDist');
+    const rowSpeed=document.getElementById('rowSpeed');
+    rowDist.style.display='';
+    rowSpeed.style.display='';
+    const radiusKm=propertyRadiusKm(selected);
+    rowRadius.style.display=Number.isFinite(radiusKm) && radiusKm>0 ? '' : 'none';
+    if(rowRadius.style.display!=='none'){
+      document.getElementById('cardRadius').textContent=radiusKm.toLocaleString(
+        undefined,{maximumFractionDigits:radiusKm<100 ? 2 : 1}
+      )+' km';
+    }
     const custom=selected.kind==='custom';
     const lagrange=selected.kind==='lagrange';
     const sun=selected.kind==='sun';
     if(sun){
+      rowDist.style.display='none';
+      rowSpeed.style.display='none';
       rowEcc.style.display='none';
       rowIncl.style.display='none';
       rowPeriod.style.display='none';
-      document.getElementById('cardDist').textContent='0 AU';
-      document.getElementById('cardSpeed').textContent=
-        pos && Number.isFinite(pos.speedKmS) ? pos.speedKmS.toFixed(2)+' km/s' : '—';
       document.getElementById('cardNote').style.display='';
       document.getElementById('cardNote').textContent=
-        'The star at the center of the Solar System. Radius: '+
-        SUN_RADIUS_KM.toLocaleString()+' km. Position and speed use the current '+
-        'Newtonian N-body state.';
+        'The star at the center of the Solar System.';
       return;
     }
     if(lagrange){
