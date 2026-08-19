@@ -36,7 +36,7 @@
     if(state.direction!==1 && state.direction!==-1) return false;
     if(!optionalName(state.selected) || !optionalName(state.follow)) return false;
     const view=state.view;
-    if(!view || !finite(view.zoom,0.018,20000) ||
+    if(!view || !finite(view.zoom,0.018,2000000) ||
       !finite(view.panX,-100000,100000) ||
       !finite(view.panY,-100000,100000) ||
       !finite(view.yaw,-1000,1000) ||

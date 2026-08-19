@@ -356,6 +356,9 @@ runtime dependency.
 - Mission, body/craft, and profiler panels can be closed directly and toggled
   with `M`, `L`, and `P`, respectively. Mission and profiler start hidden.
 - Wheel and buttons apply anchored zoom.
+- The zoom ceiling remains conservative for system navigation, then scales
+  inversely with the physical radius of the selected or followed body so small
+  planets and moons can fill the viewport without granting unbounded zoom.
 - Legend entries and canvas markers toggle selection.
 - Close-view moon markers receive an expanded pointer target, and their dynamic
   parent-relative orbit polylines participate in trajectory hit testing.

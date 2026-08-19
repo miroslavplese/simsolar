@@ -42,6 +42,12 @@ assert.equal(ScenarioState.decode('x'.repeat(4097)),null);
 assert.equal(ScenarioState.validate({...state,v:2}),false);
 assert.equal(ScenarioState.validate({...state,t:Infinity}),false);
 assert.equal(ScenarioState.validate({
+  ...state,view:{...state.view,zoom:500000}
+}),true);
+assert.equal(ScenarioState.validate({
+  ...state,view:{...state.view,zoom:2000001}
+}),false);
+assert.equal(ScenarioState.validate({
   ...state,
   observatory:{...state.observatory,latitude:91}
 }),false);

@@ -3,6 +3,7 @@ const {
   AU_KM,
   smoothstep,
   physicalRadiusPixels,
+  maximumZoomForRadius,
   planetMarkerRadiusPixels,
   customMarkerRadiusPixels,
   displayRadiusPixels,
@@ -15,6 +16,23 @@ assert.equal(smoothstep(20,50,10),0);
 assert.equal(smoothstep(20,50,35),0.5);
 assert.equal(smoothstep(20,50,60),1);
 assert.equal(physicalRadiusPixels(AU_KM,2,46),92);
+const earthMaximum=maximumZoomForRadius({
+  radiusKm:6371,auPixels:46,viewportPixels:700
+});
+const mercuryMaximum=maximumZoomForRadius({
+  radiusKm:2440,auPixels:46,viewportPixels:700
+});
+assert.ok(earthMaximum>20000);
+assert.ok(mercuryMaximum>earthMaximum);
+assert.equal(maximumZoomForRadius({
+  radiusKm:69911,auPixels:46,viewportPixels:700
+}),20000);
+assert.equal(maximumZoomForRadius({
+  radiusKm:1,auPixels:46,viewportPixels:700
+}),2000000);
+assert.equal(maximumZoomForRadius({
+  radiusKm:0,auPixels:46,viewportPixels:700
+}),20000);
 assert.equal(planetMarkerRadiusPixels(6371),2.2);
 assert.ok(planetMarkerRadiusPixels(69911)>5);
 assert.equal(planetMarkerRadiusPixels(69911),Math.sqrt(69911)*0.022);
