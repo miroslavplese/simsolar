@@ -1259,7 +1259,7 @@ Velocity: not set</div>
     comet:{label:'Comet',name:'New Comet',mass:1e14,color:'#8ff0df'}
   };
   const WIKIPEDIA_TITLES={
-    Mercury:'Mercury (planet)',Venus:'Venus',Earth:'Earth',Mars:'Mars',
+    Sun:'Sun',Mercury:'Mercury (planet)',Venus:'Venus',Earth:'Earth',Mars:'Mars',
     Jupiter:'Jupiter',Saturn:'Saturn',Uranus:'Uranus',Neptune:'Neptune',
     Pluto:'Pluto',Charon:'Charon (moon)',
     Moon:'Moon',Phobos:'Phobos (moon)',Deimos:'Deimos (moon)',
@@ -3501,7 +3501,8 @@ Velocity: not set</div>
   function updateCard(){
     const pos = positionForBody(selected, simDaysSinceJ2000);
     const kindLabel=selected.category ||
-      (selected.kind==='planet'?'Planet':selected.kind==='comet'?'Comet':'Spacecraft');
+      (selected.kind==='sun'?'Star':selected.kind==='planet'?'Planet':
+        selected.kind==='comet'?'Comet':'Spacecraft');
     document.getElementById('cardKind').textContent = kindLabel;
     document.getElementById('cardName').textContent = selected.name;
     document.getElementById('cardMass').textContent = fmtMass(selected);
@@ -3517,6 +3518,21 @@ Velocity: not set</div>
     const rowIncl=document.getElementById('rowIncl');
     const custom=selected.kind==='custom';
     const lagrange=selected.kind==='lagrange';
+    const sun=selected.kind==='sun';
+    if(sun){
+      rowEcc.style.display='none';
+      rowIncl.style.display='none';
+      rowPeriod.style.display='none';
+      document.getElementById('cardDist').textContent='0 AU';
+      document.getElementById('cardSpeed').textContent=
+        pos && Number.isFinite(pos.speedKmS) ? pos.speedKmS.toFixed(2)+' km/s' : '—';
+      document.getElementById('cardNote').style.display='';
+      document.getElementById('cardNote').textContent=
+        'The star at the center of the Solar System. Radius: '+
+        SUN_RADIUS_KM.toLocaleString()+' km. Position and speed use the current '+
+        'Newtonian N-body state.';
+      return;
+    }
     if(lagrange){
       rowEcc.style.display='none';
       rowIncl.style.display='none';
