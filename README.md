@@ -27,6 +27,7 @@ web server is required.
   true-angular-size sky objects, optional orbit/trajectory guides, scaled time,
   and local civil-time display
 - Interactive insertion of configurable stars, black holes, planets, and comets
+  with 0–180° orbital inclination
 - Physical-scale close rendering and Observatory visibility for custom bodies,
   with appearance-specific stars, black holes, planets, and comets
 - Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
@@ -70,6 +71,7 @@ web server is required.
 | `src/guided-tutorial.js` | First-run persistence and responsive guided walkthrough UI |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
+| `src/body-placement.js` | Inclined custom-body velocity and orbital-plane calculations |
 | `src/body-lighting.js` | Lambert sphere lighting and geometric shadow tests |
 | `src/moon-system.js` | Major-moon metadata and visibility thresholds |
 | `src/hierarchical-moon-simulation.js` | Perturbed parent-moon hierarchy integration |
@@ -84,6 +86,7 @@ web server is required.
 | `tests/guided-tutorial-tests.js` | Tutorial completion cookie and fallback persistence tests |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
 | `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
+| `tests/body-placement-tests.js` | Custom-body inclination and velocity-rotation tests |
 | `tests/body-lighting-tests.js` | Illumination and planet-shadow geometry tests |
 | `tests/moon-system-tests.js` | Moon orbit, visibility, and focus-zoom tests |
 | `tests/hierarchical-moon-tests.js` | Moon conservation, perturbation, continuity, and stability tests |

@@ -233,13 +233,17 @@ bodies link to the general article for their selected body type.
 ## User-introduced bodies
 
 The body insertion panel provides star, black-hole, planet, and comet presets
-with editable names and masses. Placement uses two direct-manipulation steps on
-the canvas: the first tap selects a position on the ecliptic plane, and the
-second pointer drag sets an in-plane velocity vector whose arrow length maps to
-speed. Live AU coordinates, direction, and km/s are shown before insertion.
+with editable names and masses. A 0–180 degree inclination slider supports
+prograde, polar, and retrograde trajectories. Placement uses two
+direct-manipulation steps on the canvas: the first tap selects an orbital node
+on the ecliptic plane, and the second pointer drag sets the planar velocity
+direction and speed. The velocity is then rotated about the placement radius
+to produce the requested orbital inclination while preserving speed and radial
+velocity. Live AU coordinates, 3D direction, inclination, and km/s are shown
+before insertion.
 
 Insertion creates a new deterministic simulation branch at the current date.
-The new body's heliocentric position and velocity are converted to the active
+The new body's heliocentric 3D position and velocity are converted to the active
 barycentric state, its mass becomes a Newtonian gravitational parameter, and
 later checkpoints and trail caches are invalidated. Rewinding before the
 insertion date selects the prior branch; inserting after a rewind discards
