@@ -224,11 +224,21 @@ shows an apparent-Sun inset at true angular-radius ratio; it does not yet comput
 surface shadow tracks, atmospheric refraction, observer topography, or formal
 first-through-fourth contact times.
 
-The body detail card reports physical mass in kilograms for massive bodies.
-Spacecraft and comets display `0 kg (test particle)` to distinguish their
-modeled gravitational mass from their nonzero physical mass.
+The body detail card reports physical mass in kilograms, and physical radius for
+the Sun, planets, dwarf planets, moons, and custom bodies. Spacecraft use NASA
+published spacecraft masses. Comets use measured masses where available and
+size/density-derived estimates otherwise. Spacecraft and comets retain their
+massless test-particle dynamics: these display masses do not perturb any body.
 Built-in bodies link to their corresponding English Wikipedia article. Custom
 bodies link to the general article for their selected body type.
+
+Spacecraft values are NASA-published launch masses: 721.9 kg for each Voyager,
+258 kg for Pioneer 10, 258.5 kg for Pioneer 11, 478 kg for New Horizons, and
+685 kg for Parker Solar Probe. Comet values use published physical estimates:
+Halley 2.2e14 kg, Hale-Bopp 1.9e14 kg, and Rosetta's measured 9.982e12 kg for
+67P. Encke's 2.9e13 kg and NEOWISE's 3.3e13 kg are marked approximate and
+derived from their published 4.86 km and 5 km nucleus diameters using a typical
+500 kg/m3 comet density.
 
 ## User-introduced bodies
 
