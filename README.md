@@ -1,4 +1,4 @@
-# SimSolar Orrery
+# SimSolar
 
 SimSolar is a dependency-free browser visualization of the solar system and
 selected spacecraft trajectories. It uses Keplerian orbital elements, a
