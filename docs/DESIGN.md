@@ -92,6 +92,8 @@ rendered only when its outer orbit spans at least 50 screen pixels and its
 parent is near the viewport. Selecting a parent from the body list applies a
 close-view zoom that reveals its moons. Moon orbits, markers, selection cards,
 masses, and Wikipedia links then behave like the other visible bodies.
+When a moon itself is selected or followed, its local system remains rendered
+even after close zoom moves the parent outside the viewport.
 
 `data/moon-cutoff-states.js` stores heliocentric Ecliptic J2000 position and
 velocity vectors from NASA/JPL Horizons at `2026-08-12 00:00:00 UTC`.
