@@ -9,6 +9,7 @@ const {
   bodyPosition,
   sampledStateAt,
   adaptiveTrajectoryPoints,
+  appendIncrementalTrajectoryPoint,
   osculatingOrbitPoints,
   propagateState
 }=require('../src/trajectory-math.js');
@@ -67,6 +68,29 @@ const curved=adaptiveTrajectoryPoints(
 );
 assert.ok(curved.length>8);
 for(let i=1;i<curved.length;i++) assert.ok(curved[i].t>curved[i-1].t);
+const incremental=[{t:0,x:0,y:0,z:0}];
+appendIncrementalTrajectoryPoint(
+  incremental,{t:0.1,x:0.01,y:0,z:0},
+  {minDistance:0.1,maxSpan:1,maxPoints:5}
+);
+appendIncrementalTrajectoryPoint(
+  incremental,{t:0.2,x:0.02,y:0,z:0},
+  {minDistance:0.1,maxSpan:1,maxPoints:5}
+);
+assert.deepEqual(incremental,[
+  {t:0,x:0,y:0,z:0},
+  {t:0.2,x:0.02,y:0,z:0}
+]);
+appendIncrementalTrajectoryPoint(
+  incremental,{t:0.3,x:0.2,y:0,z:0},
+  {minDistance:0.1,maxSpan:1,maxPoints:5}
+);
+assert.equal(incremental.length,3);
+appendIncrementalTrajectoryPoint(
+  incremental,{t:0.15,x:0.015,y:0,z:0},
+  {minDistance:0.1,maxSpan:1,maxPoints:5}
+);
+assert.equal(incremental.at(-1).t,0.15);
 const currentOrbitState={
   x:1,y:0,z:0,vx:0,vy:Math.sqrt(GM_SUN_AU_DAY),vz:0
 };

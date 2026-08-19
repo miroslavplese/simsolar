@@ -138,8 +138,16 @@ Parker Solar Probe selects still smaller deterministic steps near massive
 bodies. Eight-day
 checkpoints make future date queries deterministic and bound replay work;
 queries between main integration steps run a deterministic partial step rather
-than discarding particle substep accuracy. Spacecraft and comet future trails
-are sampled from the same integrated solution as their markers.
+than discarding particle substep accuracy. Monotonic full-state cursors in both
+the global and nested moon integrators keep forward playback from replaying the
+interval since their latest checkpoints on every animation frame; backward and
+out-of-order queries still restart from deterministic checkpoints. Spacecraft
+and comet future trails
+are sampled from the same integrated solution as their markers. During
+playback, the renderer incrementally retains those already-computed live states
+instead of synchronously resampling and recursively refining an entire trail
+segment. This bounds trail work per frame while preserving close-flyby curvature
+from the actual simulation states.
 
 `src/hierarchical-moon-simulation.js` advances the six modeled moon systems
 independently at a 0.05-day step. Each split step applies half of the

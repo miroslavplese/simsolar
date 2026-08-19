@@ -15,6 +15,7 @@ web server is required.
 - Eight planets, Pluto and Charon, 13 major planetary moons, and six spacecraft
 - Five iconic comets with JPL-derived paths and Sun-facing tails
 - Future-only Newtonian N-body gravity initialized from JPL state vectors
+- Incrementally sampled future trails that avoid blocking close-flyby frames
 - Hierarchical major-moon dynamics with external and mutual perturbations
 - Selectable L1-L5 markers and co-rotating Sun-planet or planet-moon views
 - Surface-observer eclipse, planetary transit, and one-degree planet-conjunction
