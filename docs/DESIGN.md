@@ -336,7 +336,9 @@ runtime dependency.
 The guided tutorial is offered automatically until the user finishes or skips
 it. Completion is stored in the `simsolar_tutorial_complete` cookie, with local
 storage as a fallback for direct-file environments, and the toolbar restart
-action remains available afterward. Tutorial progress is ephemeral and is not
+action remains available afterward. Introductory steps dim the application;
+interactive steps keep the simulation fully visible and usable while
+highlighting the relevant control. Tutorial progress is ephemeral and is not
 included in shareable scenario URLs.
 
 **Tutorial maintenance requirement:** every major user-facing feature addition,
