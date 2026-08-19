@@ -3310,6 +3310,21 @@ Velocity: not set</div>
       ctx.fillStyle = '#fff3d6';
       ctx.beginPath(); ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2); ctx.fill();
     }
+    sunReference._screen={
+      x:sunP.x,y:sunP.y,r:Math.max(sunR,6),occulted:false
+    };
+    if(sunDiskVisible && (sunReference===selected || sunReference===hovered)){
+      ctx.strokeStyle='rgba(242,181,68,0.9)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.arc(sunP.x,sunP.y,sunR+5,0,Math.PI*2);
+      ctx.stroke();
+      ctx.font='10px "SF Mono", Consolas, monospace';
+      ctx.fillStyle=sunReference===selected
+        ? '#f2b544'
+        : 'rgba(232,236,247,0.72)';
+      ctx.fillText('Sun',sunP.x+sunR+6,sunP.y+3);
+    }
 
     if(companionLink){
       ctx.beginPath();
@@ -3680,7 +3695,13 @@ Velocity: not set</div>
     close.addEventListener('click',()=>setPanelVisible('legend',false));
     el.appendChild(close);
     const heading = document.createElement('div'); heading.className='heading'; heading.textContent='Bodies & spacecraft'; el.appendChild(heading);
-    const pLabel = document.createElement('div'); pLabel.className='grp-label'; pLabel.textContent='Planets & dwarf planet'; el.appendChild(pLabel);
+    const pLabel = document.createElement('div'); pLabel.className='grp-label'; pLabel.textContent='Star, planets & dwarf planet'; el.appendChild(pLabel);
+    const sunRow=document.createElement('div');
+    sunRow.className='item';
+    sunRow.innerHTML=
+      `<span class="dot" style="background:${sunReference.color}"></span>Sun`;
+    sunRow.addEventListener('click',()=>toggleLegendBodySelection(sunReference));
+    el.appendChild(sunRow);
     for(const p of planets){
       if(p===charon) continue;
       const row = document.createElement('div'); row.className='item';
@@ -4056,6 +4077,11 @@ Velocity: not set</div>
       list.find(b=> b._screen && !b._screen.occulted &&
       Math.hypot(mx-b._screen.x, my-b._screen.y) < b._screen.r+5);
     if(marker) return marker;
+    if(sunReference._screen && Math.hypot(
+      mx-sunReference._screen.x,my-sunReference._screen.y
+    )<sunReference._screen.r+5){
+      return sunReference;
+    }
     // fall back to proximity to the trajectory line itself
     const LINE_TOL = 9;
     let best = null, bestDist = LINE_TOL;
