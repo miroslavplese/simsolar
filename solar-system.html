@@ -550,6 +550,7 @@ Velocity: not set</div>
 <script src="src/guided-tutorial.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js"></script>
+<script src="src/body-textures.js"></script>
 <script src="src/body-placement.js"></script>
 <script src="src/body-lighting.js"></script>
 <script src="src/moon-system.js"></script>
@@ -670,6 +671,13 @@ Velocity: not set</div>
     normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor
   }=window.BodyLighting;
   const {
+    createRenderer:createBodyTextureRenderer,
+    orientationMatrix:bodyTextureOrientationMatrix
+  }=window.BodyTextures;
+  const bodyTextureRenderer=createBodyTextureRenderer({
+    onReady:()=>{ orbitLayerDirty=true; }
+  });
+  const {
     MAJOR_MOONS,
     systemVisible:moonSystemVisibleAtZoom,focusZoom:moonSystemFocusZoom,
     outerRadiusAu:moonSystemRadiusAu
@@ -696,7 +704,8 @@ Velocity: not set</div>
     altitudeForDirection:observatoryAltitudeForDirection,
     angularRadius:observatoryAngularRadius,
     daylightFactor:observatoryDaylightFactor,
-    normalize:normalizeObservatoryVector
+    normalize:normalizeObservatoryVector,
+    dot:observatoryDot
   }=window.ObservatoryMode;
   const {
     refinedSweptSphereImpact,
@@ -2365,6 +2374,53 @@ Velocity: not set</div>
   }
 
   const litSphereCache=new Map();
+  function systemTextureViewBasis(){
+    const cosYaw=Math.cos(viewYaw),sinYaw=Math.sin(viewYaw);
+    const cosTilt=Math.cos(viewTilt),sinTilt=Math.sin(viewTilt);
+    return {
+      right:{x:cosYaw,y:-sinYaw,z:0},
+      up:{
+        x:-sinYaw*cosTilt,
+        y:-cosYaw*cosTilt,
+        z:sinTilt
+      },
+      towardObserver:{
+        x:sinYaw*sinTilt,
+        y:cosYaw*sinTilt,
+        z:cosTilt
+      }
+    };
+  }
+
+  function observatoryTextureViewBasis(direction,camera){
+    return {
+      right:camera.right,
+      up:camera.up,
+      towardObserver:{
+        x:-direction.x,y:-direction.y,z:-direction.z
+      }
+    };
+  }
+
+  function textureViewVector(vector,basis){
+    return {
+      x:observatoryDot(vector,basis.right),
+      y:observatoryDot(vector,basis.up),
+      z:observatoryDot(vector,basis.towardObserver)
+    };
+  }
+
+  function drawBodyTexture(body,x,y,radius,context,light,basis){
+    return !!bodyTextureRenderer && bodyTextureRenderer.draw(
+      body.name,context,x,y,radius,{
+        light,
+        orientation:bodyTextureOrientationMatrix(
+          body.name,simDaysSinceJ2000,basis
+        )
+      }
+    );
+  }
+
   function litSphereSprite(color,radius,position){
     const worldLight=normalizeVector({
       x:-position.x,y:-position.y,z:-position.z
@@ -2414,6 +2470,14 @@ Velocity: not set</div>
   }
 
   function drawLitSphere(body,pos,x,y,radius){
+    const worldLight=normalizeVector({
+      x:-pos.x,y:-pos.y,z:-pos.z
+    });
+    const basis=systemTextureViewBasis();
+    if(drawBodyTexture(
+      body,x,y,radius,ctx,
+      textureViewVector(worldLight,basis),basis
+    )) return;
     const sprite=litSphereSprite(body.color,radius,pos);
     ctx.drawImage(sprite,x-radius,y-radius,radius*2,radius*2);
   }
@@ -3040,6 +3104,7 @@ Velocity: not set</div>
       projected.y+radius<0 || projected.y-radius>H
     ) return;
     const color=body.color||'#e8ecf7';
+    const textureBasis=observatoryTextureViewBasis(direction,camera);
     if(body.kind==='custom'){
       if(body.appearance==='star'){
         drawCustomStar(
@@ -3089,15 +3154,30 @@ Velocity: not set</div>
         projected.x,projected.y,Math.max(radius*4,14),0,Math.PI*2
       );
       ctx.fill();
-      ctx.fillStyle='#fff1c7';
-      ctx.beginPath();
-      ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
-      ctx.fill();
+      if(!drawBodyTexture(
+        body,projected.x,projected.y,radius,ctx,
+        {x:0,y:0,z:1},
+        textureBasis
+      )){
+        ctx.fillStyle='#fff1c7';
+        ctx.beginPath();
+        ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
+        ctx.fill();
+      }
     } else {
-      ctx.fillStyle=color;
-      ctx.beginPath();
-      ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
-      ctx.fill();
+      const worldLight=normalizeVector({
+        x:-position.x,y:-position.y,z:-position.z
+      });
+      if(!drawBodyTexture(
+        body,projected.x,projected.y,radius,ctx,
+        textureViewVector(worldLight,textureBasis),
+        textureBasis
+      )){
+        ctx.fillStyle=color;
+        ctx.beginPath();
+        ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
+        ctx.fill();
+      }
     }
     if(body===selected){
       ctx.strokeStyle='#f2b544';
@@ -3307,8 +3387,29 @@ Velocity: not set</div>
       grad.addColorStop(1,'rgba(242,181,68,0)');
       ctx.fillStyle = grad;
       ctx.beginPath(); ctx.arc(sunP.x,sunP.y,sunGlowR,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#fff3d6';
-      ctx.beginPath(); ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2); ctx.fill();
+      if(!drawBodyTexture(
+        sunReference,sunP.x,sunP.y,sunR,ctx,
+        {x:0,y:0,z:1},
+        systemTextureViewBasis()
+      )){
+        ctx.fillStyle = '#fff3d6';
+        ctx.beginPath(); ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2); ctx.fill();
+      }
+    }
+    sunReference._screen={
+      x:sunP.x,y:sunP.y,r:Math.max(sunR,6),occulted:false
+    };
+    if(sunDiskVisible && (sunReference===selected || sunReference===hovered)){
+      ctx.strokeStyle='rgba(242,181,68,0.9)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.arc(sunP.x,sunP.y,sunR+5,0,Math.PI*2);
+      ctx.stroke();
+      ctx.font='10px "SF Mono", Consolas, monospace';
+      ctx.fillStyle=sunReference===selected
+        ? '#f2b544'
+        : 'rgba(232,236,247,0.72)';
+      ctx.fillText('Sun',sunP.x+sunR+6,sunP.y+3);
     }
     sunReference._screen={
       x:sunP.x,y:sunP.y,r:Math.max(sunR,6),occulted:false

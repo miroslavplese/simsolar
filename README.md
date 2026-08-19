@@ -30,6 +30,8 @@ web server is required.
   with 0–180° orbital inclination
 - Physical-scale close rendering and Observatory visibility for custom bodies,
   with appearance-specific stars, black holes, planets, and comets
+- Lazy-loaded 1024px planetary surface textures with axial orientation,
+  rotation, sphere projection, illumination, and flat-color fallback
 - Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
 - Animated simulation clock with adjustable speed and direction
 - Versioned shareable scenario links that restore the date, playback, camera,
@@ -72,6 +74,7 @@ web server is required.
 | `src/guided-tutorial.js` | First-run persistence and responsive guided walkthrough UI |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
+| `src/body-textures.js` | Lazy WebGL sphere projection and texture loading |
 | `src/body-placement.js` | Inclined custom-body velocity and orbital-plane calculations |
 | `src/body-lighting.js` | Lambert sphere lighting and geometric shadow tests |
 | `src/moon-system.js` | Major-moon metadata and visibility thresholds |
@@ -87,6 +90,7 @@ web server is required.
 | `tests/guided-tutorial-tests.js` | Tutorial completion cookie and fallback persistence tests |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
 | `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
+| `tests/body-texture-tests.js` | Texture thresholds, rotation, and metadata tests |
 | `tests/body-placement-tests.js` | Custom-body inclination and velocity-rotation tests |
 | `tests/body-lighting-tests.js` | Illumination and planet-shadow geometry tests |
 | `tests/moon-system-tests.js` | Moon orbit, visibility, and focus-zoom tests |

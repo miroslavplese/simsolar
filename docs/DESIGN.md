@@ -37,6 +37,15 @@ critical calculations to be tested without a browser.
 - Mutable yaw and tilt angles project 3D coordinates onto the 2D canvas.
 - Planet and moon sizes use visibility markers at system scale, then transition
   smoothly to physical radii in sufficiently close views.
+- At seven pixels of rendered radius, known natural bodies begin loading a
+  1024 x 512 WebP map and use a small offscreen WebGL shader to project the
+  equirectangular map onto a lit sphere. The same renderer is used in system and
+  Observatory views. Axial tilt, approximate rotation periods, gas-giant
+  flattening, and current simulation time affect the rendered disk.
+- Texture loading is asynchronous and per-body. Until a map is ready, when
+  WebGL is unavailable, or for bodies without a trustworthy map, the existing
+  lit-color sphere remains the deterministic fallback. Thus texture assets add
+  no work or transfer to the initial system-scale view.
 
 ## Orbit calculation
 

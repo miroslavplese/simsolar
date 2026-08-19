@@ -2,6 +2,6 @@
   "name": "simsolar",
   "private": true,
   "scripts": {
-    "test": "node tests/trajectory-tests.js && node tests/frame-profiler-tests.js && node tests/view-transform-tests.js && node tests/star-field-tests.js && node tests/observatory-mode-tests.js && node tests/scenario-state-tests.js && node tests/guided-tutorial-tests.js && node tests/panel-drag-tests.js && node tests/body-placement-tests.js && node tests/body-rendering-tests.js && node tests/body-lighting-tests.js && node tests/moon-system-tests.js && node tests/ring-system-tests.js && node tests/lagrange-system-tests.js && node tests/occultation-system-tests.js && node tests/collision-system-tests.js && node tests/hierarchical-moon-tests.js && node tests/nbody-tests.js"
+    "test": "node tests/trajectory-tests.js && node tests/frame-profiler-tests.js && node tests/view-transform-tests.js && node tests/star-field-tests.js && node tests/observatory-mode-tests.js && node tests/scenario-state-tests.js && node tests/guided-tutorial-tests.js && node tests/panel-drag-tests.js && node tests/body-placement-tests.js && node tests/body-rendering-tests.js && node tests/body-texture-tests.js && node tests/body-lighting-tests.js && node tests/moon-system-tests.js && node tests/ring-system-tests.js && node tests/lagrange-system-tests.js && node tests/occultation-system-tests.js && node tests/collision-system-tests.js && node tests/hierarchical-moon-tests.js && node tests/nbody-tests.js"
   }
 }
