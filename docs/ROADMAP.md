@@ -43,6 +43,11 @@ validation.
   - Continue drawing moving bodies on the animation canvas.
 - [x] 2026-08-12 - Avoid per-frame date DOM writes when values have not changed.
 - [x] 2026-08-12 - Add projected trajectory bounds before segment hit testing.
+- [x] 2026-08-18 - Replace synchronous adaptive future-trail rebuilding with
+  bounded incremental sampling of live integrated states during playback.
+- [x] 2026-08-18 - Add a monotonic full-state integration cursor so forward
+  playback in the global and nested moon simulators does not repeatedly replay
+  the current checkpoint interval.
 - [ ] Replace remaining trajectory segment scans with spatial indexing or
   marker-first selection at large scales.
 - [ ] Reduce path sample counts based on projected size while preserving visual

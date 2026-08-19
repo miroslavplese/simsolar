@@ -296,6 +296,8 @@
     const checkpointStride=Math.max(1,Math.round(checkpointDays/stepDays));
     const epoch=initialState.t;
     const checkpoints=new Map([[0,cloneState(initialState)]]);
+    let stateCursor=cloneState(initialState);
+    let stateCursorIndex=0;
     const massiveCheckpoints=new Map([[
       0,{t:initialState.t,massive:initialState.massive.map(cloneBody),particles:[]}
     ]]);
@@ -310,8 +312,14 @@
       const lowerIndex=Math.floor(exactIndex+1e-10);
       const fraction=Math.max(0,Math.min(1,exactIndex-lowerIndex));
       const desiredCheckpoint=Math.floor(lowerIndex/checkpointStride)*checkpointStride;
-      const checkpointIndex=Math.min(desiredCheckpoint,maxCheckpointIndex);
-      const lower=cloneState(checkpoints.get(checkpointIndex));
+      let checkpointIndex=Math.min(desiredCheckpoint,maxCheckpointIndex);
+      let lower;
+      if(stateCursorIndex>=checkpointIndex && stateCursorIndex<=lowerIndex){
+        checkpointIndex=stateCursorIndex;
+        lower=cloneState(stateCursor);
+      } else {
+        lower=cloneState(checkpoints.get(checkpointIndex));
+      }
       for(let index=checkpointIndex;index<lowerIndex;index++){
         stepState(lower,stepDays,particleStepDays);
         lower.t=epoch+(index+1)*stepDays;
@@ -319,6 +327,10 @@
           checkpoints.set(index+1,cloneState(lower));
           maxCheckpointIndex=Math.max(maxCheckpointIndex,index+1);
         }
+      }
+      if(lowerIndex>=stateCursorIndex){
+        stateCursor=cloneState(lower);
+        stateCursorIndex=lowerIndex;
       }
       if(fraction<1e-10) return lower;
       stepState(lower,stepDays*fraction,particleStepDays);

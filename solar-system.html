@@ -641,7 +641,7 @@ Velocity: not set</div>
   const J2000 = Date.UTC(2000,0,1,12,0,0);
   const {
     AU_KM,interpolateTrajectory,sampledStateAt,propagateState,
-    adaptiveTrajectoryPoints,osculatingOrbitPoints,
+    appendIncrementalTrajectoryPoint,osculatingOrbitPoints,
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS
   }=window.TrajectoryMath;
   const {zoomForTarget,zoomForDistance,findRelativeEvent}=window.MissionTimeline;
@@ -1064,7 +1064,7 @@ Velocity: not set</div>
     };
   }
 
-  function ensureHybridTrail(obj,tDays){
+  function ensureHybridTrail(obj,tDays,currentState){
     const trailEpoch=obj.introducedAt||HYBRID_EPOCH_DAYS;
     const span=Math.max(0,tDays-trailEpoch);
     const preferredStep=obj.name==='Parker Solar Probe' ? 0.5 : 2;
@@ -1074,10 +1074,7 @@ Velocity: not set</div>
     const rawTolerance=0.75/(AU_PX*zoom);
     const tolerance=2**Math.round(Math.log2(rawTolerance));
     let cache=hybridTrailCache.get(obj);
-    if(
-      !cache || cache.step!==step || cache.tolerance>tolerance ||
-      tDays<cache.points[cache.points.length-1].t
-    ){
+    if(!cache){
       const origin=hybridPositionForBody(obj,trailEpoch);
       cache={
         step,tolerance,
@@ -1085,17 +1082,14 @@ Velocity: not set</div>
       };
       hybridTrailCache.set(obj,cache);
     }
-    while(cache.points[cache.points.length-1].t+step<tDays){
-      const previous=cache.points[cache.points.length-1];
-      const nextT=cache.points[cache.points.length-1].t+step;
-      const state=hybridPositionForBody(obj,nextT);
-      const refined=adaptiveTrajectoryPoints(
-        previous,{t:nextT,...state},
-        sampleT=>({t:sampleT,...hybridPositionForBody(obj,sampleT)}),
-        {tolerance,maxDepth:10,minSpan:1/1440}
-      );
-      cache.points.push(...refined.slice(1));
-    }
+    cache.step=step;
+    cache.tolerance=tolerance;
+    const state=currentState||hybridPositionForBody(obj,tDays);
+    if(!state) return cache.points;
+    appendIncrementalTrajectoryPoint(
+      cache.points,{...state,t:tDays},
+      {minDistance:tolerance,maxSpan:step,maxPoints:4000}
+    );
     return cache.points;
   }
   const missionEvents = [];
@@ -2150,29 +2144,18 @@ Velocity: not set</div>
         const point=points[i];
         cache.points.push(project(point.x,point.y,point.z));
       }
+      if(points.length){
+        const point=points[points.length-1];
+        cache.points[points.length-1]=project(point.x,point.y,point.z);
+      }
     }
     return cache.points;
   }
 
   function appendCurrentHybridTrail(targetCtx,obj,current){
-    const trail=ensureHybridTrail(obj,simDaysSinceJ2000);
+    const trail=ensureHybridTrail(obj,simDaysSinceJ2000,current.pos);
     const projectedTrail=projectedHybridTrail(obj,trail);
     appendVisiblePath(targetCtx,projectedTrail);
-    const last=trail.at(-1);
-    if(last.t>=simDaysSinceJ2000-1e-10) return;
-    const cache=hybridTrailCache.get(obj);
-    const endpoint={t:simDaysSinceJ2000,...current.pos};
-    const liveTail=adaptiveTrajectoryPoints(
-      last,endpoint,
-      sampleT=>({t:sampleT,...hybridPositionForBody(obj,sampleT)}),
-      {
-        tolerance:cache.tolerance,
-        maxDepth:10,
-        minSpan:1/1440
-      }
-    ).map(point=>project(point.x,point.y,point.z));
-    liveTail[liveTail.length-1]=current.scr;
-    appendVisiblePath(targetCtx,liveTail);
   }
 
   function drawOrbitLayer(){
@@ -2943,7 +2926,7 @@ Velocity: not set</div>
         current,GM_BY_BODY.Sun+(GM_BY_BODY[body.name]||0),192
       );
     } else if(current && body.kind==='custom'){
-      points=ensureHybridTrail(body,simDaysSinceJ2000);
+      points=ensureHybridTrail(body,simDaysSinceJ2000,current);
     } else if(current && (body.kind==='spacecraft'||body.kind==='comet')){
       points=getOrbitWorldPoints(body);
     }

@@ -200,6 +200,8 @@
     const epoch=initialState.t;
     const checkpoints=new Map([[0,cloneState(initialState)]]);
     let maxCheckpointIndex=0;
+    let stateCursor=cloneState(initialState);
+    let stateCursorIndex=0;
 
     function stateAt(targetTime){
       if(targetTime<epoch){
@@ -209,8 +211,14 @@
       const lowerIndex=Math.floor(exactIndex+1e-10);
       const fraction=Math.max(0,Math.min(1,exactIndex-lowerIndex));
       const desiredCheckpoint=Math.floor(lowerIndex/checkpointStride)*checkpointStride;
-      const checkpointIndex=Math.min(desiredCheckpoint,maxCheckpointIndex);
-      const state=cloneState(checkpoints.get(checkpointIndex));
+      let checkpointIndex=Math.min(desiredCheckpoint,maxCheckpointIndex);
+      let state;
+      if(stateCursorIndex>=checkpointIndex && stateCursorIndex<=lowerIndex){
+        checkpointIndex=stateCursorIndex;
+        state=cloneState(stateCursor);
+      } else {
+        state=cloneState(checkpoints.get(checkpointIndex));
+      }
       for(let index=checkpointIndex;index<lowerIndex;index++){
         stepState(state,stepDays,externalStateAt);
         state.t=epoch+(index+1)*stepDays;
@@ -218,6 +226,10 @@
           checkpoints.set(index+1,cloneState(state));
           maxCheckpointIndex=Math.max(maxCheckpointIndex,index+1);
         }
+      }
+      if(lowerIndex>=stateCursorIndex){
+        stateCursor=cloneState(state);
+        stateCursorIndex=lowerIndex;
       }
       if(fraction>=1e-10){
         stepState(state,stepDays*fraction,externalStateAt);

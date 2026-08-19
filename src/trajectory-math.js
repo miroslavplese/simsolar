@@ -181,6 +181,56 @@
     return [start,...refine(start,end,0)];
   }
 
+  function appendIncrementalTrajectoryPoint(points,point,options){
+    if(!Array.isArray(points)){
+      throw new TypeError('Trajectory points must be an array.');
+    }
+    if(!point || !Number.isFinite(point.t)){
+      throw new TypeError('Trajectory point requires a finite time.');
+    }
+    const minDistance=options?.minDistance;
+    const maxSpan=options?.maxSpan;
+    const maxPoints=options?.maxPoints||4000;
+    if(!(minDistance>0) || !(maxSpan>0) || maxPoints<3){
+      throw new RangeError('Incremental trajectory limits must be positive.');
+    }
+    while(points.length && points[points.length-1].t>point.t){
+      points.pop();
+    }
+    const next={...point};
+    if(!points.length){
+      points.push(next);
+      return points;
+    }
+    const last=points[points.length-1];
+    if(Math.abs(last.t-point.t)<1e-12){
+      points[points.length-1]=next;
+      return points;
+    }
+    if(points.length===1){
+      points.push(next);
+      return points;
+    }
+    const anchor=points[points.length-2];
+    const displacement=Math.hypot(
+      point.x-anchor.x,point.y-anchor.y,point.z-anchor.z
+    );
+    if(displacement>=minDistance || point.t-anchor.t>=maxSpan){
+      points.push(next);
+    } else {
+      points[points.length-1]=next;
+    }
+    if(points.length>maxPoints){
+      const reduced=[points[0]];
+      for(let index=2;index<points.length-1;index+=2){
+        reduced.push(points[index]);
+      }
+      reduced.push(points[points.length-1]);
+      points.splice(0,points.length,...reduced);
+    }
+    return points;
+  }
+
   function osculatingOrbitPoints(state,mu,steps){
     if(!(mu>0)) throw new RangeError('Orbit gravitational parameter must be positive.');
     const count=Math.max(32,steps||256);
@@ -309,6 +359,7 @@
     AU_KM,GM_SUN_AU_DAY,solveKeplerElliptical,solveKeplerHyperbolic,
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS,trajectorySegment,
     interpolateTrajectory,sampledStateAt,adaptiveTrajectoryPoints,
+    appendIncrementalTrajectoryPoint,
     osculatingOrbitPoints,propagateState
   };
 });
