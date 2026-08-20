@@ -31,7 +31,8 @@
   #datebox{ position:absolute; top:14px; right:20px; font-family:var(--mono); font-size:12px; color:var(--ink); text-align:right; pointer-events:none; }
   #datebox .yy{ font-size:20px; font-weight:600; color:var(--accent); display:block; }
   #timeOut{ display:none; margin-top:2px; color:var(--ink); font-size:10px; letter-spacing:.04em; }
-  #stage.observatory-active #timeOut{ display:block; }
+  #stage.observatory-active #timeOut,
+  #stage.spacecraft-view-active #timeOut{ display:block; }
   #modelOut{ display:block; margin-top:3px; color:var(--ink-dim); font-size:8px; letter-spacing:.05em; }
 
   #dock{
@@ -210,6 +211,55 @@
   .plannerMetric b{ display:block; color:var(--accent); font-size:11px; margin-top:5px; font-weight:500; }
   #plannerStatus{ min-height:14px; margin-top:8px; color:#72e6c1; font-size:8.5px; }
   #plannerStatus.error{ color:#ff8f9f; }
+  #spacecraftOverlay{
+    position:absolute; inset:0; pointer-events:none; display:none;
+    font-family:var(--mono);
+  }
+  #stage.spacecraft-view-active #spacecraftOverlay{ display:block; }
+  #spacecraftOverlay::before{
+    content:""; position:absolute; inset:9px;
+    border:1px solid rgba(114,230,193,.18); border-radius:28px;
+    box-shadow:inset 0 0 70px rgba(0,0,0,.72);
+  }
+  #spacecraftReticle{
+    position:absolute; left:50%; top:50%; width:44px; height:44px;
+    transform:translate(-50%,-50%); border:1px solid rgba(114,230,193,.45);
+    border-radius:50%;
+  }
+  #spacecraftReticle::before, #spacecraftReticle::after{
+    content:""; position:absolute; background:rgba(114,230,193,.55);
+  }
+  #spacecraftReticle::before{ left:-11px; right:-11px; top:21px; height:1px; }
+  #spacecraftReticle::after{ top:-11px; bottom:-11px; left:21px; width:1px; }
+  #spacecraftHud{
+    position:absolute; left:20px; bottom:102px; width:315px; pointer-events:auto;
+    padding:11px; background:rgba(8,15,27,.88);
+    border:1px solid rgba(114,230,193,.38); border-radius:11px;
+    backdrop-filter:blur(10px); box-shadow:0 10px 35px rgba(0,0,0,.5);
+  }
+  #spacecraftHud .heading{
+    color:#72e6c1; font-size:9px; letter-spacing:.1em;
+    text-transform:uppercase; margin-bottom:7px;
+  }
+  .spacecraftHudGrid{ display:grid; grid-template-columns:1fr 1fr; gap:5px 12px; }
+  .spacecraftHudMetric{
+    display:flex; justify-content:space-between; gap:7px;
+    border-top:1px solid rgba(114,230,193,.12); padding-top:4px;
+    color:#71809e; font-size:8px; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .spacecraftHudMetric b{ color:var(--ink); font-weight:500; text-align:right; }
+  #spacecraftProgress{
+    height:3px; margin:9px 0 8px; background:#202b3d; border-radius:2px;
+    overflow:hidden;
+  }
+  #spacecraftProgressBar{ height:100%; width:0; background:#72e6c1; }
+  .spacecraftHudActions{ display:flex; gap:6px; justify-content:flex-end; }
+  .spacecraftHudActions button{
+    height:25px; border:1px solid rgba(114,230,193,.28); border-radius:6px;
+    background:#101a2a; color:#b9d8d0; padding:0 8px; cursor:pointer;
+    font:8px var(--mono);
+  }
+  #spacecraftViewExit{ color:#ffb0b8; border-color:rgba(255,143,159,.35); }
   #occultationPanel{
     position:absolute; top:74px; right:310px; width:270px;
     background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
@@ -363,6 +413,7 @@
     #impactPanel{ left:20px; top:400px; width:230px; }
     #observatoryPanel{ top:108px; width:230px; }
     #plannerPanel{ top:108px; width:calc(100vw - 40px); max-height:calc(100vh - 180px); }
+    #spacecraftHud{ left:12px; bottom:112px; width:calc(100vw - 24px); }
     .plannerTop, .plannerGrid{ grid-template-columns:1fr; }
     #plannerLibrary{ max-width:none; }
     .plannerAssist{ grid-template-columns:1fr 1fr; }
@@ -394,6 +445,9 @@
     <button class="btn" id="plannerBtn" type="button"
       title="Mission planner (W)" aria-label="Mission planner"
       aria-expanded="false">⌁</button>
+    <button class="btn" id="spacecraftViewBtn" type="button" disabled
+      title="Spacecraft view (V)" aria-label="Spacecraft view"
+      aria-pressed="false">◈</button>
     <button class="btn" id="addBodyBtn" type="button"
       title="Introduce a massive body" aria-label="Introduce a massive body"
       aria-expanded="false">✦</button>
@@ -421,6 +475,25 @@
       title="Restart guided tutorial" aria-label="Restart guided tutorial">?</button>
   </div>
   <div id="scenarioStatus" role="status" aria-live="polite"></div>
+  <div id="spacecraftOverlay" aria-live="polite">
+    <div id="spacecraftReticle" aria-hidden="true"></div>
+    <div id="spacecraftHud">
+      <div class="heading" id="spacecraftHudMission">Spacecraft view</div>
+      <div class="spacecraftHudGrid">
+        <div class="spacecraftHudMetric"><span>Leg</span><b id="spacecraftHudLeg">—</b></div>
+        <div class="spacecraftHudMetric"><span>Velocity</span><b id="spacecraftHudSpeed">—</b></div>
+        <div class="spacecraftHudMetric"><span>Next</span><b id="spacecraftHudNext">—</b></div>
+        <div class="spacecraftHudMetric"><span>Distance</span><b id="spacecraftHudDistance">—</b></div>
+        <div class="spacecraftHudMetric"><span>Encounter ETA</span><b id="spacecraftHudEta">—</b></div>
+        <div class="spacecraftHudMetric"><span>Mission remaining</span><b id="spacecraftHudRemaining">—</b></div>
+      </div>
+      <div id="spacecraftProgress"><div id="spacecraftProgressBar"></div></div>
+      <div class="spacecraftHudActions">
+        <button id="spacecraftForwardBtn" type="button">LOOK FORWARD</button>
+        <button id="spacecraftViewExit" type="button">EXIT COCKPIT</button>
+      </div>
+    </div>
+  </div>
 
   <div id="aboutPanel" class="panel-hidden">
     <button class="panel-close" id="aboutClose" type="button"
@@ -544,6 +617,7 @@
           <button class="timelineBtn" id="plannerDeleteBtn" type="button">DELETE</button>
           <button class="timelineBtn" id="plannerSaveBtn" type="button">SAVE</button>
           <button class="timelineBtn primary" id="plannerPreviewBtn" type="button">PREVIEW FLIGHT</button>
+          <button class="timelineBtn primary" id="plannerCockpitBtn" type="button">ENTER COCKPIT</button>
         </div>
       </div>
       <div id="plannerStatus" role="status" aria-live="polite">Choose dates, then search for candidate routes.</div>
@@ -678,6 +752,7 @@ Velocity: not set</div>
 <script src="src/mission-timeline.js"></script>
 <script src="src/mission-planner.js"></script>
 <script src="src/mission-planner-ui.js"></script>
+<script src="src/spacecraft-view.js"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js"></script>
 <script src="src/star-field.js"></script>
@@ -1364,6 +1439,7 @@ Velocity: not set</div>
 
   let missionPlannerController=null;
   let activePlannerRoute=null;
+  let activePlannerPlan=null;
   let plannerRouteSamples=[];
   let plannerPreviewActive=false;
 
@@ -1416,12 +1492,16 @@ Velocity: not set</div>
     });
   }
 
-  function setPlannerRoute(route){
+  function setPlannerRoute(route,plan){
     activePlannerRoute=route;
+    activePlannerPlan=plan||null;
     plannerPreviewActive=false;
     plannerRouteSamples=route
       ? MissionPlanner.sampleRoute(route,plannerStateAt,180)
       : [];
+    const cockpitButton=document.getElementById('spacecraftViewBtn');
+    if(cockpitButton) cockpitButton.disabled=!route;
+    if(!route && spacecraftViewActive) setSpacecraftView(false);
     orbitLayerDirty=true;
   }
 
@@ -1464,7 +1544,8 @@ Velocity: not set</div>
       storage:()=>window.localStorage,
       onRouteChange:setPlannerRoute,
       onNodeSelect:plannerNodeSelected,
-      onPreview:previewPlannerRoute
+      onPreview:previewPlannerRoute,
+      onCockpit:()=>setSpacecraftView(true)
     });
   }
 
@@ -1512,6 +1593,11 @@ Velocity: not set</div>
   let observatoryPreviousPlaying=true;
   let observatoryProjectedBodies=[];
   const observatoryPathCache=new Map();
+  let spacecraftViewActive=false;
+  let spacecraftLookYaw=0;
+  let spacecraftLookPitch=0;
+  let spacecraftFov=70*DEG;
+  let spacecraftProjectedBodies=[];
   const BODY_PRESETS={
     star:{label:'Star',name:'New Star',mass:1.98847e30,color:'#ffd36a'},
     'black-hole':{label:'Black hole',name:'New Black Hole',mass:1.98847e31,color:'#9b7cff'},
@@ -3144,8 +3230,10 @@ Velocity: not set</div>
     return (body.radius||0)/AU_KM;
   }
 
-  function observatoryBodyMarkerRadius(body,physicalRadius){
-    if(!observatoryEnhance) return Math.max(0.25,physicalRadius);
+  function observatoryBodyMarkerRadius(
+    body,physicalRadius,enhance=observatoryEnhance
+  ){
+    if(!enhance) return Math.max(0.25,physicalRadius);
     if(body===sunReference) return Math.max(physicalRadius,3);
     if(body.kind==='custom'){
       return Math.max(
@@ -3412,23 +3500,30 @@ Velocity: not set</div>
   }
 
   function drawObservatoryBody(
-    body,position,distance,observerPosition,frame,camera,sunProjected
+    body,position,distance,observerPosition,frame,camera,sunProjected,options={}
   ){
+    const fov=options.fov||observatoryFov;
+    const horizon=options.horizon!==false;
+    const projectedBodies=options.projectedBodies||observatoryProjectedBodies;
     const offset=observatoryDirection(observerPosition,position);
     const direction=normalizeObservatoryVector(offset);
     const angularRadius=observatoryAngularRadius(
       observatoryBodyRadiusAu(body),distance
     );
-    const altitude=observatoryAltitudeForDirection(direction,frame);
-    if(altitude<-angularRadius) return;
+    if(horizon){
+      const altitude=observatoryAltitudeForDirection(direction,frame);
+      if(altitude<-angularRadius) return;
+    }
     const projected=projectObservatoryDirection(
-      direction,camera,W,H,observatoryFov
+      direction,camera,W,H,fov
     );
     if(!projected) return;
     const physicalRadius=Math.min(
       H*2,projected.focal*Math.tan(angularRadius)
     );
-    const radius=observatoryBodyMarkerRadius(body,physicalRadius);
+    const radius=observatoryBodyMarkerRadius(
+      body,physicalRadius,options.enhance
+    );
     if(
       projected.x+radius<0 || projected.x-radius>W ||
       projected.y+radius<0 || projected.y-radius>H
@@ -3519,7 +3614,7 @@ Velocity: not set</div>
     ctx.font='9px "SF Mono", Consolas, monospace';
     ctx.fillStyle=body===selected?'#f2b544':'rgba(232,236,247,0.72)';
     ctx.fillText(body.name,projected.x+radius+5,projected.y-4);
-    observatoryProjectedBodies.push({
+    projectedBodies.push({
       body,x:projected.x,y:projected.y,r:Math.max(7,radius)
     });
   }
@@ -3589,8 +3684,149 @@ Velocity: not set</div>
       'Drag to look around · wheel to zoom';
   }
 
+  function spacecraftSceneBodies(){
+    return [
+      sunReference,...planets,...moons,
+      ...(showSpacecraft?spacecraft:[]),
+      ...(showComets?comets:[]),
+      ...customBodies.filter(body=>
+        body.introducedAt<=simDaysSinceJ2000 &&
+        (body.retiredAt===undefined || simDaysSinceJ2000<body.retiredAt)
+      )
+    ];
+  }
+
+  function drawSpacecraftStars(camera){
+    ensureCatalogStars();
+    const fovScale=Math.min(3,70*DEG/spacecraftFov);
+    const vectors=[camera.forward,camera.right,camera.up].flatMap(vector=>[
+      backdropComponent(vector.x,500),
+      backdropComponent(vector.y,500),
+      backdropComponent(vector.z,500)
+    ]);
+    const key='spacecraft:'+W+':'+H+':'+vectors.join(':')+':'+
+      backdropComponent(spacecraftFov,1000);
+    renderStarBackdrop(key,backdrop=>{
+      for(const star of stars){
+        const projected=projectObservatoryDirection(
+          star,camera,W,H,spacecraftFov
+        );
+        if(!projected || projected.x<0 || projected.x>W ||
+           projected.y<0 || projected.y>H) continue;
+        backdrop.beginPath();
+        backdrop.fillStyle=`rgba(${star.rgb},${star.alpha})`;
+        backdrop.arc(
+          projected.x,projected.y,star.radius*fovScale,0,Math.PI*2
+        );
+        backdrop.fill();
+      }
+    },false);
+    skyCtx.fillStyle='#03060d';
+    skyCtx.fillRect(0,0,W,H);
+    skyCtx.drawImage(starBackdrop,0,0);
+  }
+
+  function spacecraftDistanceText(distanceAu){
+    if(!Number.isFinite(distanceAu)) return '—';
+    const distanceKm=distanceAu*AU_KM;
+    if(distanceKm<1000000){
+      return Math.round(distanceKm).toLocaleString()+' km';
+    }
+    if(distanceAu<0.1){
+      return (distanceKm/1000000).toFixed(2)+'M km';
+    }
+    return distanceAu.toFixed(distanceAu<10?3:2)+' AU';
+  }
+
+  function updateSpacecraftHud(state){
+    const leg=SpacecraftView.currentLeg(
+      plannerRouteSamples,simDaysSinceJ2000
+    );
+    if(!leg) return;
+    const legIndex=plannerRouteSamples.indexOf(leg);
+    const nextWaypoint=activePlannerRoute.waypoints[legIndex+1];
+    const nextState=plannerStateAt(nextWaypoint.name,simDaysSinceJ2000);
+    const telemetry=SpacecraftView.telemetry(
+      activePlannerRoute,plannerRouteSamples,state,
+      simDaysSinceJ2000,nextState
+    );
+    document.getElementById('spacecraftHudMission').textContent=
+      (activePlannerPlan?.name||'Planned mission')+' · FLIGHT COMPUTER';
+    document.getElementById('spacecraftHudLeg').textContent=
+      telemetry.legNumber+'/'+telemetry.legCount+' · '+
+      telemetry.from+' → '+telemetry.to;
+    document.getElementById('spacecraftHudSpeed').textContent=
+      telemetry.speedKmS.toFixed(2)+' km/s';
+    document.getElementById('spacecraftHudNext').textContent=telemetry.to;
+    document.getElementById('spacecraftHudDistance').textContent=
+      spacecraftDistanceText(telemetry.distanceToNextAu);
+    document.getElementById('spacecraftHudEta').textContent=
+      MissionPlannerUI.formatDuration(telemetry.legRemainingDays);
+    document.getElementById('spacecraftHudRemaining').textContent=
+      MissionPlannerUI.formatDuration(telemetry.remainingDays);
+    document.getElementById('spacecraftProgressBar').style.width=
+      (telemetry.progress*100).toFixed(2)+'%';
+  }
+
+  function drawSpacecraftView(){
+    let state=MissionPlanner.stateAlongSamples(
+      plannerRouteSamples,simDaysSinceJ2000
+    );
+    if(!state){
+      const start=activePlannerRoute?.waypoints[0].time;
+      const end=activePlannerRoute?.waypoints.at(-1).time;
+      if(Number.isFinite(start) && Number.isFinite(end)){
+        simDaysSinceJ2000=Math.max(start,Math.min(end,simDaysSinceJ2000));
+        state=MissionPlanner.stateAlongSamples(
+          plannerRouteSamples,simDaysSinceJ2000
+        );
+      }
+      if(!state){
+        setSpacecraftView(false);
+        return;
+      }
+    }
+    const camera=SpacecraftView.cameraFrame(
+      state,spacecraftLookYaw,spacecraftLookPitch
+    );
+    drawSpacecraftStars(camera);
+    ctx.clearRect(0,0,W,H);
+    spacecraftProjectedBodies=[];
+    const entries=[];
+    for(const body of spacecraftSceneBodies()){
+      const position=positionForBody(body,simDaysSinceJ2000);
+      if(!position) continue;
+      const distance=Math.hypot(
+        position.x-state.x,position.y-state.y,position.z-state.z
+      );
+      if(distance>1e-10) entries.push({body,position,distance});
+    }
+    entries.sort((a,b)=>b.distance-a.distance);
+    const sunPosition=positionForBody(sunReference,simDaysSinceJ2000);
+    const sunProjected=SpacecraftView.project(
+      sunPosition,state,camera,W,H,spacecraftFov
+    );
+    for(const {body,position,distance} of entries){
+      drawObservatoryBody(
+        body,position,distance,state,null,camera,sunProjected,{
+          fov:spacecraftFov,
+          horizon:false,
+          enhance:true,
+          projectedBodies:spacecraftProjectedBodies
+        }
+      );
+    }
+    updateSpacecraftHud(state);
+  }
+
   function draw(){
     updateRotatingReferenceFrame();
+    if(spacecraftViewActive){
+      drawSpacecraftView();
+      updateDateUI();
+      if(selected) updateCard();
+      return;
+    }
     if(observatoryActive){
       drawObservatory();
       updateDateUI();
@@ -4509,7 +4745,21 @@ Velocity: not set</div>
     return best;
   }
 
+  function spacecraftHitTest(mx,my){
+    let best=null;
+    let bestDistance=Infinity;
+    for(const entry of spacecraftProjectedBodies){
+      const distance=Math.hypot(mx-entry.x,my-entry.y);
+      if(distance<=entry.r+6 && distance<=bestDistance){
+        best=entry.body;
+        bestDistance=distance;
+      }
+    }
+    return best;
+  }
+
   function hitTest(mx,my){
+    if(spacecraftViewActive) return spacecraftHitTest(mx,my);
     if(observatoryActive) return observatoryHitTest(mx,my);
     const list = visibleBodies();
     const marker = list.find(b=> b.kind==='lagrange' && b._screen &&
@@ -4579,6 +4829,7 @@ Velocity: not set</div>
     return {
       x,y,panX,panY,yaw:viewYaw,tilt:viewTilt,
       observatoryAzimuth,observatoryAltitude,observatoryFov,
+      spacecraftLookYaw,spacecraftLookPitch,spacecraftFov,
       rotationPivot:selectedRotationPivot()
     };
   }
@@ -4611,7 +4862,9 @@ Velocity: not set</div>
       x:e.clientX,y:e.clientY,pan:rightMouseButton
     });
     if(activePointers.size===1){
-      dragMode=observatoryActive
+      dragMode=spacecraftViewActive
+        ? 'spacecraft'
+        : observatoryActive
         ? 'observatory'
         : rightMouseButton ? 'pan' : 'rotate';
       dragMoved = false;
@@ -4624,7 +4877,7 @@ Velocity: not set</div>
       const [a,b] = pointersArray();
       pinchStartInfo = {
         dist:dist(a,b),mid:midpoint(a,b),zoom,panX,panY,
-        observatoryFov
+        observatoryFov,spacecraftFov
       };
       dragMode = 'two'; dragMoved = true; tapStart = null;
     }
@@ -4641,7 +4894,15 @@ Velocity: not set</div>
       x:e.clientX,y:e.clientY,pan:pointer.pan
     });
 
-    if(dragMode==='observatory' && activePointers.size===1){
+    if(dragMode==='spacecraft' && activePointers.size===1){
+      const dx=e.clientX-dragStartInfo.x;
+      const dy=e.clientY-dragStartInfo.y;
+      if(Math.hypot(dx,dy)>6) dragMoved=true;
+      spacecraftLookYaw=dragStartInfo.spacecraftLookYaw-dx*0.004;
+      spacecraftLookPitch=Math.max(
+        -89*DEG,Math.min(89*DEG,dragStartInfo.spacecraftLookPitch+dy*0.003)
+      );
+    } else if(dragMode==='observatory' && activePointers.size===1){
       const dx=e.clientX-dragStartInfo.x;
       const dy=e.clientY-dragStartInfo.y;
       if(Math.hypot(dx,dy)>6) dragMoved=true;
@@ -4687,6 +4948,12 @@ Velocity: not set</div>
       const newDist = dist(a,b);
       const mid = midpoint(a,b);
       const scale = newDist / pinchStartInfo.dist;
+      if(spacecraftViewActive){
+        spacecraftFov=Math.max(
+          8*DEG,Math.min(120*DEG,pinchStartInfo.spacecraftFov/scale)
+        );
+        return;
+      }
       if(observatoryActive){
         observatoryFov=Math.max(
           8*DEG,Math.min(120*DEG,pinchStartInfo.observatoryFov/scale)
@@ -4731,7 +4998,9 @@ Velocity: not set</div>
       scene.style.cursor = 'grab';
     } else if(activePointers.size===1){
       const [p] = pointersArray();
-      dragMode=observatoryActive ? 'observatory' : p.pan ? 'pan' : 'rotate';
+      dragMode=spacecraftViewActive
+        ? 'spacecraft'
+        : observatoryActive ? 'observatory' : p.pan ? 'pan' : 'rotate';
       dragMoved = true;
       dragStartInfo=pointerDragStart(p.x,p.y);
     }
@@ -5185,6 +5454,7 @@ Velocity: not set</div>
   }
 
   function setObservatoryMode(enabled,preservePlayback=false){
+    if(enabled && spacecraftViewActive) setSpacecraftView(false);
     const wasActive=observatoryActive;
     if(enabled && !wasActive) observatoryPreviousPlaying=playing;
     observatoryActive=enabled;
@@ -5242,6 +5512,57 @@ Velocity: not set</div>
     }
   }
 
+  function setSpacecraftView(enabled,preserveTime=false){
+    if(enabled && (!activePlannerRoute || !plannerRouteSamples.length)){
+      showScenarioStatus('SOLVE AND SELECT A MISSION ROUTE FIRST',true);
+      return false;
+    }
+    if(enabled && observatoryActive) setObservatoryMode(false,true);
+    spacecraftViewActive=enabled;
+    starBackdropKey='';
+    if(enabled){
+      resetBodyInsertion();
+      setPanelVisible('plannerPanel',false);
+      setLagrangeVisibility(false);
+      setRotatingReferenceFrame(false);
+      const start=activePlannerRoute.waypoints[0].time;
+      const end=activePlannerRoute.waypoints.at(-1).time;
+      if(!preserveTime || simDaysSinceJ2000<start || simDaysSinceJ2000>end){
+        simDaysSinceJ2000=start;
+      }
+      if(!preserveTime){
+        spacecraftLookYaw=0;
+        spacecraftLookPitch=0;
+        direction=1;
+        speedExp=Math.log10(Math.max(
+          1,Math.min(120,activePlannerRoute.durationDays/45)
+        ));
+        playing=true;
+        playBtn.textContent='⏸';
+      }
+      document.getElementById('speedSlider').value=String(speedExp);
+      updateSpeedLabel();
+    }
+    document.getElementById('stage').classList.toggle(
+      'spacecraft-view-active',enabled
+    );
+    const button=document.getElementById('spacecraftViewBtn');
+    button.classList.toggle('active',enabled);
+    button.setAttribute('aria-pressed',String(enabled));
+    for(const buttonId of [
+      'observatoryBtn','addBodyBtn','lagrangeBtn','rotatingFrameBtn'
+    ]){
+      document.getElementById(buttonId).disabled=enabled;
+    }
+    if(!enabled){
+      spacecraftProjectedBodies=[];
+      skyCtx.clearRect(0,0,W,H);
+      drawStars(true);
+      invalidateProjection();
+    }
+    return true;
+  }
+
   function scenarioBodyByName(name){
     if(!name) return null;
     return [
@@ -5282,6 +5603,11 @@ Velocity: not set</div>
         enhance:observatoryEnhance,
         paths:observatoryShowPaths,
         timeZone:observatoryTimeZone
+      } : null,
+      spacecraftView:spacecraftViewActive ? {
+        yaw:Number(spacecraftLookYaw.toFixed(6)),
+        pitch:Number(spacecraftLookPitch.toFixed(6)),
+        fov:Number(spacecraftFov.toFixed(6))
       } : null,
       missionPlan:missionPlannerController?.plan()||null
     };
@@ -5336,8 +5662,17 @@ Velocity: not set</div>
     buildLegend();
     invalidateProjection();
     if(state.missionPlan){
-      missionPlannerController?.restore(state.missionPlan);
+      const restored=missionPlannerController?.restore(state.missionPlan);
       setPanelVisible('plannerPanel',true);
+      if(state.spacecraftView){
+        Promise.resolve(restored).then(success=>{
+          if(!success) return;
+          spacecraftLookYaw=state.spacecraftView.yaw;
+          spacecraftLookPitch=state.spacecraftView.pitch;
+          spacecraftFov=state.spacecraftView.fov;
+          setSpacecraftView(true,true);
+        });
+      }
     }
   }
 
@@ -5406,6 +5741,16 @@ Velocity: not set</div>
   });
   document.getElementById('observatoryBtn').addEventListener('click',()=>{
     setObservatoryMode(!observatoryActive);
+  });
+  document.getElementById('spacecraftViewBtn').addEventListener('click',()=>{
+    setSpacecraftView(!spacecraftViewActive);
+  });
+  document.getElementById('spacecraftViewExit').addEventListener(
+    'click',()=>setSpacecraftView(false)
+  );
+  document.getElementById('spacecraftForwardBtn').addEventListener('click',()=>{
+    spacecraftLookYaw=0;
+    spacecraftLookPitch=0;
   });
   document.getElementById('observatoryClose').addEventListener(
     'click',()=>setObservatoryMode(false)
@@ -5491,14 +5836,18 @@ Velocity: not set</div>
   }
 
   document.getElementById('zoomInBtn').addEventListener('click', ()=>{
-    if(observatoryActive){
+    if(spacecraftViewActive){
+      spacecraftFov=Math.max(8*DEG,spacecraftFov/1.25);
+    } else if(observatoryActive){
       observatoryFov=Math.max(8*DEG,observatoryFov/1.25);
     } else {
       applyZoom(zoom*1.35,cx,cy);
     }
   });
   document.getElementById('zoomOutBtn').addEventListener('click', ()=>{
-    if(observatoryActive){
+    if(spacecraftViewActive){
+      spacecraftFov=Math.min(120*DEG,spacecraftFov*1.25);
+    } else if(observatoryActive){
       observatoryFov=Math.min(120*DEG,observatoryFov*1.25);
     } else {
       applyZoom(zoom/1.35,cx,cy);
@@ -5506,7 +5855,12 @@ Velocity: not set</div>
   });
   scene.addEventListener('wheel', (e)=>{
     e.preventDefault();
-    if(observatoryActive){
+    if(spacecraftViewActive){
+      const factor=e.deltaY<0?0.9:1.1;
+      spacecraftFov=Math.max(
+        8*DEG,Math.min(120*DEG,spacecraftFov*factor)
+      );
+    } else if(observatoryActive){
       const factor=e.deltaY<0?0.9:1.1;
       observatoryFov=Math.max(
         8*DEG,Math.min(120*DEG,observatoryFov*factor)
@@ -5588,6 +5942,7 @@ Velocity: not set</div>
   }
 
   function prepareTutorialView(){
+    if(spacecraftViewActive) setSpacecraftView(false);
     if(observatoryActive) setObservatoryMode(false,true);
     setProfilerVisible(false);
     document.getElementById('bodyPanel').classList.remove('show');
@@ -5601,6 +5956,7 @@ Velocity: not set</div>
     if(observatoryActive!==tutorialSnapshot.observatory){
       setObservatoryMode(tutorialSnapshot.observatory,true);
     }
+    if(tutorialSnapshot.spacecraftView) setSpacecraftView(true,true);
     for(const [id,visible] of Object.entries(tutorialSnapshot.panels)){
       setPanelVisible(id,visible);
     }
@@ -5619,6 +5975,7 @@ Velocity: not set</div>
     onStart(){
       tutorialSnapshot={
         observatory:observatoryActive,
+        spacecraftView:spacecraftViewActive,
         panels:tutorialPanelVisibility(),
         bodyPanel:document.getElementById('bodyPanel').classList.contains('show')
       };
@@ -5668,7 +6025,7 @@ Velocity: not set</div>
         target:'#plannerPanel',
         interactive:true,
         title:'Design an interplanetary mission',
-        text:'Choose an Earth launch window and a final target, optionally add planetary gravity assists, then compare patched-conic routes. Open MANEUVERS to inspect each encounter, save plans locally, or preview the selected flight on the simulation.',
+        text:'Choose an Earth launch window and a final target, optionally add planetary gravity assists, then compare patched-conic routes. Inspect encounters, save plans locally, preview the flight, or enter Spacecraft View to ride inside the planned vehicle with live telemetry.',
         before(){
           setPanelVisible('missionPanel',false);
           setPanelVisible('plannerPanel',true);
@@ -5724,7 +6081,7 @@ Velocity: not set</div>
       {
         target:'#tutorialBtn',
         title:'You are ready to explore',
-        text:'The tutorial will not open automatically again after you finish or skip it. Click ? in the top toolbar whenever you want to replay it.\n\nKeyboard shortcuts include Space for play/pause and W, M, L, T, E, O, G, R, and P for major tools.'
+        text:'The tutorial will not open automatically again after you finish or skip it. Click ? in the top toolbar whenever you want to replay it.\n\nKeyboard shortcuts include Space for play/pause and V, W, M, L, T, E, O, G, R, and P for major tools.'
       }
     ]
   });
@@ -5802,6 +6159,7 @@ Velocity: not set</div>
     if(e.code==='KeyG') setLagrangeVisibility(!showLagrangePoints);
     if(e.code==='KeyR') setRotatingReferenceFrame(!rotatingReferenceFrame);
     if(e.code==='KeyO') setObservatoryMode(!observatoryActive);
+    if(e.code==='KeyV') setSpacecraftView(!spacecraftViewActive);
     if(e.code==='KeyE'){
       const panel=document.getElementById('occultationPanel');
       setOccultationPanelVisible(panel.classList.contains('panel-hidden'));
@@ -5831,14 +6189,20 @@ Velocity: not set</div>
       } else {
         simDaysSinceJ2000=nextDays;
       }
-      if(
-        plannerPreviewActive && activePlannerRoute &&
-        simDaysSinceJ2000>=activePlannerRoute.waypoints.at(-1).time
-      ){
-        simDaysSinceJ2000=activePlannerRoute.waypoints.at(-1).time;
-        playing=false;
-        plannerPreviewActive=false;
-        playBtn.textContent='▶';
+      if((plannerPreviewActive || spacecraftViewActive) && activePlannerRoute){
+        const routeStart=activePlannerRoute.waypoints[0].time;
+        const routeEnd=activePlannerRoute.waypoints.at(-1).time;
+        if(simDaysSinceJ2000<=routeStart && playbackDirection<0){
+          simDaysSinceJ2000=routeStart;
+          playing=false;
+          plannerPreviewActive=false;
+          playBtn.textContent='▶';
+        } else if(simDaysSinceJ2000>=routeEnd && playbackDirection>0){
+          simDaysSinceJ2000=routeEnd;
+          playing=false;
+          plannerPreviewActive=false;
+          playBtn.textContent='▶';
+        }
       }
       if(simDaysSinceJ2000>=HYBRID_MAX_DAYS){
         stopAtHybridLimit();

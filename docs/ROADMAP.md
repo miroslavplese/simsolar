@@ -152,6 +152,9 @@ introduced.
 
 ## Completed
 
+- [x] 2026-08-19 - Added Spacecraft View for solved mission-planner routes with
+  velocity-aligned cockpit free-look, live travel HUD, selectable flyby bodies,
+  normal playback controls, and shareable view restoration.
 - [x] 2026-08-18 - Added physical-scale, appearance-specific rendering for
   user-introduced stars, black holes, planets, and comets in both Solar System
   and Observatory views.

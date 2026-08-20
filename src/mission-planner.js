@@ -166,7 +166,11 @@
     for(let index=0;index<=count;index++){
       const elapsed=solution.timeOfFlightDays*index/count;
       const state=propagateState(origin,elapsed,solution.mu);
-      points.push({t:startTime+elapsed,x:state.x,y:state.y,z:state.z});
+      points.push({
+        t:startTime+elapsed,
+        x:state.x,y:state.y,z:state.z,
+        vx:state.vx,vy:state.vy,vz:state.vz
+      });
     }
     return points;
   }
@@ -410,7 +414,10 @@
     return {
       x:points[lower].x+(points[upper].x-points[lower].x)*fraction,
       y:points[lower].y+(points[upper].y-points[lower].y)*fraction,
-      z:points[lower].z+(points[upper].z-points[lower].z)*fraction
+      z:points[lower].z+(points[upper].z-points[lower].z)*fraction,
+      vx:points[lower].vx+(points[upper].vx-points[lower].vx)*fraction,
+      vy:points[lower].vy+(points[upper].vy-points[lower].vy)*fraction,
+      vz:points[lower].vz+(points[upper].vz-points[lower].vz)*fraction
     };
   }
 

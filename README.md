@@ -42,6 +42,9 @@ web server is required.
 - Patched-conic mission planner with Earth launch windows, optional planetary
   gravity assists, ranked Lambert routes, maneuver/encounter details, animated
   trajectory previews, local saves, and shareable active plans
+- Spacecraft View for riding inside a selected planned mission with a
+  velocity-aligned camera, free-look and FOV controls, live flight telemetry,
+  selectable planets, normal time acceleration, and shareable cockpit state
 - Automatic zoom/focus/follow from the body list and spacecraft mission events
 - Rolling average and p95 frame-time profiler for each view preset
 - Pointer orbit rotation, right-button drag or two-finger pan, pinch/wheel zoom,
@@ -72,6 +75,7 @@ web server is required.
 | `src/mission-timeline.js` | Shared mission navigation helpers |
 | `src/mission-planner.js` | Lambert solver, patched-conic route scoring, window search, and plan persistence |
 | `src/mission-planner-ui.js` | Mission-planner workflow, route comparison, maneuvers, saves, and previews |
+| `src/spacecraft-view.js` | Planned-flight camera frame, projection, leg selection, and telemetry |
 | `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
 | `src/view-transform.js` | Camera rotation and view-space transformation helpers |
 | `src/star-field.js` | Deterministic celestial-sphere generation and camera projection |
@@ -92,6 +96,7 @@ web server is required.
 | `tests/trajectory-tests.js` | Dependency-free numerical regression suite |
 | `tests/mission-planner-tests.js` | Lambert, flyby, route search, sampling, and persistence tests |
 | `tests/mission-planner-ui-tests.js` | Planner date, duration, and default-plan tests |
+| `tests/spacecraft-view-tests.js` | Cockpit camera, projection, leg, and telemetry tests |
 | `tests/star-field-tests.js` | Star generation and camera-relative projection tests |
 | `tests/observatory-mode-tests.js` | Surface-frame and horizontal sky-projection tests |
 | `tests/scenario-state-tests.js` | Shareable scenario encoding, URL, and validation tests |

@@ -325,6 +325,7 @@
       element('plannerMetricStatus').textContent=
         route?(route.feasible?'FEASIBLE':'POWERED ASSIST'):'—';
       element('plannerPreviewBtn').disabled=!route;
+      element('plannerCockpitBtn').disabled=!route;
       element('plannerSaveBtn').disabled=!route;
     }
 
@@ -441,7 +442,7 @@
         showStatus('This mission references a body unavailable in this scenario.',true);
         return false;
       }
-      searchRevision++;
+      const revision=++searchRevision;
       plan=JSON.parse(JSON.stringify(nextPlan));
       routes=[];
       activeRoute=null;
@@ -450,6 +451,7 @@
         try{
           const latest=Math.max(...plan.selectedTimes);
           await options.prepareTo?.(latest);
+          if(revision!==searchRevision) return false;
           const route=planner.routeFromPlanSelection(
             plan,options.stateAt,{bodyInfo:options.bodyInfo}
           );
@@ -461,9 +463,13 @@
             showStatus('Saved route needs to be searched again.',true);
           }
         } catch(error){
-          showStatus('Saved route needs to be searched again.',true);
+          if(revision===searchRevision){
+            showStatus('Saved route needs to be searched again.',true);
+          }
+          return false;
         }
       }
+      if(revision!==searchRevision) return false;
       renderRoutes();
       renderManeuvers();
       renderReview();
@@ -491,6 +497,9 @@
     element('plannerLibrary').addEventListener('change',event=>load(event.target.value));
     element('plannerPreviewBtn').addEventListener('click',()=>{
       if(activeRoute) options.onPreview?.(activeRoute,plan);
+    });
+    element('plannerCockpitBtn').addEventListener('click',()=>{
+      if(activeRoute) options.onCockpit?.(activeRoute,plan);
     });
 
     syncFormFromPlan();

@@ -86,6 +86,16 @@
         typeof obs.paths==='boolean' &&
         validTimeZone(obs.timeZone))) return false;
     }
+    if(state.spacecraftView!==undefined && state.spacecraftView!==null){
+      const view=state.spacecraftView;
+      if(state.observatory!==null) return false;
+      if(!(!!view &&
+        finite(view.yaw,-1000,1000) &&
+        finite(view.pitch,-Math.PI/2,Math.PI/2) &&
+        finite(view.fov,8*Math.PI/180,120*Math.PI/180))) return false;
+      if(!state.missionPlan ||
+        !Array.isArray(state.missionPlan.selectedTimes)) return false;
+    }
     if(state.v===VERSION && !('missionPlan' in state)) return false;
     return state.v!==VERSION || validMissionPlan(state.missionPlan);
   }

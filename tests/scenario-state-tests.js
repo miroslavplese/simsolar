@@ -49,7 +49,17 @@ const missionPlan={
 const plannedState={
   ...coreState,
   v:2,
-  missionPlan
+  observatory:null,
+  missionPlan:{
+    ...missionPlan,
+    selectedTimes:[110,240],
+    selectedLongWayMask:0
+  },
+  spacecraftView:{
+    yaw:0.2,
+    pitch:-0.1,
+    fov:Math.PI/3
+  }
 };
 
 function encodeLegacyScenario(state){
@@ -99,6 +109,18 @@ assert.equal(ScenarioState.validate({
 assert.equal(ScenarioState.validate({
   ...noPlanState,
   missionPlan:{...missionPlan,waypoints:[missionPlan.waypoints[0]]}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,
+  spacecraftView:{yaw:0,pitch:0,fov:Math.PI/3}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...plannedState,
+  spacecraftView:{...plannedState.spacecraftView,pitch:Math.PI}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...plannedState,
+  observatory:coreState.observatory
 }),false);
 assert.equal(ScenarioState.validate({...noPlanState,t:Infinity}),false);
 assert.equal(ScenarioState.validate({

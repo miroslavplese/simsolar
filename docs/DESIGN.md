@@ -153,6 +153,30 @@ Custom-body targets remain local because current scenario links do not serialize
 the custom body's branched N-body history; sharing such a plan is rejected with
 an explicit status rather than producing a link that cannot be restored.
 
+## Spacecraft View
+
+Spacecraft View is available only when the mission planner has a solved route.
+`src/spacecraft-view.js` constructs an orthonormal camera frame whose forward
+axis follows the planned transfer velocity. Pointer drag adds yaw and pitch
+relative to that flight frame, while wheel, pinch, and the standard zoom
+controls adjust vertical field of view. LOOK FORWARD resets the offsets without
+changing the propagated trajectory.
+
+The view uses the selected route's universal-variable samples for both position
+and velocity. It renders the same physical bodies, textures, lighting, labels,
+and selection cards as the surface observer, but without a horizon or
+atmospheric clipping plane. Body hit testing uses cockpit-projected disks, so a
+planet seen during a flyby remains selectable. The standard playback, speed,
+date, mission-planner, timeline, layer, and sharing controls remain available;
+surface observatory, body insertion, Lagrange, and rotating-frame controls are
+disabled because their camera assumptions conflict with a vehicle frame.
+
+The HUD reports the current route leg, heliocentric velocity, next encounter,
+distance, encounter ETA, total remaining time, and mission progress. Playback
+stops at the selected route's final encounter. Scenario links optionally store
+cockpit yaw, pitch, and FOV alongside the compact selected mission route, then
+recompute the physical path before restoring the view.
+
 ## Gravity model
 
 The runtime uses a hybrid historical/future model:
