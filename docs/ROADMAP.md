@@ -125,14 +125,26 @@ introduced.
 - [x] 2026-08-19 - Add finite-radius encounter geometry, parking-orbit injection
   burns, modeled gravity-assist turn angles and powered corrections, plus
   optional destination orbit insertion.
-- [ ] Extend the mission planner with finite-burn and low-thrust maneuver editing,
-  multi-revolution Lambert branches, and parent-centric terminal moon targeting.
+- [ ] Add a spacecraft builder with dry mass, payload, propellant, engine thrust,
+  specific impulse, and configurable staging.
+- [ ] Make mission feasibility fuel-aware by comparing required maneuver delta-v
+  against each stage's rocket-equation budget and remaining propellant.
+- [ ] Extend maneuver planning from impulsive events to finite burns with duration,
+  orientation, thrust-to-weight ratio, propellant consumption, Oberth-effect
+  implications, and consequences for missed or mistimed burns.
+- [ ] Add low-thrust trajectory planning for ion and other continuous-thrust
+  propulsion systems.
+- [ ] Add parent-centric terminal moon targeting and insertion for missions such
+  as Jupiter/Europa, Saturn/Titan, and Neptune/Triton.
+- [ ] Add multi-revolution Lambert branches for longer transfer opportunities.
+- [ ] Add a mission-operations timeline covering launch, staged burns, coast
+  phases, gravity assists, corrections, capture, and science encounters.
 - [x] 2026-08-18 - Add versioned shareable URL scenarios that restore simulation
   time, playback, camera, object visibility, selection, follow target, and
   Observatory location/view state.
 - [ ] Add a named local scenario library for saving and reopening multiple setups.
-- [ ] Add a close-approach analyzer with encounter time, minimum distance, and
-  relative velocity.
+- [ ] Add a close-approach analyzer with encounter time, minimum distance,
+  relative velocity, atmospheric clearance, and ring-system clearance.
 - [ ] Add guided scenarios and tours for missions, eclipses, asteroid deflection,
   and unusual gravitational encounters.
 - [ ] Add an optional catalog of notable asteroids, near-Earth objects, and
@@ -144,8 +156,6 @@ introduced.
     parallax/distance, and constellation where authoritative data is available.
   - Show a star properties card and preserve star selection in shareable
     scenario links.
-- [ ] Add a spacecraft builder with mass, propulsion, fuel, thrust, and staged
-  maneuvers.
 - [ ] Add a searchable event timeline for conjunctions, eclipses, perihelia,
   impacts, and close encounters.
 - [ ] Add optional relativistic effects, including Mercury's perihelion
