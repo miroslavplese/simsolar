@@ -5975,8 +5975,7 @@ Velocity: not set</div>
     }
     setProfilerVisible(false);
     for(const id of tutorialPanelIds) setPanelVisible(id,false);
-    for(const id of options.panels||[]) setPanelVisible(id,true);
-    setTutorialBodyPanel(options.bodyPanel===true);
+    setTutorialBodyPanel(false);
     tutorialShowPlannerArtifacts=options.plannerArtifacts===true;
     orbitLayerDirty=true;
     setLagrangeVisibility(false);
@@ -5996,6 +5995,8 @@ Velocity: not set</div>
     showComets=options.comets===true;
     invalidateProjection();
     buildLegend();
+    for(const id of options.panels||[]) setPanelVisible(id,true);
+    setTutorialBodyPanel(options.bodyPanel===true);
   }
 
   function restoreTutorialView(){
