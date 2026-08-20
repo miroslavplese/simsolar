@@ -48,6 +48,7 @@
     backdrop-filter:blur(10px); box-shadow:0 6px 24px rgba(0,0,0,.35);
   }
   #mainToolbar .btn{ font-size:16px; }
+  #mainToolbar .btn svg{ width:16px; height:16px; display:block; }
   .viewControl{ position:relative; font-size:17px; }
   .viewControl #viewPreset{
     position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer;
@@ -126,8 +127,8 @@
   #legend .diamond{ display:inline-block; width:6px; height:6px; margin-right:7px; vertical-align:middle; transform:rotate(45deg); }
   #legend div.item{ cursor:pointer; padding:2px 4px; border-radius:4px; opacity:1; }
   #legend div.item.moon-item{ padding-left:15px; font-size:8.8px; }
-  #legend div.item:hover{ background:rgba(255,255,255,0.06); }
-  #legend div.item.off{ opacity:0.35; }
+  #legend div.item:not(.off):hover{ background:rgba(255,255,255,0.06); }
+  #legend div.item.off{ opacity:0.35; cursor:not-allowed; pointer-events:none; }
 
   #missionPanel{
     position:absolute; top:74px; right:20px; width:270px;
@@ -465,7 +466,11 @@
       aria-expanded="true">☷</button>
     <button class="btn" id="missionBtn" type="button"
       title="Mission timeline (M)" aria-label="Mission timeline"
-      aria-expanded="false">🚀</button>
+      aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M14.7 3.2c2.1-1 4.2-1.2 6.1-1-0.1 1.9-0.4 4-1.4 6.1l-4.5 4.5-3.7-1.2-1.2-3.7 4.7-4.7Zm1.2 2.8a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0ZM8.8 9.2l1.1 3.4-3.5 3.5-3.7.5.7-3.6 5.4-3.8Zm2.6 4.9 3.4 1.1-3.8 5.4-3.6.7.5-3.7 3.5-3.5ZM6.8 17.2c-1.2.2-2.1.7-2.7 1.3-.7.7-1.1 1.8-1.2 3.3 1.5-.1 2.6-.5 3.3-1.2.6-.6 1.1-1.5 1.3-2.7l-.7-.7Z"/>
+      </svg>
+    </button>
     <button class="btn" id="plannerBtn" type="button"
       title="Mission planner (W)" aria-label="Mission planner"
       aria-expanded="false">⌁</button>
@@ -4506,7 +4511,10 @@ Velocity: not set</div>
     for(const s of spacecraft){
       const row = document.createElement('div'); row.className='item' + (showSpacecraft?'':' off');
       row.innerHTML = `<span class="diamond" style="background:${s.color}"></span>${s.name}`;
-      row.addEventListener('click',()=>toggleLegendBodySelection(s));
+      row.setAttribute('aria-disabled',String(!showSpacecraft));
+      if(showSpacecraft){
+        row.addEventListener('click',()=>toggleLegendBodySelection(s));
+      }
       el.appendChild(row);
     }
     const cLabel=document.createElement('div');
@@ -4519,7 +4527,10 @@ Velocity: not set</div>
       const row=document.createElement('div');
       row.className='item'+(showComets?'':' off');
       row.innerHTML=`<span class="dot" style="background:${comet.color}"></span>${comet.name}`;
-      row.addEventListener('click',()=>toggleLegendBodySelection(comet));
+      row.setAttribute('aria-disabled',String(!showComets));
+      if(showComets){
+        row.addEventListener('click',()=>toggleLegendBodySelection(comet));
+      }
       el.appendChild(row);
     }
     if(showLagrangePoints && activeLagrangeSystem){
