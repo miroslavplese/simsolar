@@ -2628,7 +2628,10 @@ Velocity: not set</div>
         }
       }
     }
-    if(plannerRouteSamples.length && !rotatingReferenceFrame){
+    if(
+      tutorialShowPlannerArtifacts &&
+      plannerRouteSamples.length && !rotatingReferenceFrame
+    ){
       orbitCtx.save();
       orbitCtx.lineCap='round';
       plannerRouteSamples.forEach((leg,index)=>{
@@ -3579,7 +3582,7 @@ Velocity: not set</div>
         projected.x,projected.y,Math.max(radius*4,14),0,Math.PI*2
       );
       ctx.fill();
-      if(!drawBodyTexture(
+      if(horizon || !drawBodyTexture(
         body,projected.x,projected.y,radius,ctx,
         {x:0,y:0,z:1},
         textureBasis
@@ -4111,7 +4114,7 @@ Velocity: not set</div>
       }
     }
     drawOccultationEvent();
-    if(plannerRouteSamples.length){
+    if(tutorialShowPlannerArtifacts && plannerRouteSamples.length){
       const state=MissionPlanner.stateAlongSamples(
         plannerRouteSamples,simDaysSinceJ2000
       );
@@ -5934,6 +5937,7 @@ Velocity: not set</div>
     'legend','missionPanel','plannerPanel','occultationPanel','impactPanel','dock'
   ];
   let tutorialSnapshot=null;
+  let tutorialShowPlannerArtifacts=true;
 
   function tutorialPanelVisibility(){
     return Object.fromEntries(tutorialPanelIds.map(id=>[
@@ -5951,8 +5955,63 @@ Velocity: not set</div>
     setPanelVisible('dock',true);
   }
 
+  function setTutorialBodyPanel(visible){
+    if(!visible){
+      closeBodyPanel();
+      return;
+    }
+    resetBodyInsertion();
+    const panel=document.getElementById('bodyPanel');
+    panel.classList.add('show');
+    const button=document.getElementById('addBodyBtn');
+    button.classList.add('active');
+    button.setAttribute('aria-expanded','true');
+  }
+
+  function setTutorialScene(options={}){
+    if(spacecraftViewActive) setSpacecraftView(false);
+    if(observatoryActive && !options.observatory){
+      setObservatoryMode(false,true);
+    }
+    setProfilerVisible(false);
+    for(const id of tutorialPanelIds) setPanelVisible(id,false);
+    for(const id of options.panels||[]) setPanelVisible(id,true);
+    setTutorialBodyPanel(options.bodyPanel===true);
+    tutorialShowPlannerArtifacts=options.plannerArtifacts===true;
+    orbitLayerDirty=true;
+    setLagrangeVisibility(false);
+    setRotatingReferenceFrame(false);
+    setSelectedBody(null,false);
+    setFollowTarget(null);
+    if(options.observatory){
+      setObservatoryMode(true,true);
+      return;
+    }
+    viewYaw=0;
+    viewTilt=DEFAULT_TILT;
+    panX=0;
+    panY=0;
+    zoom=options.zoom||1;
+    showSpacecraft=options.spacecraft===true;
+    showComets=options.comets===true;
+    invalidateProjection();
+    buildLegend();
+  }
+
   function restoreTutorialView(){
     if(!tutorialSnapshot) return;
+    tutorialShowPlannerArtifacts=true;
+    showSpacecraft=tutorialSnapshot.spacecraft;
+    showComets=tutorialSnapshot.comets;
+    setSelectedBody(tutorialSnapshot.selected,false);
+    if(tutorialSnapshot.lagrange) setLagrangeVisibility(true);
+    if(tutorialSnapshot.rotating) setRotatingReferenceFrame(true);
+    zoom=tutorialSnapshot.view.zoom;
+    panX=tutorialSnapshot.view.panX;
+    panY=tutorialSnapshot.view.panY;
+    viewYaw=tutorialSnapshot.view.yaw;
+    viewTilt=tutorialSnapshot.view.tilt;
+    setFollowTarget(tutorialSnapshot.follow);
     if(observatoryActive!==tutorialSnapshot.observatory){
       setObservatoryMode(tutorialSnapshot.observatory,true);
     }
@@ -5966,6 +6025,11 @@ Velocity: not set</div>
     document.getElementById('addBodyBtn').classList.toggle(
       'active',tutorialSnapshot.bodyPanel
     );
+    document.getElementById('addBodyBtn').setAttribute(
+      'aria-expanded',String(tutorialSnapshot.bodyPanel)
+    );
+    invalidateProjection();
+    buildLegend();
     tutorialSnapshot=null;
   }
 
@@ -5976,6 +6040,13 @@ Velocity: not set</div>
       tutorialSnapshot={
         observatory:observatoryActive,
         spacecraftView:spacecraftViewActive,
+        spacecraft:showSpacecraft,
+        comets:showComets,
+        selected,
+        follow:followTarget,
+        lagrange:showLagrangePoints,
+        rotating:rotatingReferenceFrame,
+        view:{zoom,panX,panY,yaw:viewYaw,tilt:viewTilt},
         panels:tutorialPanelVisibility(),
         bodyPanel:document.getElementById('bodyPanel').classList.contains('show')
       };
@@ -5985,13 +6056,15 @@ Velocity: not set</div>
     steps:[
       {
         title:'Welcome to SimSolar',
-        text:'Explore the Solar System across time, follow real mission trajectories, observe the sky from planetary surfaces, and experiment with gravity.\n\nUse NEXT to tour the essentials, or SKIP TUTORIAL at any time.'
+        text:'Explore the Solar System across time, follow real mission trajectories, observe the sky from planetary surfaces, and experiment with gravity.\n\nUse NEXT to tour the essentials, or SKIP TUTORIAL at any time.',
+        before(){ setTutorialScene(); }
       },
       {
         target:'#scene',
         interactive:true,
         title:'Navigate and select',
-        text:'Drag with the left mouse button to rotate. Hold the right button and drag to pan. Use the wheel to zoom.\n\nClick a body or trajectory to select it and open its properties. On touch screens, drag to rotate and use two fingers to pan and zoom.'
+        text:'Drag with the left mouse button to rotate. Hold the right button and drag to pan. Use the wheel to zoom.\n\nClick a body or trajectory to select it and open its properties. On touch screens, drag to rotate and use two fingers to pan and zoom.',
+        before(){ setTutorialScene({zoom:1.4}); }
       },
       {
         target:'#dock',
@@ -5999,7 +6072,7 @@ Velocity: not set</div>
         title:'Control time and view',
         text:'Play, pause, jump by 30 days, change simulation speed, zoom, choose Inner/Outer/Deep presets, or return to today. Press T whenever you need to show or hide these controls.',
         before(){
-          setPanelVisible('dock',true);
+          setTutorialScene({panels:['dock'],zoom:1.4});
         }
       },
       {
@@ -6008,7 +6081,7 @@ Velocity: not set</div>
         title:'Find and follow objects',
         text:'Choose planets, moons, spacecraft, and comets here. Selecting an entry focuses it, follows its motion, and opens detailed properties.',
         before(){
-          setPanelVisible('legend',true);
+          setTutorialScene({panels:['legend'],zoom:1});
         }
       },
       {
@@ -6017,8 +6090,9 @@ Velocity: not set</div>
         title:'Replay historic missions',
         text:'The mission timeline jumps to launches and flybys using bundled NASA/JPL trajectories. Choose a spacecraft or enter a UTC date, then open an event to follow it.',
         before(){
-          setPanelVisible('legend',false);
-          setPanelVisible('missionPanel',true);
+          setTutorialScene({
+            panels:['missionPanel'],spacecraft:true,zoom:0.32
+          });
         }
       },
       {
@@ -6027,8 +6101,9 @@ Velocity: not set</div>
         title:'Design an interplanetary mission',
         text:'Choose an Earth launch window and a final target, optionally add planetary gravity assists, then compare patched-conic routes. Inspect encounters, save plans locally, preview the flight, or enter Spacecraft View to ride inside the planned vehicle with live telemetry.',
         before(){
-          setPanelVisible('missionPanel',false);
-          setPanelVisible('plannerPanel',true);
+          setTutorialScene({
+            panels:['plannerPanel'],plannerArtifacts:true,zoom:0.65
+          });
         }
       },
       {
@@ -6037,8 +6112,7 @@ Velocity: not set</div>
         title:'Search the sky',
         text:'Find eclipses, planetary transits, and close planet alignments for a selected surface observer. Results can open directly in Observatory Mode.',
         before(){
-          setPanelVisible('plannerPanel',false);
-          setOccultationPanelVisible(true);
+          setTutorialScene({panels:['occultationPanel'],zoom:1});
         }
       },
       {
@@ -6047,41 +6121,52 @@ Velocity: not set</div>
         title:'Stand on another world',
         text:'Observatory Mode shows the local sky from cities on Earth or modeled planetary surfaces. Choose a location, look around, accelerate time, and optionally show projected orbit paths.',
         before(){
-          setOccultationPanelVisible(false);
-          setObservatoryMode(true,true);
+          setTutorialScene({observatory:true});
         }
       },
       {
-        target:'#addBodyBtn',
+        target:'#bodyPanel',
         interactive:true,
         title:'Experiment with gravity',
         text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Choose a 0–180° inclination, place its orbital node, set velocity, and watch for predicted impacts. Zoom in—or enter Observatory Mode—to see its physical size and appearance.',
         before(){
-          setObservatoryMode(false,true);
+          setTutorialScene({bodyPanel:true,zoom:1});
         }
       },
       {
-        target:'#impactBtn',
+        target:'#impactPanel',
         interactive:true,
         title:'Monitor close encounters',
-        text:'The impact monitor predicts physical contact involving custom bodies. When a collision occurs, you can inspect it, continue, or merge custom bodies while conserving momentum.'
+        text:'The impact monitor predicts physical contact involving custom bodies. When a collision occurs, you can inspect it, continue, or merge custom bodies while conserving momentum.',
+        before(){
+          setTutorialScene({panels:['impactPanel'],zoom:1});
+        }
       },
       {
         target:'#lagrangeBtn',
         interactive:true,
         title:'Explore orbital geometry',
-        text:'Select a planet or moon, then click L₅ to reveal its five Lagrange points. The ↻ button beside it switches to a co-rotating frame.'
+        text:'Select a planet or moon, then click L₅ to reveal its five Lagrange points. The ↻ button beside it switches to a co-rotating frame.',
+        before(){
+          setTutorialScene({zoom:1});
+          const earth=planets.find(body=>body.name==='Earth');
+          setSelectedBody(earth,false);
+          setLagrangeVisibility(true);
+          document.getElementById('card').classList.remove('show');
+        }
       },
       {
         target:'#shareScenarioBtn',
         interactive:true,
         title:'Share what you discover',
-        text:'Click ↗ to copy a link containing the current date, camera, selected object, visible layers, and Observatory setup. Anyone opening it sees the same scenario.'
+        text:'Click ↗ to copy a link containing the current date, camera, selected object, visible layers, and Observatory setup. Anyone opening it sees the same scenario.',
+        before(){ setTutorialScene({zoom:1}); }
       },
       {
         target:'#tutorialBtn',
         title:'You are ready to explore',
-        text:'The tutorial will not open automatically again after you finish or skip it. Click ? in the top toolbar whenever you want to replay it.\n\nKeyboard shortcuts include Space for play/pause and V, W, M, L, T, E, O, G, R, and P for major tools.'
+        text:'The tutorial will not open automatically again after you finish or skip it. Click ? in the top toolbar whenever you want to replay it.\n\nKeyboard shortcuts include Space for play/pause and V, W, M, L, T, E, O, G, R, and P for major tools.',
+        before(){ setTutorialScene(); }
       }
     ]
   });
