@@ -35,6 +35,12 @@
   }
   function clamp(value,min,max){ return Math.max(min,Math.min(max,value)); }
   function speedKmS(value){ return magnitude(value)*AU_KM/DAY_SECONDS; }
+  function muKm3S2(mu){
+    return mu*AU_KM*AU_KM*AU_KM/(DAY_SECONDS*DAY_SECONDS);
+  }
+  function velocityAuDay(speedKmSValue){
+    return speedKmSValue*DAY_SECONDS/AU_KM;
+  }
 
   function stumpffC(z){
     if(z>1e-8) return (1-Math.cos(Math.sqrt(z)))/z;
@@ -210,8 +216,72 @@
       requiredTurnRad:requiredTurn,
       maximumTurnRad:maximumTurn,
       poweredDeltaVKmS:poweredDeltaV,
-      feasible:poweredDeltaV<=0.5
+      feasible:poweredDeltaV<=0.5,
+      incomingExcessVelocity:incomingExcess,
+      outgoingExcessVelocity:outgoingExcess
     };
+  }
+
+  function periapsisBurn(vInfinityKmS,bodyInfo,altitudeKm){
+    const mu=muKm3S2(bodyInfo?.mu||0);
+    const radiusKm=bodyInfo?.radiusKm||0;
+    const periapsisKm=radiusKm+Math.max(0,altitudeKm||0);
+    if(!(mu>0) || !(periapsisKm>0)) return vInfinityKmS;
+    const hyperbolicSpeed=Math.sqrt(
+      vInfinityKmS*vInfinityKmS+2*mu/periapsisKm
+    );
+    const circularSpeed=Math.sqrt(mu/periapsisKm);
+    return Math.max(0,hyperbolicSpeed-circularSpeed);
+  }
+
+  function periapsisSpeed(vInfinityKmS,bodyInfo,altitudeKm){
+    const mu=muKm3S2(bodyInfo?.mu||0);
+    const periapsisKm=(bodyInfo?.radiusKm||0)+Math.max(0,altitudeKm||0);
+    return mu>0 && periapsisKm>0
+      ? Math.sqrt(vInfinityKmS*vInfinityKmS+2*mu/periapsisKm)
+      : vInfinityKmS;
+  }
+
+  function circularSpeed(bodyInfo,altitudeKm){
+    const mu=muKm3S2(bodyInfo?.mu||0);
+    const radiusKm=(bodyInfo?.radiusKm||0)+Math.max(0,altitudeKm||0);
+    return mu>0 && radiusKm>0 ? Math.sqrt(mu/radiusKm) : 0;
+  }
+
+  function encounterGeometry(incoming,outgoing,bodyState,periapsisKm){
+    const incomingDirection=incoming && normalize(incoming);
+    const outgoingDirection=outgoing && normalize(outgoing);
+    let tangent;
+    if(incomingDirection && outgoingDirection){
+      tangent=normalize(add(incomingDirection,outgoingDirection));
+      if(magnitude(tangent)<1e-8) tangent=outgoingDirection;
+    } else {
+      tangent=incomingDirection||outgoingDirection;
+    }
+    if(!tangent || !(periapsisKm>0)){
+      return {offset:vector(),tangent:vector()};
+    }
+    const bodyPosition=vector(bodyState.x,bodyState.y,bodyState.z);
+    const bodyVelocity=vector(bodyState.vx,bodyState.vy,bodyState.vz);
+    let normal=incoming && outgoing
+      ? normalize(cross(incoming,outgoing))
+      : vector();
+    if(magnitude(normal)<1e-8){
+      normal=normalize(cross(bodyPosition,bodyVelocity));
+    }
+    if(magnitude(normal)<1e-8) normal=vector(0,0,1);
+    let radial=normalize(cross(normal,tangent));
+    if(magnitude(radial)<1e-8) radial=vector(0,1,0);
+    return {
+      offset:scale(radial,periapsisKm/AU_KM),
+      tangent
+    };
+  }
+
+  function encounterOffset(incoming,outgoing,bodyState,periapsisKm){
+    return encounterGeometry(
+      incoming,outgoing,bodyState,periapsisKm
+    ).offset;
   }
 
   function routeForBranches(waypoints,longWayMask,options){
@@ -232,20 +302,68 @@
     const departureBodyVelocity=vector(
       waypoints[0].state.vx,waypoints[0].state.vy,waypoints[0].state.vz
     );
-    const departureDeltaV=speedKmS(subtract(
+    const departureExcess=subtract(
       legs[0].solution.departureVelocity,departureBodyVelocity
-    ));
+    );
+    const departureSpeed=speedKmS(departureExcess);
+    const departureInfo=options?.bodyInfo?.(waypoints[0].name)||{};
+    const departureAltitude=Math.max(0,waypoints[0].altitudeKm??300);
+    const departureDeltaV=periapsisBurn(
+      departureSpeed,departureInfo,departureAltitude
+    );
+    const departureGeometry=encounterGeometry(
+      null,departureExcess,waypoints[0].state,
+      (departureInfo.radiusKm||0)+departureAltitude
+    );
+    const departurePeriapsisVelocity=add(
+      departureBodyVelocity,
+      scale(
+        departureGeometry.tangent,
+        velocityAuDay(periapsisSpeed(
+          departureSpeed,departureInfo,departureAltitude
+        ))
+      )
+    );
+    const encounterOffsets=[
+      departureGeometry.offset
+    ];
     const flybys=[];
     for(let index=1;index<waypoints.length-1;index++){
       const waypoint=waypoints[index];
       const info=options?.bodyInfo?.(waypoint.name)||{};
+      const altitudeKm=Math.max(0,waypoint.altitudeKm||0);
+      const assessment=flybyAssessment(
+        legs[index-1].solution.arrivalVelocity,
+        legs[index].solution.departureVelocity,
+        waypoint.state,
+        {...info,altitudeKm}
+      );
+      const geometry=encounterGeometry(
+        assessment.incomingExcessVelocity,
+        assessment.outgoingExcessVelocity,
+        waypoint.state,(info.radiusKm||0)+altitudeKm
+      );
+      encounterOffsets.push(geometry.offset);
       flybys.push({
         name:waypoint.name,time:waypoint.time,
-        ...flybyAssessment(
-          legs[index-1].solution.arrivalVelocity,
-          legs[index].solution.departureVelocity,
-          waypoint.state,
-          {...info,altitudeKm:waypoint.altitudeKm}
+        altitudeKm,periapsisOffset:geometry.offset,...assessment,
+        incomingPeriapsisVelocity:add(
+          vector(waypoint.state.vx,waypoint.state.vy,waypoint.state.vz),
+          scale(
+            geometry.tangent,
+            velocityAuDay(periapsisSpeed(
+              assessment.incomingSpeedKmS,info,altitudeKm
+            ))
+          )
+        ),
+        outgoingPeriapsisVelocity:add(
+          vector(waypoint.state.vx,waypoint.state.vy,waypoint.state.vz),
+          scale(
+            geometry.tangent,
+            velocityAuDay(periapsisSpeed(
+              assessment.outgoingSpeedKmS,info,altitudeKm
+            ))
+          )
         )
       });
     }
@@ -253,24 +371,58 @@
     const targetVelocity=vector(
       target.state.vx,target.state.vy,target.state.vz
     );
-    const arrivalSpeed=speedKmS(subtract(
+    const arrivalExcess=subtract(
       legs[legs.length-1].solution.arrivalVelocity,targetVelocity
-    ));
+    );
+    const arrivalSpeed=speedKmS(arrivalExcess);
+    const targetInfo=options?.bodyInfo?.(target.name)||{};
+    const arrivalAltitude=Math.max(0,target.altitudeKm??1000);
+    const arrivalMode=target.arrivalMode==='orbit'?'orbit':'flyby';
+    const arrivalDeltaV=arrivalMode==='orbit'
+      ? periapsisBurn(arrivalSpeed,targetInfo,arrivalAltitude)
+      : 0;
+    const captureAvailable=arrivalMode!=='orbit' ||
+      targetInfo.mu>0 && targetInfo.radiusKm>0;
+    const arrivalGeometry=encounterGeometry(
+      arrivalExcess,null,target.state,
+      (targetInfo.radiusKm||0)+arrivalAltitude
+    );
+    encounterOffsets.push(arrivalGeometry.offset);
+    const arrivalPeriapsisVelocity=add(
+      targetVelocity,
+      scale(
+        arrivalGeometry.tangent,
+        velocityAuDay(
+          arrivalMode==='orbit'
+            ? circularSpeed(targetInfo,arrivalAltitude)
+            : periapsisSpeed(arrivalSpeed,targetInfo,arrivalAltitude)
+        )
+      )
+    );
     const poweredFlybyDeltaV=flybys.reduce(
       (total,flyby)=>total+flyby.poweredDeltaVKmS,0
     );
-    const totalDeltaV=departureDeltaV+poweredFlybyDeltaV;
+    const totalDeltaV=departureDeltaV+poweredFlybyDeltaV+arrivalDeltaV;
     const score=totalDeltaV+arrivalSpeed*0.04+
-      flybys.filter(flyby=>!flyby.feasible).length*25;
+      flybys.filter(flyby=>!flyby.feasible).length*25+
+      (captureAvailable?0:50);
     return {
-      waypoints:waypoints.map(waypoint=>({
+      waypoints:waypoints.map((waypoint,index)=>({
         name:waypoint.name,time:waypoint.time,role:waypoint.role,
-        altitudeKm:waypoint.altitudeKm
+        altitudeKm:index===0
+          ? departureAltitude
+          : index===waypoints.length-1 ? arrivalAltitude : waypoint.altitudeKm,
+        arrivalMode:waypoint.arrivalMode,
+        encounterOffset:encounterOffsets[index]
       })),
       legs,flybys,departureDeltaVKmS:departureDeltaV,
-      arrivalSpeedKmS:arrivalSpeed,totalDeltaVKmS:totalDeltaV,
+      departureExcessSpeedKmS:departureSpeed,
+      departurePeriapsisVelocity,
+      arrivalSpeedKmS:arrivalSpeed,arrivalDeltaVKmS:arrivalDeltaV,
+      arrivalMode,arrivalPeriapsisVelocity,
+      captureAvailable,totalDeltaVKmS:totalDeltaV,
       durationDays:target.time-waypoints[0].time,
-      feasible:flybys.every(flyby=>flyby.feasible),
+      feasible:flybys.every(flyby=>flyby.feasible) && captureAvailable,
       score,longWayMask
     };
   }
@@ -326,7 +478,7 @@
       const state=stateCache.get(key);
       return state ? {
         name:waypoint.body,role:waypoint.role,time,state,
-        altitudeKm:waypoint.altitudeKm
+        altitudeKm:waypoint.altitudeKm,arrivalMode:waypoint.arrivalMode
       } : null;
     }
     const routes=[];
@@ -368,7 +520,7 @@
       const state=stateAt(waypoint.body,time);
       return state ? {
         name:waypoint.body,role:waypoint.role,time,state,
-        altitudeKm:waypoint.altitudeKm
+        altitudeKm:waypoint.altitudeKm,arrivalMode:waypoint.arrivalMode
       } : null;
     });
     if(waypoints.some(waypoint=>!waypoint)) return null;
@@ -388,13 +540,55 @@
     if(!route || !Array.isArray(route.legs) || typeof stateAt!=='function'){
       throw new TypeError('Route sampling requires a solved route and stateAt.');
     }
-    return route.legs.map(leg=>{
+    return route.legs.map((leg,index)=>{
       if(!stateAt(leg.from,leg.startTime)){
         throw new RangeError('Route body state is unavailable.');
       }
+      const points=sampleTransfer(leg.solution,leg.startTime,count||160);
+      const offsets=[
+        {offset:route.waypoints[index].encounterOffset,start:true},
+        {offset:route.waypoints[index+1].encounterOffset,start:false}
+      ];
+      for(const {offset,start} of offsets){
+        if(!offset || magnitude(offset)<=0) continue;
+        const blendCount=Math.min(14,Math.floor((points.length-1)/3));
+        for(let step=0;step<=blendCount;step++){
+          const pointIndex=start ? step : points.length-1-step;
+          const blend=1-step/blendCount;
+          const weight=blend*blend*(3-2*blend);
+          points[pointIndex].x+=offset.x*weight;
+          points[pointIndex].y+=offset.y*weight;
+          points[pointIndex].z+=offset.z*weight;
+        }
+      }
+      for(let pointIndex=0;pointIndex<points.length;pointIndex++){
+        const previous=points[Math.max(0,pointIndex-1)];
+        const next=points[Math.min(points.length-1,pointIndex+1)];
+        const elapsed=next.t-previous.t;
+        if(!(elapsed>0)) continue;
+        points[pointIndex].vx=(next.x-previous.x)/elapsed;
+        points[pointIndex].vy=(next.y-previous.y)/elapsed;
+        points[pointIndex].vz=(next.z-previous.z)/elapsed;
+      }
+      const startVelocity=index===0
+        ? route.departurePeriapsisVelocity
+        : route.flybys[index-1]?.outgoingPeriapsisVelocity;
+      const endVelocity=index===route.legs.length-1
+        ? route.arrivalPeriapsisVelocity
+        : route.flybys[index]?.incomingPeriapsisVelocity;
+      if(startVelocity){
+        Object.assign(points[0],{
+          vx:startVelocity.x,vy:startVelocity.y,vz:startVelocity.z
+        });
+      }
+      if(endVelocity){
+        Object.assign(points.at(-1),{
+          vx:endVelocity.x,vy:endVelocity.y,vz:endVelocity.z
+        });
+      }
       return {
         from:leg.from,to:leg.to,startTime:leg.startTime,endTime:leg.endTime,
-        points:sampleTransfer(leg.solution,leg.startTime,count||160)
+        points
       };
     });
   }
@@ -444,6 +638,9 @@
           Number.isFinite(waypoint.altitudeKm) && waypoint.altitudeKm>=0);
     });
     if(!waypointsValid) return false;
+    const arrivalMode=plan.waypoints.at(-1).arrivalMode;
+    if(arrivalMode!==undefined &&
+       arrivalMode!=='flyby' && arrivalMode!=='orbit') return false;
     if(plan.selectedTimes!==undefined){
       if(!Array.isArray(plan.selectedTimes) ||
          plan.selectedTimes.length!==plan.waypoints.length ||
@@ -493,6 +690,8 @@
     solveLambert,sampleTransfer,flybyAssessment,evaluateRoute,searchRoutes,
     routeFromPlanSelection,sampleRoute,stateAlongSamples,
     validatePlan,loadPlans,savePlan,deletePlan,
-    vector,add,subtract,scale,dot,cross,magnitude,speedKmS
+    vector,add,subtract,scale,dot,cross,magnitude,speedKmS,
+    periapsisBurn,periapsisSpeed,circularSpeed,
+    encounterGeometry,encounterOffset
   };
 });

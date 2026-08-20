@@ -122,6 +122,9 @@ introduced.
 - [x] 2026-08-19 - Add a patched-conic mission planner with Earth departure
   windows, planetary gravity assists, ranked Lambert routes, encounter nodes,
   trajectory previews, local named saves, and shareable active plans.
+- [x] 2026-08-19 - Add finite-radius encounter geometry, parking-orbit injection
+  burns, modeled gravity-assist turn angles and powered corrections, plus
+  optional destination orbit insertion.
 - [ ] Extend the mission planner with finite-burn and low-thrust maneuver editing,
   multi-revolution Lambert branches, and parent-centric terminal moon targeting.
 - [x] 2026-08-18 - Add versioned shareable URL scenarios that restore simulation

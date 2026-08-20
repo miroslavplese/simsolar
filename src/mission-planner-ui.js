@@ -30,11 +30,12 @@
       waypoints:[
         {
           body:'Earth',role:'departure',
-          earliest:departure,latest:departure+180
+          earliest:departure,latest:departure+180,altitudeKm:300
         },
         {
           body:'Mars',role:'target',
-          earliest:departure+220,latest:departure+720
+          earliest:departure+220,latest:departure+720,
+          altitudeKm:1000,arrivalMode:'flyby'
         }
       ]
     };
@@ -178,6 +179,11 @@
       element('plannerName').value=plan.name;
       populateTargets();
       element('plannerTarget').value=target.body;
+      element('plannerDepartureAltitude').value=String(
+        departure.altitudeKm??300
+      );
+      element('plannerArrivalMode').value=target.arrivalMode||'flyby';
+      element('plannerArrivalAltitude').value=String(target.altitudeKm??1000);
       element('plannerDepartureStart').value=isoFromDays(
         departure.earliest,j2000
       );
@@ -205,6 +211,9 @@
         element('plannerDepartureEnd').value,j2000
       );
       target.body=element('plannerTarget').value;
+      departure.altitudeKm=Number(element('plannerDepartureAltitude').value);
+      target.arrivalMode=element('plannerArrivalMode').value;
+      target.altitudeKm=Number(element('plannerArrivalAltitude').value);
       target.earliest=daysFromIso(
         element('plannerArrivalStart').value,j2000
       );
@@ -231,7 +240,9 @@
     }
 
     function routeLabel(route,index){
-      const status=route.feasible?'FEASIBLE':'POWERED ASSIST';
+      const status=!route.captureAvailable
+        ? 'CAPTURE UNAVAILABLE'
+        : route.feasible ? 'FEASIBLE' : 'POWERED ASSIST';
       return 'ROUTE '+(index+1)+' · '+status+' · '+
         route.totalDeltaVKmS.toFixed(2)+' km/s Δv · '+
         formatDuration(route.durationDays);
@@ -263,7 +274,10 @@
           (route===activeRoute?' selected':'');
         button.innerHTML='<b>'+routeLabel(route,index)+'</b>'+
           '<span>Arrival '+route.arrivalSpeedKmS.toFixed(1)+
-          ' km/s · '+route.flybys.length+' assist'+
+          ' km/s · '+(route.arrivalMode==='orbit'
+            ? 'capture '+route.arrivalDeltaVKmS.toFixed(1)+' km/s'
+            : 'flyby')+' · '+
+          route.flybys.length+' assist'+
           (route.flybys.length===1?'':'s')+'</span>';
         button.addEventListener('click',()=>selectRoute(index));
         list.appendChild(button);
@@ -281,9 +295,11 @@
       departure.type='button';
       departure.className='plannerManeuver';
       departure.dataset.nodeIndex='0';
-      departure.innerHTML='<span class="plannerNodeDot"></span><b>Earth departure burn</b>'+
+      departure.innerHTML='<span class="plannerNodeDot"></span><b>'+
+        activeRoute.waypoints[0].name+' injection burn</b>'+
         '<small>'+isoFromDays(activeRoute.waypoints[0].time,j2000)+
-        ' · '+activeRoute.departureDeltaVKmS.toFixed(2)+' km/s</small>';
+        ' · '+activeRoute.departureDeltaVKmS.toFixed(2)+' km/s from '+
+        Math.round(activeRoute.waypoints[0].altitudeKm)+' km parking orbit</small>';
       departure.addEventListener('click',()=>options.onNodeSelect?.(0));
       list.appendChild(departure);
       activeRoute.flybys.forEach((flyby,index)=>{
@@ -304,10 +320,17 @@
       arrival.type='button';
       arrival.className='plannerManeuver';
       arrival.dataset.nodeIndex=String(activeRoute.waypoints.length-1);
+      const arrivalAction=activeRoute.arrivalMode==='orbit'
+        ? 'orbit insertion burn'
+        : 'flyby encounter';
       arrival.innerHTML='<span class="plannerNodeDot target"></span><b>'+
-        activeRoute.waypoints.at(-1).name+' encounter</b><small>'+
+        activeRoute.waypoints.at(-1).name+' '+arrivalAction+'</b><small>'+
         isoFromDays(activeRoute.waypoints.at(-1).time,j2000)+' · relative speed '+
-        activeRoute.arrivalSpeedKmS.toFixed(2)+' km/s</small>';
+        activeRoute.arrivalSpeedKmS.toFixed(2)+' km/s · '+
+        Math.round(activeRoute.waypoints.at(-1).altitudeKm)+' km altitude'+
+        (activeRoute.arrivalMode==='orbit'
+          ? ' · capture Δv '+activeRoute.arrivalDeltaVKmS.toFixed(2)+' km/s'
+          : '')+'</small>';
       arrival.addEventListener('click',()=>
         options.onNodeSelect?.(activeRoute.waypoints.length-1)
       );
@@ -323,7 +346,11 @@
       element('plannerMetricArrival').textContent=
         route?route.arrivalSpeedKmS.toFixed(2)+' km/s':'—';
       element('plannerMetricStatus').textContent=
-        route?(route.feasible?'FEASIBLE':'POWERED ASSIST'):'—';
+        route
+          ? !route.captureAvailable
+            ? 'CAPTURE UNAVAILABLE'
+            : route.feasible ? 'FEASIBLE' : 'POWERED ASSIST'
+          : '—';
       element('plannerPreviewBtn').disabled=!route;
       element('plannerCockpitBtn').disabled=!route;
       element('plannerSaveBtn').disabled=!route;
@@ -482,7 +509,8 @@
     ));
     for(const id of [
       'plannerName','plannerTarget','plannerDepartureStart',
-      'plannerDepartureEnd','plannerArrivalStart','plannerArrivalEnd'
+      'plannerDepartureEnd','plannerArrivalStart','plannerArrivalEnd',
+      'plannerDepartureAltitude','plannerArrivalMode','plannerArrivalAltitude'
     ]){
       element(id).addEventListener('change',()=>{
         syncPlanFromForm();

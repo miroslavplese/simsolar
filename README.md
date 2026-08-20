@@ -39,9 +39,10 @@ web server is required.
 - First-run guided tutorial with responsive pointers, feature explanations,
   completion persistence, and an always-available restart button
 - Mission timeline with launch/flyby jumps and UTC date navigation
-- Patched-conic mission planner with Earth launch windows, optional planetary
-  gravity assists, ranked Lambert routes, maneuver/encounter details, animated
-  trajectory previews, local saves, and shareable active plans
+- Patched-conic mission planner with Earth parking-orbit injection, optional
+  planetary gravity assists at finite periapsis altitudes, destination flyby or
+  orbit insertion, ranked Lambert routes, maneuver details, animated previews,
+  local saves, and shareable active plans
 - Spacecraft View for riding inside a selected planned mission with a
   velocity-aligned camera, free-look and FOV controls, live flight telemetry,
   selectable planets, normal time acceleration, and shareable cockpit state

@@ -153,6 +153,14 @@ Custom-body targets remain local because current scenario links do not serialize
 the custom body's branched N-body history; sharing such a plan is rejected with
 an explicit status rather than producing a link that cannot be restored.
 
+Departure delta-v is calculated from the selected circular parking orbit into
+the Lambert leg's hyperbolic excess velocity. Gravity assists compare the
+required asymptote turn against the turn available at the selected periapsis
+altitude and include any powered correction. The destination may remain a
+flyby or include a circular-orbit capture burn. Sampled legs use finite
+periapsis offsets at every encounter, so both the rendered route and Spacecraft
+View pass around bodies instead of through their centers.
+
 ## Spacecraft View
 
 Spacecraft View is available only when the mission planner has a solved route.

@@ -612,6 +612,20 @@
           <label class="plannerField">Final target
             <select id="plannerTarget"></select>
           </label>
+          <label class="plannerField">Departure parking altitude
+            <input id="plannerDepartureAltitude" type="number"
+              min="100" step="50" value="300">
+          </label>
+          <label class="plannerField">Destination action
+            <select id="plannerArrivalMode">
+              <option value="flyby">FLYBY / ENCOUNTER</option>
+              <option value="orbit">CIRCULAR ORBIT INSERTION</option>
+            </select>
+          </label>
+          <label class="plannerField">Destination altitude
+            <input id="plannerArrivalAltitude" type="number"
+              min="0" step="100" value="1000">
+          </label>
           <label class="plannerField">Launch window
             <span class="plannerDateRange">
               <input id="plannerDepartureStart" type="date" max="2100-01-01">
@@ -787,8 +801,8 @@ Velocity: not set</div>
 <script src="data/hipparcos-stars.js"></script>
 <script src="src/trajectory-math.js"></script>
 <script src="src/mission-timeline.js"></script>
-<script src="src/mission-planner.js"></script>
-<script src="src/mission-planner-ui.js?v=20260819-2"></script>
+<script src="src/mission-planner.js?v=20260819-4"></script>
+<script src="src/mission-planner-ui.js?v=20260819-3"></script>
 <script src="src/spacecraft-view.js?v=20260819-2"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js?v=20260819-2"></script>
@@ -2725,9 +2739,11 @@ Velocity: not set</div>
       });
       orbitCtx.shadowBlur=0;
       for(const [index,waypoint] of activePlannerRoute.waypoints.entries()){
-        const state=plannerStateAt(waypoint.name,waypoint.time);
-        if(!state) continue;
-        const marker=project(state.x,state.y,state.z);
+        const routePoint=index===0
+          ? plannerRouteSamples[0]?.points[0]
+          : plannerRouteSamples[index-1]?.points.at(-1);
+        if(!routePoint) continue;
+        const marker=project(routePoint.x,routePoint.y,routePoint.z);
         orbitCtx.beginPath();
         orbitCtx.fillStyle=index===0
           ? '#72e6c1'
