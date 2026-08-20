@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict');
 const {
-  dot,magnitude,cameraFrame,project,currentLeg,telemetry,routeMilestones
+  dot,magnitude,cameraFrame,project,directionIndicator,
+  currentLeg,telemetry,routeMilestones
 }=require('../src/spacecraft-view.js');
 
 function close(actual,expected,tolerance,label){
@@ -30,6 +31,13 @@ close(centered.y,250,1e-9,'forward point centered vertically');
 assert.equal(project(
   {x:1,y:-10,z:0},state,camera,1000,500,Math.PI/2
 ),null);
+const centeredDirection=directionIndicator(camera,1000,500,Math.PI/2);
+close(centeredDirection.x,500,1e-9,'flight direction centered when looking forward');
+close(centeredDirection.y,250,1e-9,'flight direction centered vertically');
+assert.equal(centeredDirection.onScreen,true);
+const sideDirection=directionIndicator(turned,1000,500,Math.PI/2);
+assert.equal(sideDirection.onScreen,false);
+close(sideDirection.x,966,1e-9,'off-screen flight direction clamps right');
 
 const sampled=[
   {from:'Earth',to:'Jupiter',startTime:100,endTime:300},

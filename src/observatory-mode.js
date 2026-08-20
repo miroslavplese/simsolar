@@ -209,9 +209,31 @@
     return Math.max(0,Math.min(1,twilight))*atmosphereDensity;
   }
 
+  function collapsedSatelliteLabels(entries,projectEntry,thresholdPixels=46){
+    const byName=new Map(entries.map(entry=>[entry.body.name,entry]));
+    const hidden=new Set();
+    for(const entry of entries){
+      const parentName=entry.body.parentName;
+      if(!parentName) continue;
+      const parent=byName.get(parentName);
+      if(!parent) continue;
+      const satellitePoint=projectEntry(entry);
+      const parentPoint=projectEntry(parent);
+      if(!satellitePoint || !parentPoint) continue;
+      if(Math.hypot(
+        satellitePoint.x-parentPoint.x,
+        satellitePoint.y-parentPoint.y
+      )<thresholdPixels){
+        hidden.add(entry.body);
+      }
+    }
+    return hidden;
+  }
+
   return {
     DEG,SURFACES,surfaceDefinition,locationPresets,surfaceFrame,
     horizontalDirection,horizontalCoordinates,cameraFrame,projectDirection,
-    altitudeForDirection,angularRadius,daylightFactor,normalize,dot
+    altitudeForDirection,angularRadius,daylightFactor,
+    collapsedSatelliteLabels,normalize,dot
   };
 });

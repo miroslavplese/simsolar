@@ -225,13 +225,26 @@
   #spacecraftReticle{
     position:absolute; left:50%; top:50%; width:44px; height:44px;
     transform:translate(-50%,-50%); border:1px solid rgba(114,230,193,.45);
-    border-radius:50%;
+    border-radius:50%; transition:border-color .12s,box-shadow .12s;
   }
   #spacecraftReticle::before, #spacecraftReticle::after{
     content:""; position:absolute; background:rgba(114,230,193,.55);
   }
   #spacecraftReticle::before{ left:-11px; right:-11px; top:21px; height:1px; }
   #spacecraftReticle::after{ top:-11px; bottom:-11px; left:21px; width:1px; }
+  #spacecraftReticle span{
+    position:absolute; left:50%; top:17px; transform:translateX(-50%);
+    padding:1px 3px; border-radius:3px; background:rgba(5,10,20,.82);
+    color:rgba(114,230,193,.82); font-size:6px; letter-spacing:.06em;
+    line-height:8px; white-space:nowrap; text-shadow:0 1px 3px #000;
+  }
+  #spacecraftReticle.offscreen{
+    border-style:dashed; border-color:rgba(242,181,68,.78);
+    box-shadow:0 0 10px rgba(242,181,68,.28);
+  }
+  #spacecraftReticle.offscreen::before,
+  #spacecraftReticle.offscreen::after{ background:rgba(242,181,68,.8); }
+  #spacecraftReticle.offscreen span{ color:#f2b544; }
   #spacecraftHud{
     position:absolute; left:20px; bottom:102px; width:315px; pointer-events:auto;
     padding:11px; background:rgba(8,15,27,.88);
@@ -505,7 +518,8 @@
   </div>
   <div id="scenarioStatus" role="status" aria-live="polite"></div>
   <div id="spacecraftOverlay" aria-live="polite">
-    <div id="spacecraftReticle" aria-hidden="true"></div>
+    <div id="spacecraftReticle" role="img"
+      aria-label="Spacecraft velocity direction"><span>VELOCITY</span></div>
     <div id="spacecraftHud">
       <div class="heading" id="spacecraftHudMission">Spacecraft view</div>
       <div class="spacecraftHudGrid">
@@ -803,11 +817,11 @@ Velocity: not set</div>
 <script src="src/mission-timeline.js"></script>
 <script src="src/mission-planner.js?v=20260819-4"></script>
 <script src="src/mission-planner-ui.js?v=20260819-3"></script>
-<script src="src/spacecraft-view.js?v=20260819-2"></script>
+<script src="src/spacecraft-view.js?v=20260820-1"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js?v=20260819-2"></script>
 <script src="src/star-field.js"></script>
-<script src="src/observatory-mode.js"></script>
+<script src="src/observatory-mode.js?v=20260820-1"></script>
 <script src="src/scenario-state.js"></script>
 <script src="src/guided-tutorial.js"></script>
 <script src="src/panel-drag.js"></script>
@@ -968,6 +982,7 @@ Velocity: not set</div>
     altitudeForDirection:observatoryAltitudeForDirection,
     angularRadius:observatoryAngularRadius,
     daylightFactor:observatoryDaylightFactor,
+    collapsedSatelliteLabels:collapsedObservatorySatelliteLabels,
     normalize:normalizeObservatoryVector,
     dot:observatoryDot
   }=window.ObservatoryMode;
@@ -1004,6 +1019,7 @@ Velocity: not set</div>
     {kind:'planet', category:'Dwarf planet', name:'Pluto', a:39.482, e:0.249, period:90560, radius:1188, color:'#d8c3aa', i:17.16, Omega:110.299, omega:113.834, M0:14.53, n:null,
      notes:'New Horizons made the first and only close flyby of Pluto on 14 July 2015.'},
     {kind:'planet', category:'Moon', name:'Charon', a:39.482, e:0.249, period:90560, displayPeriod:6.387, radius:606, color:'#aaaeb8', i:17.16, Omega:110.299, omega:113.834, M0:14.53, n:null, hideOrbit:true,
+     parentName:'Pluto',
      notes:'New Horizons observed Charon during its 14 July 2015 passage. Marker separation from Pluto is exaggerated for visibility.'},
   ];
   for(const p of planets){ p.n = 360/p.period; p.epochDays = 0; }
@@ -3706,9 +3722,11 @@ Velocity: not set</div>
       ctx.arc(projected.x,projected.y,radius+4,0,Math.PI*2);
       ctx.stroke();
     }
-    ctx.font='9px "SF Mono", Consolas, monospace';
-    ctx.fillStyle=body===selected?'#f2b544':'rgba(232,236,247,0.72)';
-    ctx.fillText(body.name,projected.x+radius+5,projected.y-4);
+    if(options.showLabel!==false){
+      ctx.font='9px "SF Mono", Consolas, monospace';
+      ctx.fillStyle=body===selected?'#f2b544':'rgba(232,236,247,0.72)';
+      ctx.fillText(body.name,projected.x+radius+5,projected.y-4);
+    }
     projectedBodies.push({
       body,x:projected.x,y:projected.y,r:Math.max(7,radius)
     });
@@ -3764,9 +3782,20 @@ Velocity: not set</div>
       if(distance>0) bodyEntries.push({body,position,distance});
     }
     bodyEntries.sort((a,b)=>b.distance-a.distance);
+    const suppressedLabels=collapsedObservatorySatelliteLabels(
+      bodyEntries,
+      entry=>projectObservatoryDirection(
+        normalizeObservatoryVector(
+          observatoryDirection(observerPosition,entry.position)
+        ),
+        camera,W,H,observatoryFov
+      )
+    );
     for(const {body,position,distance} of bodyEntries){
       drawObservatoryBody(
-        body,position,distance,observerPosition,frame,camera,sunProjected
+        body,position,distance,observerPosition,frame,camera,sunProjected,{
+          showLabel:!suppressedLabels.has(body)
+        }
       );
     }
     drawObservatoryGrid(frame,camera);
@@ -3916,6 +3945,13 @@ Velocity: not set</div>
     const camera=SpacecraftView.cameraFrame(
       state,spacecraftLookYaw,spacecraftLookPitch
     );
+    const velocityIndicator=SpacecraftView.directionIndicator(
+      camera,W,H,spacecraftFov
+    );
+    const reticle=document.getElementById('spacecraftReticle');
+    reticle.style.left=velocityIndicator.x+'px';
+    reticle.style.top=velocityIndicator.y+'px';
+    reticle.classList.toggle('offscreen',!velocityIndicator.onScreen);
     drawSpacecraftStars(camera);
     ctx.clearRect(0,0,W,H);
     spacecraftProjectedBodies=[];
@@ -3929,6 +3965,12 @@ Velocity: not set</div>
       if(distance>1e-10) entries.push({body,position,distance});
     }
     entries.sort((a,b)=>b.distance-a.distance);
+    const suppressedLabels=collapsedObservatorySatelliteLabels(
+      entries,
+      entry=>SpacecraftView.project(
+        entry.position,state,camera,W,H,spacecraftFov
+      )
+    );
     const sunPosition=positionForBody(sunReference,simDaysSinceJ2000);
     const sunProjected=SpacecraftView.project(
       sunPosition,state,camera,W,H,spacecraftFov
@@ -3939,6 +3981,7 @@ Velocity: not set</div>
           fov:spacecraftFov,
           horizon:false,
           enhance:true,
+          showLabel:!suppressedLabels.has(body),
           projectedBodies:spacecraftProjectedBodies
         }
       );

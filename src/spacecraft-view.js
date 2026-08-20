@@ -88,6 +88,38 @@
     };
   }
 
+  function directionIndicator(camera,width,height,verticalFov,padding=34){
+    const direction=camera.flightForward;
+    const horizontal=dot(direction,camera.right);
+    const vertical=-dot(direction,camera.up);
+    const depth=dot(direction,camera.forward);
+    const focal=height/(2*Math.tan(verticalFov/2));
+    if(depth>1e-8){
+      const x=width/2+horizontal/depth*focal;
+      const y=height/2+vertical/depth*focal;
+      if(
+        x>=padding && x<=width-padding &&
+        y>=padding && y<=height-padding
+      ){
+        return {x,y,onScreen:true};
+      }
+    }
+    let dx=horizontal;
+    let dy=vertical;
+    if(Math.hypot(dx,dy)<1e-8) dy=1;
+    const halfWidth=Math.max(1,width/2-padding);
+    const halfHeight=Math.max(1,height/2-padding);
+    const scaleToEdge=Math.min(
+      Math.abs(dx)>1e-8 ? halfWidth/Math.abs(dx) : Infinity,
+      Math.abs(dy)>1e-8 ? halfHeight/Math.abs(dy) : Infinity
+    );
+    return {
+      x:width/2+dx*scaleToEdge,
+      y:height/2+dy*scaleToEdge,
+      onScreen:false
+    };
+  }
+
   function currentLeg(sampledRoute,time){
     if(!Array.isArray(sampledRoute)) return null;
     return sampledRoute.find((leg,index)=>
@@ -148,6 +180,6 @@
   return {
     DAY_SECONDS,AU_KM,
     add,subtract,scale,dot,cross,magnitude,normalize,rotate,
-    cameraFrame,project,currentLeg,telemetry,routeMilestones
+    cameraFrame,project,directionIndicator,currentLeg,telemetry,routeMilestones
   };
 });

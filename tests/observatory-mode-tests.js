@@ -2,7 +2,8 @@ const assert=require('node:assert/strict');
 const {
   DEG,SURFACES,locationPresets,surfaceFrame,horizontalCoordinates,
   cameraFrame,projectDirection,
-  altitudeForDirection,angularRadius,daylightFactor,dot
+  altitudeForDirection,angularRadius,daylightFactor,
+  collapsedSatelliteLabels,dot
 }=require('../src/observatory-mode');
 
 function close(actual,expected,tolerance=1e-12){
@@ -58,5 +59,19 @@ assert.equal(angularRadius(0,2),0);
 assert.equal(daylightFactor(-13*DEG,1),0);
 assert.equal(daylightFactor(6*DEG,1),1);
 assert.ok(daylightFactor(-3*DEG,0.5)>0);
+
+const planet={name:'Jupiter'};
+const moon={name:'Europa',parentName:'Jupiter'};
+const distantLabels=collapsedSatelliteLabels([
+  {body:planet,x:100,y:100},
+  {body:moon,x:112,y:106}
+],entry=>entry,30);
+assert.equal(distantLabels.has(moon),true);
+assert.equal(distantLabels.has(planet),false);
+const resolvedLabels=collapsedSatelliteLabels([
+  {body:planet,x:100,y:100},
+  {body:moon,x:160,y:100}
+],entry=>entry,30);
+assert.equal(resolvedLabels.has(moon),false);
 
 console.log('observatory mode tests passed');
