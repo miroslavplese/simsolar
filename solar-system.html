@@ -249,10 +249,33 @@
   }
   .spacecraftHudMetric b{ color:var(--ink); font-weight:500; text-align:right; }
   #spacecraftProgress{
-    height:3px; margin:9px 0 8px; background:#202b3d; border-radius:2px;
-    overflow:hidden;
+    position:relative; height:4px; margin:7px 7px 13px;
+    background:#202b3d; border-radius:3px;
   }
-  #spacecraftProgressBar{ height:100%; width:0; background:#72e6c1; }
+  #spacecraftProgressBar{
+    height:100%; width:0; border-radius:3px;
+    background:linear-gradient(90deg,#67d7ff,#72e6c1,#bd92ff);
+  }
+  .spacecraftProgressHead{
+    display:grid; grid-template-columns:1fr auto 1fr; gap:6px; margin-top:9px;
+    color:#71809e; font-size:7px; letter-spacing:.05em; text-transform:uppercase;
+  }
+  .spacecraftProgressHead span:nth-child(2){ color:#72e6c1; text-align:center; }
+  .spacecraftProgressHead span:last-child{ text-align:right; }
+  #spacecraftProgressMilestones{ position:absolute; inset:0; }
+  .spacecraftProgressMilestone{
+    position:absolute; top:50%; width:12px; height:12px;
+    transform:translate(-50%,-50%); border:2px solid #72e6c1;
+    border-radius:50%; background:#10182a; box-sizing:border-box;
+    transition:background .15s,box-shadow .15s,transform .15s;
+  }
+  .spacecraftProgressMilestone.departure{ border-color:#67d7ff; }
+  .spacecraftProgressMilestone.arrival{ border-color:#bd92ff; }
+  .spacecraftProgressMilestone.reached{ background:currentColor; }
+  .spacecraftProgressMilestone.current{
+    transform:translate(-50%,-50%) scale(1.25);
+    box-shadow:0 0 8px currentColor;
+  }
   .spacecraftHudActions{ display:flex; gap:6px; justify-content:flex-end; }
   .spacecraftHudActions button{
     height:25px; border:1px solid rgba(114,230,193,.28); border-radius:6px;
@@ -488,7 +511,15 @@
         <div class="spacecraftHudMetric"><span>Encounter ETA</span><b id="spacecraftHudEta">—</b></div>
         <div class="spacecraftHudMetric"><span>Mission remaining</span><b id="spacecraftHudRemaining">—</b></div>
       </div>
-      <div id="spacecraftProgress"><div id="spacecraftProgressBar"></div></div>
+      <div class="spacecraftProgressHead">
+        <span id="spacecraftProgressStart">Departure</span>
+        <span>Mission progress</span>
+        <span id="spacecraftProgressEnd">Arrival</span>
+      </div>
+      <div id="spacecraftProgress">
+        <div id="spacecraftProgressBar"></div>
+        <div id="spacecraftProgressMilestones"></div>
+      </div>
       <div class="spacecraftHudActions">
         <button id="spacecraftForwardBtn" type="button">LOOK FORWARD</button>
         <button id="spacecraftViewExit" type="button">EXIT COCKPIT</button>
@@ -753,7 +784,7 @@ Velocity: not set</div>
 <script src="src/mission-timeline.js"></script>
 <script src="src/mission-planner.js"></script>
 <script src="src/mission-planner-ui.js?v=20260819-2"></script>
-<script src="src/spacecraft-view.js"></script>
+<script src="src/spacecraft-view.js?v=20260819-2"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js?v=20260819-2"></script>
 <script src="src/star-field.js"></script>
@@ -3781,6 +3812,37 @@ Velocity: not set</div>
     return distanceAu.toFixed(distanceAu<10?3:2)+' AU';
   }
 
+  function updateSpacecraftMilestones(){
+    const milestones=SpacecraftView.routeMilestones(
+      activePlannerRoute,simDaysSinceJ2000
+    );
+    document.getElementById('spacecraftProgressStart').textContent=
+      milestones[0]?.name||'Departure';
+    document.getElementById('spacecraftProgressEnd').textContent=
+      milestones.at(-1)?.name||'Arrival';
+    const container=document.getElementById('spacecraftProgressMilestones');
+    if(container.children.length!==milestones.length){
+      container.replaceChildren(...milestones.map(()=>document.createElement('i')));
+    }
+    milestones.forEach((milestone,index)=>{
+      const marker=container.children[index];
+      marker.className='spacecraftProgressMilestone '+milestone.role+
+        (milestone.reached?' reached':'')+
+        (
+          milestone.reached && !milestones[index+1]?.reached
+            ? ' current'
+            : ''
+        );
+      marker.style.left=(milestone.progress*100).toFixed(3)+'%';
+      marker.style.color=milestone.role==='departure'
+        ? '#67d7ff'
+        : milestone.role==='arrival' ? '#bd92ff' : '#72e6c1';
+      marker.title=milestone.name+' · '+milestone.role;
+      marker.setAttribute('role','img');
+      marker.setAttribute('aria-label',marker.title);
+    });
+  }
+
   function updateSpacecraftHud(state){
     const leg=SpacecraftView.currentLeg(
       plannerRouteSamples,simDaysSinceJ2000
@@ -3809,6 +3871,7 @@ Velocity: not set</div>
       MissionPlannerUI.formatDuration(telemetry.remainingDays);
     document.getElementById('spacecraftProgressBar').style.width=
       (telemetry.progress*100).toFixed(2)+'%';
+    updateSpacecraftMilestones();
   }
 
   function drawSpacecraftView(){

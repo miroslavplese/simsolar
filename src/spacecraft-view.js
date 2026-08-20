@@ -127,9 +127,27 @@
     };
   }
 
+  function routeMilestones(route,time){
+    const waypoints=route?.waypoints;
+    if(!Array.isArray(waypoints) || waypoints.length<2) return [];
+    const start=waypoints[0].time;
+    const duration=waypoints.at(-1).time-start;
+    if(!Number.isFinite(start) || !Number.isFinite(duration) || duration<=0){
+      return [];
+    }
+    return waypoints.map((waypoint,index)=>({
+      name:waypoint.name,
+      role:index===0
+        ? 'departure'
+        : index===waypoints.length-1 ? 'arrival' : 'flyby',
+      progress:Math.max(0,Math.min(1,(waypoint.time-start)/duration)),
+      reached:time>=waypoint.time
+    }));
+  }
+
   return {
     DAY_SECONDS,AU_KM,
     add,subtract,scale,dot,cross,magnitude,normalize,rotate,
-    cameraFrame,project,currentLeg,telemetry
+    cameraFrame,project,currentLeg,telemetry,routeMilestones
   };
 });

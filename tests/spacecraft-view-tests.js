@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 const {
-  dot,magnitude,cameraFrame,project,currentLeg,telemetry
+  dot,magnitude,cameraFrame,project,currentLeg,telemetry,routeMilestones
 }=require('../src/spacecraft-view.js');
 
 function close(actual,expected,tolerance,label){
@@ -58,5 +58,12 @@ close(data.speedKmS,17.314568368,1e-9,'heliocentric speed');
 close(data.distanceToNextAu,1,1e-12,'next encounter distance');
 assert.equal(data.remainingDays,300);
 close(data.progress,0.25,1e-12,'mission progress');
+
+assert.deepEqual(routeMilestones(route,350),[
+  {name:'Earth',role:'departure',progress:0,reached:true},
+  {name:'Jupiter',role:'flyby',progress:0.5,reached:true},
+  {name:'Mars',role:'arrival',progress:1,reached:false}
+]);
+assert.deepEqual(routeMilestones(null,350),[]);
 
 console.log('Spacecraft view tests passed.');
