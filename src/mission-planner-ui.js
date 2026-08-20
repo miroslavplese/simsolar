@@ -246,7 +246,7 @@
       renderRoutes();
       renderManeuvers();
       renderReview();
-      options.onRouteChange?.(activeRoute,plan);
+      options.onRouteChange?.(activeRoute,plan,{focus:true});
     }
 
     function renderRoutes(){
