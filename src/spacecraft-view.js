@@ -120,6 +120,28 @@
     };
   }
 
+  function lookFromDrag(yaw,pitch,deltaX,deltaY){
+    return {
+      yaw:yaw+deltaX*0.004,
+      pitch:Math.max(
+        -89*Math.PI/180,
+        Math.min(89*Math.PI/180,pitch+deltaY*0.003)
+      )
+    };
+  }
+
+  function timeAtProgress(route,progress){
+    const start=route?.waypoints?.[0]?.time;
+    const end=route?.waypoints?.at(-1)?.time;
+    if(
+      !Number.isFinite(start) || !Number.isFinite(end) ||
+      !Number.isFinite(progress) || !(end>start)
+    ){
+      return null;
+    }
+    return start+(end-start)*Math.max(0,Math.min(1,progress));
+  }
+
   function currentLeg(sampledRoute,time){
     if(!Array.isArray(sampledRoute)) return null;
     return sampledRoute.find((leg,index)=>
@@ -180,6 +202,7 @@
   return {
     DAY_SECONDS,AU_KM,
     add,subtract,scale,dot,cross,magnitude,normalize,rotate,
-    cameraFrame,project,directionIndicator,currentLeg,telemetry,routeMilestones
+    cameraFrame,project,directionIndicator,lookFromDrag,timeAtProgress,
+    currentLeg,telemetry,routeMilestones
   };
 });

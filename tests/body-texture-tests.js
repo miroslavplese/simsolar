@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const {
   MIN_RADIUS_PX,textureDefinition,rotationTurns,shouldUseTexture,poleVector,
-  orientationMatrix,createRenderer
+  viewBasis,orientationMatrix,createRenderer
 }=require('../src/body-textures.js');
 
 assert.equal(textureDefinition('Earth').file,'earth.webp');
@@ -27,6 +27,23 @@ const mercuryOrientation=orientationMatrix('Mercury',0,{
 assert.equal(mercuryOrientation.length,9);
 for(const value of mercuryOrientation) assert.ok(Number.isFinite(value));
 assert.equal(orientationMatrix('Unknown',0,{}),null);
+const offAxisBasis=viewBasis(
+  {x:-0.6,y:-0.8,z:0},
+  {x:1,y:0,z:0},
+  {x:0,y:0,z:1}
+);
+assert.ok(offAxisBasis);
+const basisDot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+assert.ok(Math.abs(basisDot(
+  offAxisBasis.right,offAxisBasis.towardObserver
+))<1e-12);
+assert.ok(Math.abs(basisDot(
+  offAxisBasis.up,offAxisBasis.towardObserver
+))<1e-12);
+assert.ok(Math.abs(basisDot(offAxisBasis.right,offAxisBasis.up))<1e-12);
+assert.ok(Math.abs(Math.hypot(
+  offAxisBasis.right.x,offAxisBasis.right.y,offAxisBasis.right.z
+)-1)<1e-12);
 assert.equal(createRenderer(),null);
 
 console.log('Body texture tests passed.');

@@ -263,11 +263,15 @@
   }
   .spacecraftHudMetric b{ color:var(--ink); font-weight:500; text-align:right; }
   #spacecraftProgress{
-    position:relative; height:4px; margin:7px 7px 13px;
+    position:relative; height:18px; margin:0 7px 6px;
+    border-radius:3px; cursor:pointer; touch-action:none;
+  }
+  #spacecraftProgress::before{
+    content:""; position:absolute; left:0; right:0; top:7px; height:4px;
     background:#202b3d; border-radius:3px;
   }
   #spacecraftProgressBar{
-    height:100%; width:0; border-radius:3px;
+    position:absolute; left:0; top:7px; height:4px; width:0; border-radius:3px;
     background:linear-gradient(90deg,#67d7ff,#72e6c1,#bd92ff);
   }
   .spacecraftProgressHead{
@@ -276,7 +280,9 @@
   }
   .spacecraftProgressHead span:nth-child(2){ color:#72e6c1; text-align:center; }
   .spacecraftProgressHead span:last-child{ text-align:right; }
-  #spacecraftProgressMilestones{ position:absolute; inset:0; }
+  #spacecraftProgressMilestones{
+    position:absolute; left:0; right:0; top:7px; height:4px;
+  }
   .spacecraftProgressMilestone{
     position:absolute; top:50%; width:12px; height:12px;
     transform:translate(-50%,-50%); border:2px solid #72e6c1;
@@ -535,7 +541,9 @@
         <span>Mission progress</span>
         <span id="spacecraftProgressEnd">Arrival</span>
       </div>
-      <div id="spacecraftProgress">
+      <div id="spacecraftProgress" role="slider" tabindex="0"
+        aria-label="Mission timeline" aria-valuemin="0" aria-valuemax="100"
+        aria-valuenow="0">
         <div id="spacecraftProgressBar"></div>
         <div id="spacecraftProgressMilestones"></div>
       </div>
@@ -817,7 +825,7 @@ Velocity: not set</div>
 <script src="src/mission-timeline.js"></script>
 <script src="src/mission-planner.js?v=20260819-4"></script>
 <script src="src/mission-planner-ui.js?v=20260819-3"></script>
-<script src="src/spacecraft-view.js?v=20260820-1"></script>
+<script src="src/spacecraft-view.js?v=20260820-2"></script>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js?v=20260819-2"></script>
 <script src="src/star-field.js"></script>
@@ -826,7 +834,7 @@ Velocity: not set</div>
 <script src="src/guided-tutorial.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js"></script>
-<script src="src/body-textures.js"></script>
+<script src="src/body-textures.js?v=20260820-1"></script>
 <script src="src/body-placement.js"></script>
 <script src="src/body-lighting.js"></script>
 <script src="src/moon-system.js"></script>
@@ -950,6 +958,7 @@ Velocity: not set</div>
   }=window.BodyLighting;
   const {
     createRenderer:createBodyTextureRenderer,
+    viewBasis:bodyTextureViewBasis,
     orientationMatrix:bodyTextureOrientationMatrix
   }=window.BodyTextures;
   const bodyTextureRenderer=createBodyTextureRenderer({
@@ -2901,13 +2910,10 @@ Velocity: not set</div>
   }
 
   function observatoryTextureViewBasis(direction,camera){
-    return {
-      right:camera.right,
-      up:camera.up,
-      towardObserver:{
-        x:-direction.x,y:-direction.y,z:-direction.z
-      }
-    };
+    return bodyTextureViewBasis(
+      {x:-direction.x,y:-direction.y,z:-direction.z},
+      camera.right,camera.up
+    );
   }
 
   function textureViewVector(vector,basis){
@@ -3921,6 +3927,9 @@ Velocity: not set</div>
       MissionPlannerUI.formatDuration(telemetry.remainingDays);
     document.getElementById('spacecraftProgressBar').style.width=
       (telemetry.progress*100).toFixed(2)+'%';
+    document.getElementById('spacecraftProgress').setAttribute(
+      'aria-valuenow',(telemetry.progress*100).toFixed(1)
+    );
     updateSpacecraftMilestones();
   }
 
@@ -5074,10 +5083,13 @@ Velocity: not set</div>
       const dx=e.clientX-dragStartInfo.x;
       const dy=e.clientY-dragStartInfo.y;
       if(Math.hypot(dx,dy)>6) dragMoved=true;
-      spacecraftLookYaw=dragStartInfo.spacecraftLookYaw-dx*0.004;
-      spacecraftLookPitch=Math.max(
-        -89*DEG,Math.min(89*DEG,dragStartInfo.spacecraftLookPitch+dy*0.003)
+      const look=SpacecraftView.lookFromDrag(
+        dragStartInfo.spacecraftLookYaw,
+        dragStartInfo.spacecraftLookPitch,
+        dx,dy
       );
+      spacecraftLookYaw=look.yaw;
+      spacecraftLookPitch=look.pitch;
     } else if(dragMode==='observatory' && activePointers.size===1){
       const dx=e.clientX-dragStartInfo.x;
       const dy=e.clientY-dragStartInfo.y;
@@ -5927,6 +5939,71 @@ Velocity: not set</div>
   document.getElementById('spacecraftForwardBtn').addEventListener('click',()=>{
     spacecraftLookYaw=0;
     spacecraftLookPitch=0;
+  });
+  const spacecraftProgress=document.getElementById('spacecraftProgress');
+  let spacecraftProgressPointer=null;
+  function seekSpacecraftProgress(clientX){
+    const rect=spacecraftProgress.getBoundingClientRect();
+    if(!(rect.width>0)) return;
+    const time=SpacecraftView.timeAtProgress(
+      activePlannerRoute,(clientX-rect.left)/rect.width
+    );
+    if(!Number.isFinite(time)) return;
+    cancelDateNavigation();
+    simDaysSinceJ2000=time;
+    playing=false;
+    playBtn.textContent='▶';
+    updateDateUI();
+  }
+  spacecraftProgress.addEventListener('pointerdown',event=>{
+    if(!spacecraftViewActive || !activePlannerRoute) return;
+    spacecraftProgressPointer=event.pointerId;
+    spacecraftProgress.setPointerCapture(event.pointerId);
+    seekSpacecraftProgress(event.clientX);
+    event.preventDefault();
+  });
+  spacecraftProgress.addEventListener('pointermove',event=>{
+    if(event.pointerId!==spacecraftProgressPointer) return;
+    seekSpacecraftProgress(event.clientX);
+  });
+  function finishSpacecraftProgressSeek(event){
+    if(event.pointerId!==spacecraftProgressPointer) return;
+    spacecraftProgressPointer=null;
+    if(spacecraftProgress.hasPointerCapture(event.pointerId)){
+      spacecraftProgress.releasePointerCapture(event.pointerId);
+    }
+  }
+  spacecraftProgress.addEventListener('pointerup',finishSpacecraftProgressSeek);
+  spacecraftProgress.addEventListener(
+    'pointercancel',finishSpacecraftProgressSeek
+  );
+  spacecraftProgress.addEventListener('keydown',event=>{
+    const current=SpacecraftView.telemetry(
+      activePlannerRoute,plannerRouteSamples,
+      MissionPlanner.stateAlongSamples(
+        plannerRouteSamples,simDaysSinceJ2000
+      ),
+      simDaysSinceJ2000,null
+    )?.progress;
+    if(!Number.isFinite(current)) return;
+    const progress=event.key==='Home'
+      ? 0
+      : event.key==='End'
+        ? 1
+        : event.key==='ArrowLeft' || event.key==='ArrowDown'
+          ? current-0.01
+          : event.key==='ArrowRight' || event.key==='ArrowUp'
+            ? current+0.01
+            : null;
+    if(progress===null) return;
+    const time=SpacecraftView.timeAtProgress(activePlannerRoute,progress);
+    if(Number.isFinite(time)){
+      simDaysSinceJ2000=time;
+      playing=false;
+      playBtn.textContent='▶';
+      updateDateUI();
+    }
+    event.preventDefault();
   });
   document.getElementById('observatoryClose').addEventListener(
     'click',()=>setObservatoryMode(false)

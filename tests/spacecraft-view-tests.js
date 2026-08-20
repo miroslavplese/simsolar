@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const {
   dot,magnitude,cameraFrame,project,directionIndicator,
-  currentLeg,telemetry,routeMilestones
+  lookFromDrag,timeAtProgress,currentLeg,telemetry,routeMilestones
 }=require('../src/spacecraft-view.js');
 
 function close(actual,expected,tolerance,label){
@@ -38,6 +38,9 @@ assert.equal(centeredDirection.onScreen,true);
 const sideDirection=directionIndicator(turned,1000,500,Math.PI/2);
 assert.equal(sideDirection.onScreen,false);
 close(sideDirection.x,966,1e-9,'off-screen flight direction clamps right');
+const draggedLook=lookFromDrag(0,0,100,50);
+close(draggedLook.yaw,0.4,1e-12,'drag right moves the view right');
+close(draggedLook.pitch,0.15,1e-12,'drag down moves the view down');
 
 const sampled=[
   {from:'Earth',to:'Jupiter',startTime:100,endTime:300},
@@ -73,5 +76,11 @@ assert.deepEqual(routeMilestones(route,350),[
   {name:'Mars',role:'arrival',progress:1,reached:false}
 ]);
 assert.deepEqual(routeMilestones(null,350),[]);
+assert.equal(timeAtProgress(route,0),100);
+assert.equal(timeAtProgress(route,0.25),200);
+assert.equal(timeAtProgress(route,1),500);
+assert.equal(timeAtProgress(route,2),500);
+assert.equal(timeAtProgress(route,Number.NaN),null);
+assert.equal(timeAtProgress(null,0.5),null);
 
 console.log('Spacecraft view tests passed.');

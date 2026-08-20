@@ -59,6 +59,43 @@
     return a.x*b.x+a.y*b.y+a.z*b.z;
   }
 
+  function scale(vector,factor){
+    return {
+      x:vector.x*factor,y:vector.y*factor,z:vector.z*factor
+    };
+  }
+
+  function subtract(a,b){
+    return {x:a.x-b.x,y:a.y-b.y,z:a.z-b.z};
+  }
+
+  function cross(a,b){
+    return {
+      x:a.y*b.z-a.z*b.y,
+      y:a.z*b.x-a.x*b.z,
+      z:a.x*b.y-a.y*b.x
+    };
+  }
+
+  function normalize(vector){
+    const length=Math.hypot(vector.x,vector.y,vector.z);
+    return length>1e-12 ? scale(vector,1/length) : null;
+  }
+
+  function viewBasis(towardObserver,cameraRight,cameraUp){
+    const toward=normalize(towardObserver);
+    if(!toward) return null;
+    let right=normalize(subtract(
+      cameraRight,scale(toward,dot(cameraRight,toward))
+    ));
+    if(!right && cameraUp){
+      right=normalize(cross(cameraUp,toward));
+    }
+    if(!right) return null;
+    const up=normalize(cross(toward,right));
+    return up ? {right,up,towardObserver:toward} : null;
+  }
+
   function orientationMatrix(name,tDays,basis){
     const definition=DEFINITIONS[name];
     if(!definition || !basis) return null;
@@ -274,6 +311,6 @@
 
   return {
     TWO_PI,MIN_RADIUS_PX,DEFINITIONS,textureDefinition,rotationTurns,
-    shouldUseTexture,poleVector,orientationMatrix,createRenderer
+    shouldUseTexture,poleVector,viewBasis,orientationMatrix,createRenderer
   };
 });
