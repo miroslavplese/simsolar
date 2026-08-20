@@ -69,7 +69,7 @@
     const panes=[...panel.querySelectorAll('[data-planner-pane]')];
 
     function catalog(){
-      return options.catalog().filter(entry=>entry.name!=='Sun');
+      return options.catalog();
     }
 
     function bodyOption(entry){
@@ -80,16 +80,33 @@
     }
 
     function populateTargets(){
-      const select=element('plannerTarget');
-      const previous=select.value||
-        plan.waypoints[plan.waypoints.length-1].body;
-      select.innerHTML='';
-      for(const entry of catalog().filter(item=>item.target!==false)){
-        select.appendChild(bodyOption(entry));
+      const available=catalog().filter(item=>item.target!==false);
+      for(const [id,waypoint] of [
+        ['plannerDeparture',plan.waypoints[0]],
+        ['plannerTarget',plan.waypoints.at(-1)]
+      ]){
+        const select=element(id);
+        const previous=select.value||waypoint.body;
+        select.innerHTML='';
+        for(const entry of available) select.appendChild(bodyOption(entry));
+        if([...select.options].some(option=>option.value===previous)){
+          select.value=previous;
+        }
       }
-      if([...select.options].some(option=>option.value===previous)){
-        select.value=previous;
-      }
+    }
+
+    function catalogChanged(){
+      populateTargets();
+      const available=new Set(catalog().map(item=>item.name));
+      const valid=plan.waypoints.every(waypoint=>available.has(waypoint.body));
+      clearSolution();
+      showStatus(
+        valid
+          ? 'The active system changed. Search again for updated routes.'
+          : 'The active system changed; this route is no longer available.',
+        !valid
+      );
+      return valid;
     }
 
     function setTab(name){
@@ -178,7 +195,14 @@
       const target=plan.waypoints.at(-1);
       element('plannerName').value=plan.name;
       populateTargets();
-      element('plannerTarget').value=target.body;
+      const departureSelect=element('plannerDeparture');
+      const targetSelect=element('plannerTarget');
+      if([...departureSelect.options].some(option=>option.value===departure.body)){
+        departureSelect.value=departure.body;
+      }
+      if([...targetSelect.options].some(option=>option.value===target.body)){
+        targetSelect.value=target.body;
+      }
       element('plannerDepartureAltitude').value=String(
         departure.altitudeKm??300
       );
@@ -204,6 +228,7 @@
       const departure=plan.waypoints[0];
       const target=plan.waypoints.at(-1);
       plan.name=element('plannerName').value.trim()||'Untitled mission';
+      departure.body=element('plannerDeparture').value;
       departure.earliest=daysFromIso(
         element('plannerDepartureStart').value,j2000
       );
@@ -381,6 +406,9 @@
           : searchPlan.waypoints.length===4 ? 3 : 4;
         routes=planner.searchRoutes(searchPlan,options.stateAt,{
           bodyInfo:options.bodyInfo,
+          mu:typeof options.centralMu==='function'
+            ? options.centralMu()
+            : options.centralMu,
           samplesPerWindow,
           maxCombinations:256,
           maxCandidates:8
@@ -480,7 +508,12 @@
           await options.prepareTo?.(latest);
           if(revision!==searchRevision) return false;
           const route=planner.routeFromPlanSelection(
-            plan,options.stateAt,{bodyInfo:options.bodyInfo}
+            plan,options.stateAt,{
+              bodyInfo:options.bodyInfo,
+              mu:typeof options.centralMu==='function'
+                ? options.centralMu()
+                : options.centralMu
+            }
           );
           if(route){
             routes=[route];
@@ -508,7 +541,7 @@
       'click',()=>setTab(tab.dataset.plannerTab)
     ));
     for(const id of [
-      'plannerName','plannerTarget','plannerDepartureStart',
+      'plannerName','plannerDeparture','plannerTarget','plannerDepartureStart',
       'plannerDepartureEnd','plannerArrivalStart','plannerArrivalEnd',
       'plannerDepartureAltitude','plannerArrivalMode','plannerArrivalAltitude'
     ]){
@@ -537,6 +570,7 @@
 
     return {
       refreshTargets:populateTargets,
+      catalogChanged,
       plan:()=>JSON.parse(JSON.stringify(plan)),
       route:()=>activeRoute,
       restore,

@@ -19,6 +19,9 @@ const quarterPeriod=Math.PI/(2*circularSpeed);
 const quarter=solveLambert(
   {x:1,y:0,z:0},{x:0,y:1,z:0},quarterPeriod
 );
+assert.throws(()=>solveLambert(
+  {x:1,y:0,z:0},{x:0,y:1,z:0},quarterPeriod,{mu:0}
+),/positive time and gravity/);
 close(quarter.departureVelocity.x,0,1e-8,'quarter departure vx');
 close(quarter.departureVelocity.y,circularSpeed,1e-8,'quarter departure vy');
 close(quarter.arrivalVelocity.x,-circularSpeed,1e-8,'quarter arrival vx');
@@ -97,6 +100,13 @@ const plan={
   ]
 };
 assert.equal(validatePlan(plan),true);
+assert.equal(validatePlan({
+  ...plan,
+  waypoints:[
+    {...plan.waypoints[0],body:'Kepler-62 f'},
+    plan.waypoints[1]
+  ]
+}),true);
 assert.equal(validatePlan({...plan,id:''}),false);
 assert.equal(validatePlan({
   ...plan,waypoints:[...plan.waypoints,{body:'Extra',role:'target',earliest:20,latest:21}]

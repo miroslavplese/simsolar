@@ -25,6 +25,21 @@ Node for regression testing.
 This arrangement keeps deployment trivial while allowing the correctness-
 critical calculations to be tested without a browser.
 
+### Editable systems
+
+The built-in Solar System is an immutable preset. The first body insertion or
+deletion samples its current physical state into an editable system with stable
+runtime body IDs. Subsequent edits rebuild the N-body simulator at the current
+date, so removed mass no longer affects future motion. Parent deletion cascades
+to dependent moons, while an empty system remains a valid paused editor state.
+The first new body starts at the barycentric origin with zero velocity.
+
+Luminous bodies are identified by metadata rather than the literal name
+`Sun`. Rendering, tails, occultation availability, and custom-system mission
+planning select their runtime light or gravitational source from the active
+catalog. Scenario format v3 serializes the editable epoch, definitions, and
+initial state while continuing to decode v1 and v2 Solar scenarios.
+
 ## Coordinate and time model
 
 - Distances are represented in astronomical units (AU).
@@ -34,6 +49,10 @@ critical calculations to be tested without a browser.
   calculations.
 - Planet mean motion is derived as `360 / period` in degrees per day.
 - Positions are calculated in heliocentric ecliptic coordinates.
+- Editing or deleting a body detaches the Solar preset at the current date into
+  a new barycentric N-body epoch. The untouched preset continues using its
+  historical heliocentric ephemerides, while custom systems never require a
+  body named `Sun` or a fixed body at the origin.
 - Mutable yaw and tilt angles project 3D coordinates onto the 2D canvas.
 - Planet and moon sizes use visibility markers at system scale, then transition
   smoothly to physical radii in sufficiently close views.

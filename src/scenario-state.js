@@ -5,10 +5,13 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(root){
   'use strict';
 
-  const VERSION=2;
+  const VERSION=3;
   const LEGACY_VERSION=1;
+  const MISSION_VERSION=2;
+  const TIME_LIMIT_DAYS=10000000;
   const PARAM='scenario';
   let missionPlannerApi=null;
+  let systemModelApi=null;
 
   function finite(value,min,max){
     return typeof value==='number' && Number.isFinite(value) &&
@@ -39,8 +42,22 @@
       } catch(error){
         missionPlannerApi=null;
       }
+
     }
     return missionPlannerApi;
+  }
+
+  function getSystemModel(){
+    if(systemModelApi) return systemModelApi;
+    if(root && root.SystemModel) return systemModelApi=root.SystemModel;
+    if(typeof module==='object' && module.exports){
+      try{
+        systemModelApi=require('./system-model.js');
+      } catch(error){
+        systemModelApi=null;
+      }
+    }
+    return systemModelApi;
   }
 
   function validMissionPlan(value){
@@ -56,8 +73,16 @@
   }
 
   function validate(state){
-    if(!state || (state.v!==LEGACY_VERSION && state.v!==VERSION)) return false;
-    if(!finite(state.t,-200000,100000)) return false;
+    if(!state || ![LEGACY_VERSION,MISSION_VERSION,VERSION].includes(state.v)){
+      return false;
+    }
+    const editable=state.v===VERSION && state.system!==null &&
+      state.system!==undefined;
+    if(!finite(
+      state.t,
+      editable ? -TIME_LIMIT_DAYS : -200000,
+      editable ? TIME_LIMIT_DAYS : 36600
+    )) return false;
     if(typeof state.playing!=='boolean') return false;
     if(!finite(state.speed,-2,4.2)) return false;
     if(state.direction!==1 && state.direction!==-1) return false;
@@ -96,8 +121,17 @@
       if(!state.missionPlan ||
         !Array.isArray(state.missionPlan.selectedTimes)) return false;
     }
-    if(state.v===VERSION && !('missionPlan' in state)) return false;
-    return state.v!==VERSION || validMissionPlan(state.missionPlan);
+    if(state.v>=MISSION_VERSION && !('missionPlan' in state)) return false;
+    if(state.v>=MISSION_VERSION && !validMissionPlan(state.missionPlan)) return false;
+    if(state.v===VERSION){
+      if(!('system' in state)) return false;
+      if(state.system!==null){
+        const model=getSystemModel();
+        if(!model || !model.validateEditableSystem(state.system)) return false;
+        if(state.t<state.system.epoch) return false;
+      }
+    }
+    return true;
   }
 
   function base64Encode(text){
@@ -122,7 +156,8 @@
   function encode(state){
     if(!validate(state)) throw new TypeError('Invalid scenario state.');
     const scenario={...state,v:VERSION};
-    scenario.missionPlan=state.v===VERSION ? state.missionPlan : null;
+    scenario.missionPlan=state.v>=MISSION_VERSION ? state.missionPlan : null;
+    scenario.system=state.v===VERSION ? state.system : null;
     return base64Encode(JSON.stringify(scenario))
       .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   }

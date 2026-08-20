@@ -74,7 +74,7 @@
 
   function solveLambert(start,end,timeOfFlightDays,options){
     options=options||{};
-    const mu=options.mu||GM_SUN_AU_DAY;
+    const mu=options.mu===undefined ? GM_SUN_AU_DAY : options.mu;
     if(!(timeOfFlightDays>0) || !(mu>0)){
       throw new RangeError('Lambert transfer requires positive time and gravity.');
     }
@@ -290,7 +290,7 @@
       const start=waypoints[index];
       const end=waypoints[index+1];
       const solution=solveLambert(start.state,end.state,end.time-start.time,{
-        mu:options?.mu||GM_SUN_AU_DAY,
+        mu:options?.mu===undefined ? GM_SUN_AU_DAY : options.mu,
         prograde:options?.prograde!==false,
         longWay:!!(longWayMask&(1<<index))
       });
@@ -623,8 +623,7 @@
     if(!plan || plan.version!==PLAN_VERSION || !validName(plan.id) ||
        !validName(plan.name) || !Array.isArray(plan.waypoints) ||
        plan.waypoints.length<2 || plan.waypoints.length>MAX_WAYPOINTS) return false;
-    if(plan.waypoints[0].body!=='Earth' ||
-       plan.waypoints[0].role!=='departure' ||
+    if(plan.waypoints[0].role!=='departure' ||
        plan.waypoints[plan.waypoints.length-1].role!=='target') return false;
     const waypointsValid=plan.waypoints.every((waypoint,index)=>{
       const expectedRole=index===0

@@ -62,37 +62,61 @@ const plannedState={
   }
 };
 
+const editableSystem={
+  mode:'editable',
+  epoch:9721,
+  bodies:[{
+    id:'custom-a',name:'A',kind:'custom',category:'Star',
+    appearance:'star',color:'#fff',radius:1000,massKg:1e20,mu:1e-14,
+    state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}
+  }]
+};
+
+const editableState={
+  ...plannedState,
+  v:3,
+  system:editableSystem
+};
+
 function encodeLegacyScenario(state){
   return Buffer.from(JSON.stringify(state),'utf8').toString('base64')
     .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 
-assert.equal(ScenarioState.VERSION,2);
+assert.equal(ScenarioState.VERSION,3);
 assert.equal(ScenarioState.validate(legacyState),true);
 assert.equal(ScenarioState.validate(noPlanState),true);
 assert.equal(ScenarioState.validate(plannedState),true);
+assert.equal(ScenarioState.validate(editableState),true);
 
-const encoded=ScenarioState.encode(plannedState);
+const encoded=ScenarioState.encode(editableState);
 assert.match(encoded,/^[A-Za-z0-9_-]+$/);
-assert.deepEqual(ScenarioState.decode(encoded),plannedState);
+assert.deepEqual(ScenarioState.decode(encoded),editableState);
 
-const noPlanEncoded=ScenarioState.encode(noPlanState);
-assert.deepEqual(ScenarioState.decode(noPlanEncoded),noPlanState);
+const noPlanEncoded=ScenarioState.encode({...noPlanState,v:3,system:null});
+assert.deepEqual(
+  ScenarioState.decode(noPlanEncoded),
+  {...noPlanState,v:3,system:null}
+);
 
 const legacyEncoded=encodeLegacyScenario(legacyState);
 assert.deepEqual(ScenarioState.decode(legacyEncoded),legacyState);
 
 const url=ScenarioState.urlWithScenario(
-  'https://example.test/solar-system.html?keep=yes#old',plannedState
+  'https://example.test/solar-system.html?keep=yes#old',editableState
 );
 assert.equal(new URL(url).searchParams.get('keep'),'yes');
 assert.equal(new URL(url).hash,'');
-assert.deepEqual(ScenarioState.scenarioFromUrl(url),plannedState);
+assert.deepEqual(ScenarioState.scenarioFromUrl(url),editableState);
 
 const noPlanUrl=ScenarioState.urlWithScenario(
-  'https://example.test/solar-system.html?keep=yes#old',noPlanState
+  'https://example.test/solar-system.html?keep=yes#old',
+  {...noPlanState,v:3,system:null}
 );
-assert.deepEqual(ScenarioState.scenarioFromUrl(noPlanUrl),noPlanState);
+assert.deepEqual(
+  ScenarioState.scenarioFromUrl(noPlanUrl),
+  {...noPlanState,v:3,system:null}
+);
 
 const legacyScenarioUrl=
   `https://example.test/solar-system.html?keep=yes&scenario=${legacyEncoded}#old`;
@@ -102,6 +126,19 @@ assert.equal(ScenarioState.decode('not-json'),null);
 assert.equal(ScenarioState.decode('x'.repeat(4097)),null);
 assert.equal(ScenarioState.validate({...legacyState,v:2}),false);
 assert.equal(ScenarioState.validate({...noPlanState,v:2}),true);
+assert.equal(ScenarioState.validate({...noPlanState,v:3}),false);
+assert.equal(ScenarioState.validate({
+  ...editableState,
+  system:{...editableSystem,bodies:[
+    ...editableSystem.bodies,{...editableSystem.bodies[0]}
+  ]}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...editableState,t:editableSystem.epoch-1
+}),false);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,v:3,system:null,t:36601
+}),false);
 assert.equal(ScenarioState.validate({
   ...noPlanState,
   missionPlan:{...missionPlan,version:MissionPlanner.PLAN_VERSION+1}

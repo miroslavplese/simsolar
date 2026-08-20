@@ -12,6 +12,7 @@ const {
   createBarycentricState,
   createSimulator,
   heliocentricState,
+  bodyState,
   invariants
 }=require('../src/nbody-simulation.js');
 const {AU_KM,sampledStateAt,propagateState}=require('../src/trajectory-math.js');
@@ -24,6 +25,16 @@ assert.ok(MOON_GM_BY_BODY.Moon>MOON_GM_BY_BODY.Triton);
 assert.ok(MOON_GM_BY_BODY.Phobos<MOON_GM_BY_BODY.Deimos*10);
 assert.ok(Math.abs(massKgToMu(MASS_KG.Sun)-GM_BY_BODY.Sun)/GM_BY_BODY.Sun<1e-4);
 assert.throws(()=>massKgToMu(0),/positive finite/);
+const empty=createBarycentricState(5,[],[]);
+assert.deepEqual(empty,{t:5,massive:[],particles:[]});
+assert.deepEqual(createSimulator(empty,{stepDays:0.25}).stateAt(6),{
+  t:6,massive:[],particles:[]
+});
+const loneParticle=createBarycentricState(0,[],[{
+  id:'probe',name:'Probe',state:{x:1,y:2,z:3,vx:0.1,vy:0,vz:0}
+}]);
+const coasted=createSimulator(loneParticle,{stepDays:0.25}).stateAt(2);
+assert.ok(Math.abs(bodyState(coasted,'probe').x-1.2)<1e-12);
 const circularSpeed=Math.sqrt((GM_BY_BODY.Sun+GM_BY_BODY.Earth)/1);
 const initial=createBarycentricState(0,[
   {name:'Sun',mu:GM_BY_BODY.Sun,state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}},

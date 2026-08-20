@@ -83,6 +83,7 @@
 
   function createBarycentricState(t,massiveDefinitions,particleDefinitions){
     const massive=massiveDefinitions.map(definition=>({
+      id:definition.id,
       name:definition.name,
       mu:definition.mu,
       adaptiveFactor:definition.adaptiveFactor,
@@ -90,6 +91,7 @@
     }));
     const particles=particleDefinitions.map(definition=>{
       const body={
+        id:definition.id,
         name:definition.name,
         stepDays:definition.stepDays,
         adaptiveFactor:definition.adaptiveFactor,
@@ -102,7 +104,7 @@
 
   function recenterBarycentricState(state){
     const totalMu=state.massive.reduce((sum,body)=>sum+body.mu,0);
-    if(!(totalMu>0)) throw new Error('At least one massive body is required.');
+    if(!(totalMu>0)) return state;
     const offset={x:0,y:0,z:0,vx:0,vy:0,vz:0};
     for(const body of state.massive){
       for(const key of Object.keys(offset)){
@@ -410,6 +412,13 @@
     };
   }
 
+  function bodyState(state,idOrName){
+    const body=[...state.massive,...state.particles].find(candidate=>
+      candidate.id===idOrName || candidate.name===idOrName
+    );
+    return body ? kinematicState(body) : null;
+  }
+
   function invariants(state){
     const momentum={x:0,y:0,z:0};
     let kinetic=0;
@@ -432,6 +441,6 @@
   return {
     GM_BY_BODY,MOON_GM_BY_BODY,MASS_KG,massKgToMu,cloneState,
     createBarycentricState,stepState,
-    recenterBarycentricState,createSimulator,heliocentricState,invariants
+    recenterBarycentricState,createSimulator,heliocentricState,bodyState,invariants
   };
 });

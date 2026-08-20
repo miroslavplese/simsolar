@@ -28,6 +28,8 @@ web server is required.
   and local civil-time display
 - Interactive insertion of configurable stars, black holes, planets, and comets
   with 0–180° orbital inclination
+- Editable star systems with per-body and cascading deletion, blank-system
+  creation, barycentric N-body evolution, and Solar preset restoration
 - Physical-scale close rendering and Observatory visibility for custom bodies,
   with appearance-specific stars, black holes, planets, and comets
 - Lazy-loaded 1024px planetary surface textures with axial orientation,
@@ -35,7 +37,8 @@ web server is required.
 - Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
 - Animated simulation clock with adjustable speed and direction
 - Versioned shareable scenario links that restore the date, playback, camera,
-  visible object groups, selection, and Observatory location/view
+  visible object groups, selection, Observatory location/view, and compact
+  custom-system definitions
 - First-run guided tutorial with responsive pointers, feature explanations,
   completion persistence, and an always-available restart button
 - Mission timeline with launch/flyby jumps and UTC date navigation
@@ -82,6 +85,7 @@ web server is required.
 | `src/star-field.js` | Deterministic celestial-sphere generation and camera projection |
 | `src/observatory-mode.js` | Surface frames, horizontal coordinates, sky projection, and daylight calculations |
 | `src/scenario-state.js` | Validated versioned encoding for shareable URL scenarios |
+| `src/system-model.js` | Editable-system identity, deletion, lighting, catalog, and validation helpers |
 | `src/guided-tutorial.js` | First-run persistence and responsive guided walkthrough UI |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
@@ -101,6 +105,7 @@ web server is required.
 | `tests/star-field-tests.js` | Star generation and camera-relative projection tests |
 | `tests/observatory-mode-tests.js` | Surface-frame and horizontal sky-projection tests |
 | `tests/scenario-state-tests.js` | Shareable scenario encoding, URL, and validation tests |
+| `tests/system-model-tests.js` | Editable-system deletion, lighting, catalog, and validation tests |
 | `tests/guided-tutorial-tests.js` | Tutorial completion cookie and fallback persistence tests |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
 | `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
@@ -150,9 +155,17 @@ web server is required.
   parent-system capture leg, and finite burns, low-thrust flight, launch-site
   geometry, navigation uncertainty, and multi-revolution Lambert solutions are
   not modeled.
-- Custom bodies can be local mission targets, but their simulation branches are
-  not portable; plans that reference them can be saved locally but cannot be
-  included in a shareable scenario link.
+- Custom-system links are limited to 4096 encoded characters. Large systems
+  remain usable in the current browser session but must be simplified before
+  they can be shared by URL.
+- Observatory surfaces and location presets remain limited to supported
+  built-in planets and moons.
+- Illumination, comet tails, and occultation tools use the most massive active
+  luminous body. Secondary stars contribute gravity and render as stars but do
+  not yet add separate light sources.
+- Custom-system patched-conic planning treats the active massive system as a
+  central barycentric gravity source; strongly non-central binary-star routes
+  require full N-body mission planning.
 - Interaction and visual regression tests are not yet automated.
 - The interface has limited keyboard and screen-reader support.
 
