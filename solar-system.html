@@ -2882,9 +2882,12 @@ Velocity: not set</div>
           b.kind==='moon' || b===charon ||
           b.kind==='spacecraft' || b.kind==='comet' || isLuminous(b)
         ) continue;
-        const primary=activeSystemBodies().find(candidate=>
+        const configuredPrimary=activeSystemBodies().find(candidate=>
           candidate.id===b.parentId || candidate.name===b.parentName
-        ) || (editableLight!==b ? editableLight : null);
+        );
+        const primary=configuredPrimary || (
+          b.kind!=='custom' && editableLight!==b ? editableLight : null
+        );
         const bodyPosition=bodyState(editableSnapshot,b.id);
         const primaryPosition=primary &&
           bodyState(editableSnapshot,primary.id);
