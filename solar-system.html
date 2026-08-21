@@ -4976,19 +4976,17 @@ Velocity: not set</div>
   function appendLegendHierarchy(container,bodies){
     const bodyIds=new Set(bodies.map(body=>body.id));
     const bodyNames=new Set(bodies.map(body=>body.name));
-    const appended=new Set();
     const appendFamily=body=>{
-      appendLegendRow(container,body,{
-        moon:!!body.parentId||!!body.parentName
-      });
-      appended.add(body.id);
-      for(const child of bodies){
-        if(
-          !appended.has(child.id) &&
-          (child.parentId===body.id || child.parentName===body.name)
-        ){
-          appendLegendRow(container,child,{moon:true});
-          appended.add(child.id);
+      appendLegendRow(container,body);
+      const expanded=
+        selected===body ||
+        selected?.parentId===body.id ||
+        selected?.parentName===body.name;
+      if(expanded){
+        for(const child of bodies){
+          if(child.parentId===body.id || child.parentName===body.name){
+            appendLegendRow(container,child,{moon:true});
+          }
         }
       }
     };
@@ -4996,9 +4994,6 @@ Velocity: not set</div>
       const hasListedParent=
         bodyIds.has(body.parentId) || bodyNames.has(body.parentName);
       if(!hasListedParent) appendFamily(body);
-    }
-    for(const body of bodies){
-      if(!appended.has(body.id)) appendFamily(body);
     }
   }
 
@@ -5048,8 +5043,7 @@ Velocity: not set</div>
     if(activeSpacecraft.length){
       const label=document.createElement('div');
       label.className='grp-label';
-      label.textContent='Spacecraft · '+activeSpacecraft.length+
-        (showSpacecraft?' (click to hide)':' (click to show)');
+      label.textContent='Spacecraft (click to toggle all)';
       label.style.cursor='pointer';
       label.addEventListener('click',()=>{
         showSpacecraft=!showSpacecraft;
@@ -5057,18 +5051,15 @@ Velocity: not set</div>
         buildLegend();
       });
       el.appendChild(label);
-      if(showSpacecraft){
-        for(const body of activeSpacecraft){
-          appendLegendRow(el,body,{diamond:true});
-        }
+      for(const body of activeSpacecraft){
+        appendLegendRow(el,body,{diamond:true,off:!showSpacecraft});
       }
     }
     const activeComets=activeBodiesOf(comets);
     if(activeComets.length){
       const label=document.createElement('div');
       label.className='grp-label';
-      label.textContent='Comets · '+activeComets.length+
-        (showComets?' (click to hide)':' (click to show)');
+      label.textContent='Comets (click to toggle all)';
       label.style.cursor='pointer';
       label.addEventListener('click',()=>{
         showComets=!showComets;
@@ -5076,10 +5067,8 @@ Velocity: not set</div>
         buildLegend();
       });
       el.appendChild(label);
-      if(showComets){
-        for(const body of activeComets){
-          appendLegendRow(el,body);
-        }
+      for(const body of activeComets){
+        appendLegendRow(el,body,{off:!showComets});
       }
     }
     if(!active.length){
