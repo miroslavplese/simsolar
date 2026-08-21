@@ -115,34 +115,34 @@
   .panel-hidden{ display:none!important; }
 
   #legend{
-    position:absolute; top:62px; left:20px; min-width:155px;
+    position:absolute; top:62px; left:20px; min-width:165px;
     background:rgba(17,22,42,0.9); border:1px solid var(--line); border-radius:12px;
-    padding:9px 11px; backdrop-filter:blur(10px);
-    font-family:var(--mono); font-size:9.5px; color:var(--ink-dim);
+    padding:7px 9px; backdrop-filter:blur(10px);
+    font-family:var(--mono); font-size:9px; color:var(--ink-dim);
     max-height:calc(100vh - 150px); overflow-y:auto;
   }
-  #legend .heading{ color:var(--accent); font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
-  #legend .grp-label{ text-transform:uppercase; letter-spacing:.08em; font-size:8.5px; color:#5c6690; margin:7px 0 3px; }
-  #legend .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:7px; vertical-align:middle; }
-  #legend .diamond{ display:inline-block; width:6px; height:6px; margin-right:7px; vertical-align:middle; transform:rotate(45deg); }
-  #legend div.item{ cursor:pointer; padding:2px 4px; border-radius:4px; opacity:1; }
+  #legend .heading{ color:var(--accent); font-size:8.5px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:5px; }
+  #legend .grp-label{ text-transform:uppercase; letter-spacing:.08em; font-size:8px; color:#5c6690; margin:5px 0 2px; }
+  #legend .dot{ display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  #legend .diamond{ display:inline-block; width:5px; height:5px; margin-right:5px; vertical-align:middle; transform:rotate(45deg); }
+  #legend div.item{ cursor:pointer; min-height:15px; padding:0 3px; border-radius:4px; opacity:1; }
   #legend div.item{ display:flex; align-items:center; gap:0; }
   #legend .body-name{ flex:1; min-width:0; }
   #legend .body-delete{
-    width:18px; height:18px; margin-left:8px; border:0; background:transparent;
-    color:#687295; cursor:pointer; font:11px var(--mono); border-radius:4px;
+    width:15px; height:15px; margin-left:5px; padding:0; border:0; background:transparent;
+    color:#687295; cursor:pointer; font:10px var(--mono); border-radius:3px;
   }
   #legend .body-delete:hover, #legend .body-delete:focus-visible{
     color:var(--ink); background:rgba(255,255,255,.08); outline:none;
   }
-  #legend .system-status{ margin:-3px 0 6px; color:#687295; font-size:8px; }
-  #legend .system-actions{ display:flex; gap:5px; margin:6px 0 2px; }
+  #legend .system-status{ margin:-2px 0 4px; color:#687295; font-size:7.5px; }
+  #legend .system-actions{ display:flex; gap:5px; margin:5px 0 1px; }
   #legend .system-actions button{
-    flex:1; height:24px; border:1px solid var(--line); border-radius:6px;
+    flex:1; height:21px; border:1px solid var(--line); border-radius:5px;
     background:#161c34; color:var(--ink-dim); cursor:pointer; font:7.5px var(--mono);
   }
   #legend .system-actions button:hover{ color:var(--accent); border-color:#66552f; }
-  #legend div.item.moon-item{ padding-left:15px; font-size:8.8px; }
+  #legend div.item.moon-item{ padding-left:13px; font-size:8.4px; }
   #legend div.item:not(.off):hover{ background:rgba(255,255,255,0.06); }
   #legend div.item.off{ opacity:0.35; cursor:not-allowed; }
 
@@ -4925,28 +4925,11 @@ Velocity: not set</div>
 
   function deleteSystemBody(body){
     if(!body || !isBodyActive(body)) return;
-    let removed=deletionClosure(activeSystemBodies(),body.id);
-    if(removed.size>1 && !window.confirm(
-      'Delete '+body.name+' and '+(removed.size-1)+
-      ' dependent bod'+(removed.size===2?'y':'ies')+'?'
-    )) return;
     detachSolarSystem();
-    removed=deletionClosure(editableSystem.bodies,body.id);
+    const removed=deletionClosure(editableSystem.bodies,body.id);
     rebuildEditableAtCurrent(
       editableSystem.bodies.filter(candidate=>!removed.has(candidate.id))
     );
-    cleanAfterSystemChange(removed);
-  }
-
-  function deleteAllBodies(){
-    if(!window.confirm(
-      'Delete every body and spacecraft from the active system?'
-    )) return;
-    if(!editableSystem) detachSolarSystem();
-    const removed=new Set(editableSystem.bodies.map(body=>body.id));
-    rebuildEditableAtCurrent([]);
-    playing=false;
-    playBtn.textContent='▶';
     cleanAfterSystemChange(removed);
   }
 
@@ -4990,6 +4973,35 @@ Velocity: not set</div>
     container.appendChild(row);
   }
 
+  function appendLegendHierarchy(container,bodies){
+    const bodyIds=new Set(bodies.map(body=>body.id));
+    const bodyNames=new Set(bodies.map(body=>body.name));
+    const appended=new Set();
+    const appendFamily=body=>{
+      appendLegendRow(container,body,{
+        moon:!!body.parentId||!!body.parentName
+      });
+      appended.add(body.id);
+      for(const child of bodies){
+        if(
+          !appended.has(child.id) &&
+          (child.parentId===body.id || child.parentName===body.name)
+        ){
+          appendLegendRow(container,child,{moon:true});
+          appended.add(child.id);
+        }
+      }
+    };
+    for(const body of bodies){
+      const hasListedParent=
+        bodyIds.has(body.parentId) || bodyNames.has(body.parentName);
+      if(!hasListedParent) appendFamily(body);
+    }
+    for(const body of bodies){
+      if(!appended.has(body.id)) appendFamily(body);
+    }
+  }
+
   function buildLegend(){
     const el = document.getElementById('legend');
     el.innerHTML = '';
@@ -5005,12 +5017,13 @@ Velocity: not set</div>
     heading.className='heading';
     heading.textContent='Bodies & spacecraft';
     el.appendChild(heading);
-    const status=document.createElement('div');
-    status.className='system-status';
-    status.textContent=editableSystem
-      ? 'EDITABLE SYSTEM · '+editableSystem.bodies.length+' BODIES'
-      : 'SOLAR SYSTEM PRESET';
-    el.appendChild(status);
+    if(editableSystem){
+      const status=document.createElement('div');
+      status.className='system-status';
+      status.textContent='EDITABLE SYSTEM · '+editableSystem.bodies.length+
+        ' BODIES';
+      el.appendChild(status);
+    }
     const active=activeSystemBodies();
     const natural=active.filter(body=>
       body.kind!=='spacecraft' && body.kind!=='comet' &&
@@ -5022,24 +5035,21 @@ Velocity: not set</div>
       label.className='grp-label';
       label.textContent='Stars, planets & moons';
       el.appendChild(label);
-      for(const body of natural){
-        appendLegendRow(el,body,{
-          moon:body.kind==='moon'||body===charon
-        });
-      }
+      appendLegendHierarchy(el,natural);
     }
     if(custom.length){
       const label=document.createElement('div');
       label.className='grp-label';
       label.textContent='Custom bodies';
       el.appendChild(label);
-      for(const body of custom) appendLegendRow(el,body);
+      appendLegendHierarchy(el,custom);
     }
     const activeSpacecraft=activeBodiesOf(spacecraft);
     if(activeSpacecraft.length){
       const label=document.createElement('div');
       label.className='grp-label';
-      label.textContent='Spacecraft (click to toggle all)';
+      label.textContent='Spacecraft · '+activeSpacecraft.length+
+        (showSpacecraft?' (click to hide)':' (click to show)');
       label.style.cursor='pointer';
       label.addEventListener('click',()=>{
         showSpacecraft=!showSpacecraft;
@@ -5047,15 +5057,18 @@ Velocity: not set</div>
         buildLegend();
       });
       el.appendChild(label);
-      for(const body of activeSpacecraft){
-        appendLegendRow(el,body,{diamond:true,off:!showSpacecraft});
+      if(showSpacecraft){
+        for(const body of activeSpacecraft){
+          appendLegendRow(el,body,{diamond:true});
+        }
       }
     }
     const activeComets=activeBodiesOf(comets);
     if(activeComets.length){
       const label=document.createElement('div');
       label.className='grp-label';
-      label.textContent='Comets (click to toggle all)';
+      label.textContent='Comets · '+activeComets.length+
+        (showComets?' (click to hide)':' (click to show)');
       label.style.cursor='pointer';
       label.addEventListener('click',()=>{
         showComets=!showComets;
@@ -5063,8 +5076,10 @@ Velocity: not set</div>
         buildLegend();
       });
       el.appendChild(label);
-      for(const body of activeComets){
-        appendLegendRow(el,body,{off:!showComets});
+      if(showComets){
+        for(const body of activeComets){
+          appendLegendRow(el,body);
+        }
       }
     }
     if(!active.length){
@@ -5073,22 +5088,16 @@ Velocity: not set</div>
       empty.textContent='Blank system. Add a body to begin.';
       el.appendChild(empty);
     }
-    const actions=document.createElement('div');
-    actions.className='system-actions';
-    const deleteAll=document.createElement('button');
-    deleteAll.type='button';
-    deleteAll.textContent='DELETE ALL';
-    deleteAll.disabled=!active.length;
-    deleteAll.addEventListener('click',deleteAllBodies);
-    actions.appendChild(deleteAll);
     if(editableSystem){
+      const actions=document.createElement('div');
+      actions.className='system-actions';
       const restore=document.createElement('button');
       restore.type='button';
       restore.textContent='RESTORE SOLAR';
       restore.addEventListener('click',restoreSolarSystem);
       actions.appendChild(restore);
+      el.appendChild(actions);
     }
-    el.appendChild(actions);
     if(showLagrangePoints && activeLagrangeSystem){
       const label=document.createElement('div');
       label.className='grp-label';
