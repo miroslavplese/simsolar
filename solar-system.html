@@ -1255,6 +1255,7 @@ Velocity: not set</div>
   const moonSnapshotCache=new Map();
   const moonExternalCache=new Map();
   const hybridTrailCache=new Map();
+  let editableSnapshotCache={system:null,time:NaN,state:null};
 
   function activeSystemBodies(){
     return editableSystem ? editableSystem.bodies : builtInBodies;
@@ -1281,7 +1282,17 @@ Velocity: not set</div>
 
   function editableSnapshotAt(tDays){
     if(!editableSystem || tDays<editableSystem.epoch) return null;
-    return editableSystem.simulator.stateAt(tDays);
+    if(
+      editableSnapshotCache.system!==editableSystem ||
+      editableSnapshotCache.time!==tDays
+    ){
+      editableSnapshotCache={
+        system:editableSystem,
+        time:tDays,
+        state:editableSystem.simulator.stateAt(tDays)
+      };
+    }
+    return editableSnapshotCache.state;
   }
 
   function stateDefinitionForBody(body,state){
@@ -1289,7 +1300,7 @@ Velocity: not set</div>
       (body.massKg ? massKgToMu(body.massKg) : 0);
     return {
       id:body.id,name:body.name,mu,
-      adaptiveFactor:mu>0?48:undefined,state
+      adaptiveFactor:body.adaptiveFactor,state
     };
   }
 
@@ -2650,7 +2661,9 @@ Velocity: not set</div>
       const bodies=activeSystemBodies().filter(body=>
         body!==sunReference &&
         (body.kind!=='spacecraft'||showSpacecraft) &&
-        (body.kind!=='comet'||showComets)
+        (body.kind!=='comet'||showComets) &&
+        (body.kind!=='moon'||isMoonSystemVisible(body.parentName)) &&
+        (body!==charon||isMoonSystemVisible('Pluto'))
       );
       if(showLagrangePoints && activeLagrangeSystem){
         bodies.push(...activeLagrangeSystem.points);
@@ -2845,16 +2858,63 @@ Velocity: not set</div>
 
   function drawOrbitLayer(){
     orbitCtx.clearRect(0,0,W,H);
-    if(rotatingReferenceFrame || editableSystem){
+    if(rotatingReferenceFrame){
       orbitLayerDirty=false;
       return;
     }
     const drawList = visibleBodies();
+    const editableSnapshot=editableSystem
+      ? editableSnapshotAt(simDaysSinceJ2000)
+      : null;
+    const editableLight=editableSystem
+      ? dominantLightBody(activeSystemBodies())
+      : null;
     for(const b of drawList){
-      if(b.hideOrbit || b.kind==='custom' || b.kind==='lagrange') continue;
+      if(
+        b.hideOrbit || (!editableSnapshot && b.kind==='custom') ||
+        b.kind==='lagrange'
+      ) continue;
       if(b.kind==='planet' && zoom>20) continue;
       const isHi = b===hovered || b===selected;
-      const pts = getProjectedOrbitPoints(b);
+      let pts;
+      if(editableSnapshot){
+        if(
+          b.kind==='moon' || b===charon ||
+          b.kind==='spacecraft' || b.kind==='comet' || isLuminous(b)
+        ) continue;
+        const primary=activeSystemBodies().find(candidate=>
+          candidate.id===b.parentId || candidate.name===b.parentName
+        ) || (editableLight!==b ? editableLight : null);
+        const bodyPosition=bodyState(editableSnapshot,b.id);
+        const primaryPosition=primary &&
+          bodyState(editableSnapshot,primary.id);
+        const primaryMu=primary && (
+          primary.mu||GM_BY_BODY[primary.name]||
+          MOON_GM_BY_BODY[primary.name]||
+          (primary.massKg ? massKgToMu(primary.massKg) : 0)
+        );
+        if(!bodyPosition || !primaryPosition || !(primaryMu>0)) continue;
+        const relative={
+          x:bodyPosition.x-primaryPosition.x,
+          y:bodyPosition.y-primaryPosition.y,
+          z:bodyPosition.z-primaryPosition.z,
+          vx:bodyPosition.vx-primaryPosition.vx,
+          vy:bodyPosition.vy-primaryPosition.vy,
+          vz:bodyPosition.vz-primaryPosition.vz
+        };
+        const bodyMu=b.mu||GM_BY_BODY[b.name]||
+          MOON_GM_BY_BODY[b.name]||
+          (b.massKg ? massKgToMu(b.massKg) : 0);
+        pts=osculatingOrbitPoints(
+          relative,primaryMu+(bodyMu||0),220
+        ).map(point=>project(
+          point.x+primaryPosition.x,
+          point.y+primaryPosition.y,
+          point.z+primaryPosition.z
+        ));
+      } else {
+        pts=getProjectedOrbitPoints(b);
+      }
       if(b.kind==='spacecraft'){
         orbitCtx.strokeStyle = hexToRgba(b.color, isHi?0.4:0.14);
         orbitCtx.lineWidth = isHi ? 1.1 : 0.8;
@@ -5801,6 +5861,7 @@ Velocity: not set</div>
     moonSnapshotCache.clear();
     moonExternalCache.clear();
     hybridTrailCache.clear();
+    editableSnapshotCache={system:null,time:NaN,state:null};
     observatoryPathCache.clear();
     orbitLayerDirty=true;
   }
@@ -5832,6 +5893,7 @@ Velocity: not set</div>
       id,
       kind:'custom',category:'Merged body',appearance:dominant.appearance,
       name,massKg:a.massKg+b.massKg,mu:merged.mu,color:dominant.color,
+      adaptiveFactor:48,
       radius:mergedRadius(a.radius,b.radius),
       notes:'Momentum-conserving remnant of '+a.name+' and '+b.name+'.'
     };
@@ -5915,6 +5977,7 @@ Velocity: not set</div>
       category:preset.label,
       appearance:document.getElementById('bodyType').value,
       name,massKg,mu,color:preset.color,
+      adaptiveFactor:48,
       initialInclination:Number(
         document.getElementById('bodyInclination').value
       ),
@@ -6223,6 +6286,7 @@ Velocity: not set</div>
         massKg:definition.massKg,mu:definition.mu,
         parentId:definition.parentId,parentName:definition.parentName,
         dynamicClass:definition.dynamicClass,
+        adaptiveFactor:definition.kind==='custom' ? 48 : undefined,
         initialInclination:definition.initialInclination,
         notes:definition.notes||'Restored custom system body.'
       };
@@ -6237,7 +6301,7 @@ Velocity: not set</div>
       const body=bodies.find(candidate=>candidate.id===definition.id);
       const entry={
         id:definition.id,name:definition.name,mu:definition.mu,
-        adaptiveFactor:definition.mu>0?48:undefined,
+        adaptiveFactor:body.adaptiveFactor,
         state:definition.state
       };
       if(body.dynamicClass==='particle' ||
