@@ -6685,8 +6685,7 @@ Velocity: not set</div>
       editableSystem?.epoch??-Infinity,
       daysSinceJ2000(Date.now())
     );
-    panX=0; panY=0;
-    setFollowTarget(null);
+    updateFollowCamera();
     invalidateProjection();
   });
 
