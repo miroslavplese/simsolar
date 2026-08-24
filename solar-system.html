@@ -4264,7 +4264,6 @@ Velocity: not set</div>
       const scr = project(pos.x,pos.y,pos.z);
       withPos.push({b,pos,scr});
     }
-    let companionLink=null;
     const plutoEntry=withPos.find(entry=>entry.b.name==='Pluto');
     const charonEntry=withPos.find(entry=>entry.b.name==='Charon');
     if(plutoEntry && charonEntry){
@@ -4277,7 +4276,6 @@ Velocity: not set</div>
       const separation=Math.max(distance,16);
       charonEntry.scr.x=plutoEntry.scr.x+ux*separation;
       charonEntry.scr.y=plutoEntry.scr.y+uy*separation;
-      companionLink={pluto:plutoEntry.scr,charon:charonEntry.scr};
     }
     const posByBody = new Map(withPos.map(w=>[w.b,w]));
     withPos.sort((A,B)=> A.scr.depth - B.scr.depth);
@@ -4412,15 +4410,6 @@ Velocity: not set</div>
     const lightScreen=lightPosition
       ? project(lightPosition.x,lightPosition.y,lightPosition.z)
       : null;
-    if(companionLink){
-      ctx.beginPath();
-      ctx.moveTo(companionLink.pluto.x,companionLink.pluto.y);
-      ctx.lineTo(companionLink.charon.x,companionLink.charon.y);
-      ctx.strokeStyle='rgba(170,174,184,0.38)';
-      ctx.lineWidth=0.8;
-      ctx.stroke();
-    }
-
     // bodies, depth sorted (far first)
     for(const {b,pos,scr} of withPos){
       const px=scr.x, py=scr.y;
