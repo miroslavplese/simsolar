@@ -60,7 +60,10 @@ initial state while continuing to decode v1 and v2 Solar scenarios.
   1024 x 512 WebP map and use a small offscreen WebGL shader to project the
   equirectangular map onto a lit sphere. The same renderer is used in system and
   Observatory views. Axial tilt, approximate rotation periods, gas-giant
-  flattening, and current simulation time affect the rendered disk.
+  flattening, and current simulation time affect the rendered disk. Earth adds
+  a separately rotating translucent cloud map. Parent moons are projected into
+  the shader in physical target-radius units; finite stellar, planet, and moon
+  radii produce moving umbra and penumbra shading for solar and lunar eclipses.
 - Texture loading is asynchronous and per-body. Until a map is ready, when
   WebGL is unavailable, or for bodies without a trustworthy map, the existing
   lit-color sphere remains the deterministic fallback. Thus texture assets add

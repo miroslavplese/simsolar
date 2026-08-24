@@ -33,7 +33,8 @@ web server is required.
 - Physical-scale close rendering and Observatory visibility for custom bodies,
   with appearance-specific stars, black holes, planets, and comets
 - Lazy-loaded 1024px planetary surface textures with axial orientation,
-  rotation, sphere projection, illumination, and flat-color fallback
+  rotation, sphere projection, illumination, Earth clouds, moving moon shadows,
+  and flat-color fallback
 - Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
 - Animated simulation clock with adjustable speed and direction
 - Versioned shareable scenario links that restore the date, playback, camera,

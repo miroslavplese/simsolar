@@ -9,7 +9,11 @@
     Sun:{file:'sun.webp',rotationHours:609.12,tiltDeg:7.25,phaseDeg:0,emissive:true},
     Mercury:{file:'mercury.webp',rotationHours:1407.6,tiltDeg:0.034,phaseDeg:329.6},
     Venus:{file:'venus.webp',rotationHours:5832.5,tiltDeg:177.36,phaseDeg:160.2},
-    Earth:{file:'earth.webp',rotationHours:23.9345,tiltDeg:23.44,phaseDeg:280.5},
+    Earth:{
+      file:'earth.webp',cloudFile:'earth-clouds.webp',
+      rotationHours:23.9345,cloudRotationHours:24.2,
+      tiltDeg:23.44,phaseDeg:280.5
+    },
     Mars:{file:'mars.webp',rotationHours:24.6229,tiltDeg:25.19,phaseDeg:176.6},
     Jupiter:{file:'jupiter.webp',rotationHours:9.925,tiltDeg:3.13,polarScale:0.935},
     Saturn:{file:'saturn.webp',rotationHours:10.656,tiltDeg:26.73,polarScale:0.902},
@@ -41,6 +45,16 @@
     if(!definition || !Number.isFinite(tDays)) return 0;
     const turns=tDays*24/definition.rotationHours;
     return ((turns%1)+1)%1;
+  }
+
+  function cloudOffsetTurns(name,tDays){
+    const definition=DEFINITIONS[name];
+    if(
+      !definition?.cloudRotationHours ||
+      !Number.isFinite(tDays)
+    ) return 0;
+    return tDays*24/definition.cloudRotationHours-
+      tDays*24/definition.rotationHours;
   }
 
   function shouldUseTexture(name,radiusPx){
@@ -144,10 +158,16 @@
       '}'
     );
     const fragment=compileShader(gl,gl.FRAGMENT_SHADER,
-      'precision mediump float;\n'+
+      'precision highp float;\n'+
       'varying vec2 vUv;\n'+
       'uniform sampler2D uTexture;\n'+
-      'uniform vec3 uLight;\n'+
+      'uniform sampler2D uCloudTexture;\n'+
+      'uniform vec3 uLightPosition;\n'+
+      'uniform float uLightRadius;\n'+
+      'uniform vec4 uOccluders[8];\n'+
+      'uniform float uOccluderCount;\n'+
+      'uniform float uCloudMix;\n'+
+      'uniform float uCloudOffset;\n'+
       'uniform mat3 uOrientation;\n'+
       'uniform float uPolarScale;\n'+
       'uniform float uAmbient;\n'+
@@ -167,9 +187,35 @@
       '    0.5+latitude\n'+
       '  );\n'+
       '  vec4 surface=texture2D(uTexture,textureUv);\n'+
+      '  vec3 cloudSample=texture2D(\n'+
+      '    uCloudTexture,vec2(fract(textureUv.x+uCloudOffset),textureUv.y)\n'+
+      '  ).rgb;\n'+
+      '  float cloud=uCloudMix*max(cloudSample.r,max(cloudSample.g,cloudSample.b));\n'+
+      '  surface.rgb=mix(surface.rgb,vec3(0.95,0.98,1.0),cloud*0.82);\n'+
       '  vec3 normal=normalize(vec3(screenPoint.x,screenPoint.y,z));\n'+
-      '  float diffuse=max(0.0,dot(normal,normalize(uLight)));\n'+
+      '  vec3 toLight=uLightPosition-vec3(screenPoint.x,screenPoint.y,z);\n'+
+      '  float lightDistance=length(toLight);\n'+
+      '  vec3 lightDirection=toLight/lightDistance;\n'+
+      '  float diffuse=max(0.0,dot(normal,lightDirection));\n'+
       '  float brightness=uAmbient+(1.0-uAmbient)*diffuse;\n'+
+      '  float shadow=0.0;\n'+
+      '  for(int index=0;index<8;index++){\n'+
+      '    if(float(index)>=uOccluderCount) continue;\n'+
+      '    vec4 occluder=uOccluders[index];\n'+
+      '    vec3 toOccluder=occluder.xyz-vec3(screenPoint.x,screenPoint.y,z);\n'+
+      '    float along=dot(toOccluder,lightDirection);\n'+
+      '    if(along<=0.0 || along>=lightDistance) continue;\n'+
+      '    float separation=length(toOccluder-lightDirection*along);\n'+
+      '    float lightCone=max(0.000001,uLightRadius*along/lightDistance);\n'+
+      '    float outer=occluder.w+lightCone;\n'+
+      '    float inner=abs(occluder.w-lightCone);\n'+
+      '    float overlap=1.0-smoothstep(inner,outer,separation);\n'+
+      '    float maximum=occluder.w>=lightCone\n'+
+      '      ? 1.0\n'+
+      '      : min(1.0,occluder.w*occluder.w/(lightCone*lightCone));\n'+
+      '    shadow=max(shadow,overlap*maximum);\n'+
+      '  }\n'+
+      '  brightness=max(uAmbient,brightness*(1.0-shadow*0.98));\n'+
       '  float alpha=smoothstep(0.0,uEdge,1.0-radialSq);\n'+
       '  gl_FragColor=vec4(surface.rgb*brightness,surface.a*alpha);\n'+
       '}'
@@ -213,7 +259,13 @@
     const positionLocation=gl.getAttribLocation(program,'aPosition');
     const uniforms={
       texture:gl.getUniformLocation(program,'uTexture'),
-      light:gl.getUniformLocation(program,'uLight'),
+      cloudTexture:gl.getUniformLocation(program,'uCloudTexture'),
+      lightPosition:gl.getUniformLocation(program,'uLightPosition'),
+      lightRadius:gl.getUniformLocation(program,'uLightRadius'),
+      occluders:gl.getUniformLocation(program,'uOccluders[0]'),
+      occluderCount:gl.getUniformLocation(program,'uOccluderCount'),
+      cloudMix:gl.getUniformLocation(program,'uCloudMix'),
+      cloudOffset:gl.getUniformLocation(program,'uCloudOffset'),
       orientation:gl.getUniformLocation(program,'uOrientation'),
       polarScale:gl.getUniformLocation(program,'uPolarScale'),
       ambient:gl.getUniformLocation(program,'uAmbient'),
@@ -223,7 +275,11 @@
     const basePath=options.basePath||'assets/textures/';
 
     function startLoad(name,definition){
-      const state={status:'loading',image:null,texture:null};
+      const state={
+        status:'loading',image:null,texture:null,
+        cloudStatus:definition.cloudFile?'loading':'none',
+        cloudImage:null,cloudTexture:null
+      };
       states.set(name,state);
       const image=new Image();
       image.decoding='async';
@@ -237,26 +293,41 @@
         console.warn('Unable to load texture for '+name+'.');
       },{once:true});
       image.src=basePath+definition.file;
+      if(definition.cloudFile){
+        const cloudImage=new Image();
+        cloudImage.decoding='async';
+        cloudImage.addEventListener('load',()=>{
+          state.cloudStatus='ready';
+          state.cloudImage=cloudImage;
+          if(typeof options.onReady==='function') options.onReady(name);
+        },{once:true});
+        cloudImage.addEventListener('error',()=>{
+          state.cloudStatus='failed';
+          console.warn('Unable to load cloud texture for '+name+'.');
+        },{once:true});
+        cloudImage.src=basePath+definition.cloudFile;
+      }
       return state;
     }
 
-    function ensureTexture(state){
-      if(state.texture) return state.texture;
+    function ensureTexture(state,imageKey,textureKey){
+      if(state[textureKey]) return state[textureKey];
       try {
         const texture=gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D,texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
         gl.texImage2D(
-          gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,state.image
+          gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,state[imageKey]
         );
         gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
         gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-        state.texture=texture;
+        state[textureKey]=texture;
         return texture;
       } catch(error){
-        state.status='failed';
+        if(imageKey==='image') state.status='failed';
+        else state.cloudStatus='failed';
         console.warn('Unable to upload planetary texture:',error);
         return null;
       }
@@ -285,13 +356,41 @@
       gl.enableVertexAttribArray(positionLocation);
       gl.vertexAttribPointer(positionLocation,2,gl.FLOAT,false,0,0);
       gl.activeTexture(gl.TEXTURE0);
-      const texture=ensureTexture(state);
+      const texture=ensureTexture(state,'image','texture');
       if(!texture) return false;
       gl.bindTexture(gl.TEXTURE_2D,texture);
+      gl.activeTexture(gl.TEXTURE1);
+      const cloudTexture=state.cloudStatus==='ready'
+        ? ensureTexture(state,'cloudImage','cloudTexture')
+        : null;
+      gl.bindTexture(gl.TEXTURE_2D,cloudTexture||texture);
       const light=renderOptions.light||{x:-0.5,y:-0.4,z:0.7};
+      const lightPosition=renderOptions.lightPosition||{
+        x:light.x*1e6,y:light.y*1e6,z:light.z*1e6
+      };
       const orientation=renderOptions.orientation||[1,0,0,0,1,0,0,0,1];
       gl.uniform1i(uniforms.texture,0);
-      gl.uniform3f(uniforms.light,light.x,light.y,light.z);
+      gl.uniform1i(uniforms.cloudTexture,1);
+      gl.uniform3f(
+        uniforms.lightPosition,
+        lightPosition.x,lightPosition.y,lightPosition.z
+      );
+      gl.uniform1f(uniforms.lightRadius,renderOptions.lightRadius||0);
+      const occluders=(renderOptions.occluders||[]).slice(0,8);
+      const packedOccluders=new Float32Array(32);
+      occluders.forEach((occluder,index)=>{
+        packedOccluders.set(
+          [occluder.x,occluder.y,occluder.z,occluder.radius],
+          index*4
+        );
+      });
+      gl.uniform4fv(uniforms.occluders,packedOccluders);
+      gl.uniform1f(uniforms.occluderCount,occluders.length);
+      gl.uniform1f(uniforms.cloudMix,cloudTexture?1:0);
+      gl.uniform1f(
+        uniforms.cloudOffset,
+        cloudOffsetTurns(name,renderOptions.tDays||0)
+      );
       gl.uniformMatrix3fv(uniforms.orientation,false,orientation);
       gl.uniform1f(uniforms.polarScale,definition.polarScale||1);
       gl.uniform1f(uniforms.ambient,definition.emissive?1:0.08);
@@ -311,6 +410,7 @@
 
   return {
     TWO_PI,MIN_RADIUS_PX,DEFINITIONS,textureDefinition,rotationTurns,
+    cloudOffsetTurns,
     shouldUseTexture,poleVector,viewBasis,orientationMatrix,createRenderer
   };
 });

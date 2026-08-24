@@ -3140,10 +3140,55 @@ Velocity: not set</div>
     };
   }
 
-  function drawBodyTexture(body,x,y,radius,context,light,basis){
+  function physicalRadiusKm(body){
+    if(body===sunReference) return 696340;
+    return body?.radius||0;
+  }
+
+  function bodyShadowGeometry(body,position,lightBody,lightPosition,basis){
+    const targetRadiusAu=physicalRadiusKm(body)/AU_KM;
+    const lightRadiusAu=physicalRadiusKm(lightBody)/AU_KM;
+    if(
+      !(targetRadiusAu>0) || !(lightRadiusAu>0) ||
+      !position || !lightPosition || !basis
+    ) return null;
+    const toViewUnits=otherPosition=>textureViewVector({
+      x:(otherPosition.x-position.x)/targetRadiusAu,
+      y:(otherPosition.y-position.y)/targetRadiusAu,
+      z:(otherPosition.z-position.z)/targetRadiusAu
+    },basis);
+    const occluders=[];
+    for(const candidate of activeSystemBodies()){
+      const candidateIsChild=
+        candidate.parentId===body.id ||
+        candidate.parentName===body.name;
+      const candidateIsParent=
+        body.parentId===candidate.id ||
+        body.parentName===candidate.name;
+      if(
+        candidate===body || candidate===lightBody ||
+        (!candidateIsChild && !candidateIsParent)
+      ) continue;
+      const radius=physicalRadiusKm(candidate)/physicalRadiusKm(body);
+      const candidatePosition=positionForBody(candidate,simDaysSinceJ2000);
+      if(!(radius>0) || !candidatePosition) continue;
+      occluders.push({...toViewUnits(candidatePosition),radius});
+    }
+    return {
+      lightPosition:toViewUnits(lightPosition),
+      lightRadius:lightRadiusAu/targetRadiusAu,
+      occluders
+    };
+  }
+
+  function drawBodyTexture(
+    body,x,y,radius,context,light,basis,shadowGeometry=null
+  ){
     return !!bodyTextureRenderer && bodyTextureRenderer.draw(
       body.name,context,x,y,radius,{
         light,
+        tDays:simDaysSinceJ2000,
+        ...shadowGeometry,
         orientation:bodyTextureOrientationMatrix(
           body.name,simDaysSinceJ2000,basis
         )
@@ -3212,9 +3257,12 @@ Velocity: not set</div>
       z:lightPosition.z-pos.z
     });
     const basis=systemTextureViewBasis();
+    const shadows=bodyShadowGeometry(
+      body,pos,light,lightPosition,basis
+    );
     if(drawBodyTexture(
       body,x,y,radius,ctx,
-      textureViewVector(worldLight,basis),basis
+      textureViewVector(worldLight,basis),basis,shadows
     )) return;
     const sprite=litSphereSprite(body.color,radius,worldLight);
     ctx.drawImage(sprite,x-radius,y-radius,radius*2,radius*2);
@@ -3946,10 +3994,13 @@ Velocity: not set</div>
         y:lightPosition.y-position.y,
         z:lightPosition.z-position.z
       });
+      const shadows=bodyShadowGeometry(
+        body,position,lightBody,lightPosition,textureBasis
+      );
       if(!worldLight || !drawBodyTexture(
         body,projected.x,projected.y,radius,ctx,
         worldLight ? textureViewVector(worldLight,textureBasis) : {x:0,y:0,z:1},
-        textureBasis
+        textureBasis,shadows
       )){
         ctx.fillStyle=color;
         ctx.beginPath();

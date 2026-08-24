@@ -15,8 +15,11 @@ observations. Unmapped regions may contain reconstructed terrain and colors are
 slightly enhanced. Gas-giant maps are representative snapshots because their
 atmospheres evolve.
 
-Files: `sun.webp`, `mercury.webp`, `venus.webp`, `earth.webp`, `mars.webp`,
-`jupiter.webp`, `saturn.webp`, `uranus.webp`, `neptune.webp`, and `moon.webp`.
+Files: `sun.webp`, `mercury.webp`, `venus.webp`, `earth.webp`,
+`earth-clouds.webp`, `mars.webp`, `jupiter.webp`, `saturn.webp`,
+`uranus.webp`, `neptune.webp`, and `moon.webp`. The Earth cloud layer is
+derived from the separately distributed Solar System Scope 2K cloud map and
+rotates independently above the surface.
 
 ## NASA/JPL/USGS maps
 
