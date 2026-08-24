@@ -35,7 +35,39 @@
     return base+(1-base)*incidence;
   }
 
+  function shadowConeMayIntersectTarget(
+    lightPosition,lightRadius,occluderPosition,occluderRadius,targetRadius
+  ){
+    targetRadius=targetRadius===undefined?1:targetRadius;
+    const lightDistance=Math.hypot(
+      lightPosition.x,lightPosition.y,lightPosition.z
+    );
+    if(
+      !(lightDistance>0) || !(lightRadius>0) ||
+      !(occluderRadius>0) || !(targetRadius>0)
+    ) return false;
+    const lightDirection={
+      x:lightPosition.x/lightDistance,
+      y:lightPosition.y/lightDistance,
+      z:lightPosition.z/lightDistance
+    };
+    const along=
+      occluderPosition.x*lightDirection.x+
+      occluderPosition.y*lightDirection.y+
+      occluderPosition.z*lightDirection.z;
+    if(along<=targetRadius || along>=lightDistance) return false;
+    const perpendicular=Math.hypot(
+      occluderPosition.x-lightDirection.x*along,
+      occluderPosition.y-lightDirection.y*along,
+      occluderPosition.z-lightDirection.z*along
+    );
+    const stellarConeRadius=lightRadius*along/lightDistance;
+    return perpendicular<=
+      targetRadius+occluderRadius+stellarConeRadius;
+  }
+
   return {
-    normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor
+    normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor,
+    shadowConeMayIntersectTarget
   };
 });

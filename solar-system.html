@@ -971,7 +971,8 @@ Velocity: not set</div>
     orbitalInclination:bodyOrbitalInclination
   }=window.BodyPlacement;
   const {
-    normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor
+    normalizeVector,sphereBrightness,pointInSphereShadow,ringLightFactor,
+    shadowConeMayIntersectTarget
   }=window.BodyLighting;
   const {
     createRenderer:createBodyTextureRenderer,
@@ -3157,6 +3158,8 @@ Velocity: not set</div>
       y:(otherPosition.y-position.y)/targetRadiusAu,
       z:(otherPosition.z-position.z)/targetRadiusAu
     },basis);
+    const viewLightPosition=toViewUnits(lightPosition);
+    const lightRadius=lightRadiusAu/targetRadiusAu;
     const occluders=[];
     for(const candidate of activeSystemBodies()){
       const candidateIsChild=
@@ -3172,11 +3175,15 @@ Velocity: not set</div>
       const radius=physicalRadiusKm(candidate)/physicalRadiusKm(body);
       const candidatePosition=positionForBody(candidate,simDaysSinceJ2000);
       if(!(radius>0) || !candidatePosition) continue;
-      occluders.push({...toViewUnits(candidatePosition),radius});
+      const viewPosition=toViewUnits(candidatePosition);
+      if(!shadowConeMayIntersectTarget(
+        viewLightPosition,lightRadius,viewPosition,radius
+      )) continue;
+      occluders.push({...viewPosition,radius});
     }
     return {
-      lightPosition:toViewUnits(lightPosition),
-      lightRadius:lightRadiusAu/targetRadiusAu,
+      lightPosition:viewLightPosition,
+      lightRadius,
       occluders
     };
   }
