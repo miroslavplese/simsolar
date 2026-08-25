@@ -174,7 +174,7 @@
       'uniform float uEdge;\n'+
       'const float PI=3.141592653589793;\n'+
       'void main(){\n'+
-      '  vec2 screenPoint=vec2(vUv.x*2.0-1.0,1.0-vUv.y*2.0);\n'+
+      '  vec2 screenPoint=vec2(vUv.x*2.0-1.0,vUv.y*2.0-1.0);\n'+
       '  vec2 point=vec2(screenPoint.x,screenPoint.y/uPolarScale);\n'+
       '  float radialSq=dot(point,point);\n'+
       '  if(radialSq>=1.0) discard;\n'+
