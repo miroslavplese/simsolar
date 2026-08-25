@@ -5196,7 +5196,17 @@ Velocity: not set</div>
     toggleCard();
   }
   function toggleBodySelection(body){
-    setSelectedBody(selected===body ? null : body);
+    if(selected===body){
+      setSelectedBody(null);
+      return;
+    }
+    setSelectedBody(body);
+    if(spacecraftViewActive || observatoryActive) return;
+    setFollowTarget(
+      body.kind==='lagrange' ? body.system.secondary : body
+    );
+    updateFollowCamera();
+    invalidateProjection();
   }
   function toggleLegendBodySelection(body){
     if(selected===body){
