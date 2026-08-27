@@ -6244,51 +6244,16 @@ Velocity: not set</div>
     );
   }
 
-  function defaultObservatoryTelescopeTarget(targets){
-    if(targets.includes(selected)) return selected;
-    const surface=observatorySurfaceDefinition(observatoryObserver?.name);
-    const center=observatoryObserver &&
-      positionForBody(observatoryObserver,simDaysSinceJ2000);
-    if(!surface || !center) return targets[0]||null;
-    const frame=observatorySurfaceFrame(
-      surface,simDaysSinceJ2000,observatoryLatitude,observatoryLongitude
-    );
-    const observerPosition={
-      x:center.x+frame.up.x*observatoryObserver.radius/AU_KM,
-      y:center.y+frame.up.y*observatoryObserver.radius/AU_KM,
-      z:center.z+frame.up.z*observatoryObserver.radius/AU_KM
-    };
-    let best=null;
-    let bestAltitude=-Infinity;
-    let fallback=null;
-    let fallbackAltitude=-Infinity;
-    for(const body of targets){
-      const position=positionForBody(body,simDaysSinceJ2000);
-      if(!position) continue;
-      const altitude=observatoryAltitudeForDirection(
-        observatoryDirection(observerPosition,position),frame
-      );
-      if(altitude>fallbackAltitude){
-        fallback=body;
-        fallbackAltitude=altitude;
-      }
-      if(isLuminous(body)) continue;
-      if(altitude>bestAltitude){
-        best=body;
-        bestAltitude=altitude;
-      }
-    }
-    return bestAltitude>=0
-      ? best
-      : fallback||best||targets[0]||null;
-  }
-
   function refreshObservatoryTelescopeTargets(){
     const select=document.getElementById('observatoryTelescopeTarget');
     if(!select) return;
     const targets=observatoryTelescopeTargets();
     const previous=observatoryTelescopeTarget;
     select.innerHTML='';
+    const manual=document.createElement('option');
+    manual.value='';
+    manual.textContent='NO TRACKED TARGET';
+    select.appendChild(manual);
     for(const body of targets){
       const option=document.createElement('option');
       option.value=body.name;
@@ -6299,9 +6264,9 @@ Velocity: not set</div>
       select.value=previous.name;
       return;
     }
-    const preferred=defaultObservatoryTelescopeTarget(targets);
-    observatoryTelescopeTarget=preferred;
-    if(preferred) select.value=preferred.name;
+    observatoryTelescopeTarget=null;
+    observatoryTelescopeTracking=false;
+    select.value='';
   }
 
   function updateObservatoryExposure(){
@@ -6337,6 +6302,8 @@ Velocity: not set</div>
       Math.round(telescopeMagnification(observatoryFov))+'×';
     document.getElementById('observatoryTelescopeTracking').checked=
       observatoryTelescopeTracking;
+    document.getElementById('observatoryTelescopeTracking').disabled=
+      !observatoryTelescopeTarget;
     document.getElementById('observatoryTelescopeReticle').checked=
       observatoryTelescopeReticle;
     document.getElementById('telescopeTargetReadout').textContent=
@@ -6364,20 +6331,18 @@ Velocity: not set</div>
   function setObservatoryTelescopeMode(enabled,preserveFov=false){
     observatoryTelescopeActive=enabled;
     if(enabled){
-      refreshObservatoryTelescopeTargets();
       if(!preserveFov){
         observatoryWideFov=observatoryFov;
         observatoryFov=2*DEG;
-      }
-      if(!observatoryTelescopeTarget){
+        observatoryTelescopeTarget=null;
+        observatoryTelescopeTracking=false;
+        refreshObservatoryTelescopeTargets();
+      } else {
         refreshObservatoryTelescopeTargets();
       }
       observatoryTelescopeTracking=preserveFov
         ? observatoryTelescopeTracking && !!observatoryTelescopeTarget
         : !!observatoryTelescopeTarget;
-      if(observatoryTelescopeTarget){
-        setSelectedBody(observatoryTelescopeTarget,false);
-      }
     } else if(!preserveFov){
       observatoryFov=observatoryWideFov;
     }
@@ -6556,6 +6521,12 @@ Velocity: not set</div>
     );
     document.getElementById('observatoryTelescopeTarget').addEventListener(
       'change',event=>{
+        if(!event.target.value){
+          observatoryTelescopeTarget=null;
+          setObservatoryTelescopeTracking(false);
+          syncObservatoryTelescopeControls();
+          return;
+        }
         const body=observatoryTelescopeTargets().find(
           candidate=>candidate.name===event.target.value
         );

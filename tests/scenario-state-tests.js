@@ -195,6 +195,17 @@ assert.equal(ScenarioState.validate({
   ...noPlanState,
   observatory:{
     ...noPlanState.observatory,
+    fov:2*Math.PI/180,
+    telescope:{
+      target:null,tracking:false,reticle:true,exposure:1,
+      wideFov:70*Math.PI/180
+    }
+  }
+}),true);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,
+  observatory:{
+    ...noPlanState.observatory,
     telescope:{
       target:'Moon',tracking:true,exposure:4,wideFov:70*Math.PI/180
     }
