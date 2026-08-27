@@ -4,7 +4,8 @@ const {
   PLANETARY_RINGS,
   relativePoint,
   outerRadiusKm,
-  normalVector
+  normalVector,
+  viewDepth
 }=require('../src/ring-system.js');
 
 assert.deepEqual(Object.keys(PLANETARY_RINGS),[
@@ -25,5 +26,8 @@ for(const ring of Object.values(PLANETARY_RINGS)){
   const normal=normalVector(ring);
   assert.ok(Math.abs(Math.hypot(normal.x,normal.y,normal.z)-1)<1e-15);
 }
+
+assert.equal(viewDepth({x:-2,y:0,z:0},{x:1,y:0,z:0}),2);
+assert.equal(viewDepth({x:2,y:0,z:0},{x:1,y:0,z:0}),-2);
 
 console.log('Ring system tests passed.');

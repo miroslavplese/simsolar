@@ -70,7 +70,15 @@
     };
   }
 
+  function viewDepth(point,viewDirection){
+    return -(
+      point.x*viewDirection.x+
+      point.y*viewDirection.y+
+      point.z*viewDirection.z
+    );
+  }
+
   return {
-    AU_KM,PLANETARY_RINGS,relativePoint,outerRadiusKm,normalVector
+    AU_KM,PLANETARY_RINGS,relativePoint,outerRadiusKm,normalVector,viewDepth
   };
 });

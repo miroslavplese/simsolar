@@ -1086,7 +1086,8 @@ Velocity: not set</div>
   }=window.MoonSystem;
   const {
     PLANETARY_RINGS,relativePoint:ringRelativePoint,
-    outerRadiusKm:ringOuterRadiusKm,normalVector:ringNormalVector
+    outerRadiusKm:ringOuterRadiusKm,normalVector:ringNormalVector,
+    viewDepth:ringViewDepth
   }=window.RingSystem;
   const {
     lagrangePoints:calculateLagrangePoints,rotatingFrameYaw
@@ -3611,6 +3612,68 @@ Velocity: not set</div>
     }
   }
 
+  function observatoryPlanetRingGeometry(
+    body,position,observerPosition,camera,fov,viewDirection
+  ){
+    const ring=PLANETARY_RINGS[body.name];
+    if(!ring) return null;
+    const lightBody=dominantLightBody(activeSystemBodies());
+    const lightPosition=lightBody &&
+      positionForBody(lightBody,simDaysSinceJ2000);
+    const lightDirection=lightPosition && normalizeVector({
+      x:lightPosition.x-position.x,
+      y:lightPosition.y-position.y,
+      z:lightPosition.z-position.z
+    });
+    const lightFactor=lightDirection
+      ? ringLightFactor(ringNormalVector(ring),lightDirection)
+      : 1;
+    const planetRadiusAu=body.radius/AU_KM;
+    const segments=96;
+    const projectRelative=relative=>{
+      const projected=projectObservatoryDirection(
+        observatoryDirection(observerPosition,{
+          x:position.x+relative.x,
+          y:position.y+relative.y,
+          z:position.z+relative.z
+        }),
+        camera,W,H,fov
+      );
+      if(!projected) return null;
+      projected.depth=ringViewDepth(relative,viewDirection);
+      return projected;
+    };
+    const bands=[];
+    for(const band of ring.bands){
+      const outer=[],inner=[],shadowed=[];
+      for(let i=0;i<=segments;i++){
+        const angle=Math.PI*2*i/segments;
+        const outerRelative=ringRelativePoint(ring,band.outerKm,angle);
+        const innerRelative=ringRelativePoint(ring,band.innerKm,angle);
+        const outerProjected=projectRelative(outerRelative);
+        const innerProjected=projectRelative(innerRelative);
+        if(!outerProjected || !innerProjected) return null;
+        outer.push(outerProjected);
+        inner.push(innerProjected);
+        if(i<segments){
+          const centerRelative=ringRelativePoint(
+            ring,(band.innerKm+band.outerKm)/2,
+            Math.PI*2*(i+0.5)/segments
+          );
+          shadowed.push(
+            lightDirection
+              ? pointInSphereShadow(
+                  centerRelative,lightDirection,planetRadiusAu
+                )
+              : false
+          );
+        }
+      }
+      bands.push({band,outer,inner,shadowed});
+    }
+    return {scaleBlend:1,centerDepth:0,lightFactor,bands};
+  }
+
   function drawLagrangeGeometry(){
     if(!showLagrangePoints || !activeLagrangeSystem) return;
     const primary=lagrangeBodyState(
@@ -4033,12 +4096,23 @@ Velocity: not set</div>
     const radius=observatoryBodyMarkerRadius(
       body,physicalRadius,options.enhance
     );
+    const ring=PLANETARY_RINGS[body.name];
+    const ringRadius=ring && body.radius
+      ? physicalRadius*ringOuterRadiusKm(ring)/body.radius
+      : 0;
+    const visibleRadius=Math.max(radius,ringRadius);
     if(
-      projected.x+radius<0 || projected.x-radius>W ||
-      projected.y+radius<0 || projected.y-radius>H
+      projected.x+visibleRadius<0 || projected.x-visibleRadius>W ||
+      projected.y+visibleRadius<0 || projected.y-visibleRadius>H
     ) return;
     const color=body.color||'#e8ecf7';
     const textureBasis=observatoryTextureViewBasis(direction,camera);
+    const ringGeometry=ringRadius>=0.5
+      ? observatoryPlanetRingGeometry(
+          body,position,observerPosition,camera,fov,direction
+        )
+      : null;
+    drawPlanetRingSide(ringGeometry,false);
     if(body.kind==='custom'){
       if(body.appearance==='star'){
         drawCustomStar(
@@ -4121,6 +4195,7 @@ Velocity: not set</div>
         ctx.fill();
       }
     }
+    drawPlanetRingSide(ringGeometry,true);
     if(body===selected && options.showSelection!==false){
       ctx.strokeStyle='#f2b544';
       ctx.lineWidth=1.4;
