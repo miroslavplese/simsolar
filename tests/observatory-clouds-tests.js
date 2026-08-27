@@ -1,7 +1,8 @@
 const assert=require('node:assert/strict');
 const {
   cloudWeatherRequest,cloudWeatherAt,
-  fractalNoise3,cloudAlpha,cloudSeed
+  fractalNoise3,cloudAlpha,cloudSeed,
+  localSkyDirection,localSkyTextureCoordinates
 }=require('../src/observatory-clouds.js');
 
 const now=Date.UTC(2026,7,26,12);
@@ -54,5 +55,14 @@ const noise=fractalNoise3(1.2,-3.4,5.6,seed);
 assert.ok(noise>=0 && noise<=1);
 assert.equal(cloudAlpha(noise,0),0);
 assert.equal(cloudAlpha(noise,100),0.92);
+
+for(const [x,y] of [[0,0],[127,31],[255,63]]){
+  const direction=localSkyDirection(x,y,256,64);
+  const coordinates=localSkyTextureCoordinates(
+    direction.east,direction.north,direction.up,256,64
+  );
+  assert.deepEqual(coordinates,{x,y});
+}
+assert.equal(localSkyTextureCoordinates(1,0,0,256,64),null);
 
 console.log('Observatory cloud tests passed.');

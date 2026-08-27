@@ -172,9 +172,37 @@
     return hash|0;
   }
 
+  function localSkyDirection(x,y,width,height){
+    const azimuth=(x+0.5)/width*Math.PI*2-Math.PI;
+    const altitude=(1-(y+0.5)/height)*Math.PI/2;
+    const horizontal=Math.cos(altitude);
+    return {
+      east:Math.sin(azimuth)*horizontal,
+      north:Math.cos(azimuth)*horizontal,
+      up:Math.sin(altitude)
+    };
+  }
+
+  function localSkyTextureCoordinates(east,north,up,width,height){
+    if(!(up>0) || !(width>0) || !(height>0)) return null;
+    const azimuth=Math.atan2(east,north);
+    const altitude=Math.asin(clamp(up,-1,1));
+    return {
+      x:Math.min(
+        width-1,
+        Math.floor(((azimuth+Math.PI)/(Math.PI*2)%1)*width)
+      ),
+      y:Math.min(
+        height-1,
+        Math.floor((1-altitude/(Math.PI/2))*height)
+      )
+    };
+  }
+
   return {
     DAY_MS,EARLIEST_ARCHIVE,ARCHIVE_DELAY_DAYS,FORECAST_DAYS,
     cloudWeatherRequest,cloudWeatherAt,
-    valueNoise3,fractalNoise3,cloudAlpha,cloudSeed
+    valueNoise3,fractalNoise3,cloudAlpha,cloudSeed,
+    localSkyDirection,localSkyTextureCoordinates
   };
 });

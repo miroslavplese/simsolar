@@ -952,7 +952,7 @@ Velocity: not set</div>
 <script src="src/view-transform.js?v=20260819-2"></script>
 <script src="src/star-field.js"></script>
 <script src="src/observatory-mode.js?v=20260826-1"></script>
-<script src="src/observatory-clouds.js?v=20260826-1"></script>
+<script src="src/observatory-clouds.js?v=20260826-2"></script>
 <script src="src/system-model.js?v=20260820-1"></script>
 <script src="src/scenario-state.js?v=20260826-1"></script>
 <script src="src/guided-tutorial.js"></script>
@@ -1129,7 +1129,9 @@ Velocity: not set</div>
     cloudWeatherRequest,cloudWeatherAt,
     fractalNoise3:observatoryCloudNoise,
     cloudAlpha:observatoryCloudAlpha,
-    cloudSeed:observatoryCloudSeed
+    cloudSeed:observatoryCloudSeed,
+    localSkyDirection:observatoryCloudSkyDirection,
+    localSkyTextureCoordinates:observatoryCloudTextureCoordinates
   }=window.ObservatoryClouds;
   const {
     refinedSweptSphereImpact,
@@ -1968,9 +1970,13 @@ Velocity: not set</div>
   let observatoryCloudRequestKey='';
   let observatoryCloudRequestTimer=null;
   let observatoryCloudRequestController=null;
-  let observatoryCloudRenderTime=0;
+  let observatoryCloudSynthesisTime=0;
+  let observatoryCloudSynthesisKey='';
+  let observatoryCloudProjectionKey='';
   let observatoryCloudStatusKey='';
   const observatoryCloudCache=new Map();
+  const observatoryCloudSkyCanvas=document.createElement('canvas');
+  const observatoryCloudSkyContext=observatoryCloudSkyCanvas.getContext('2d');
   const observatoryCloudCanvas=document.createElement('canvas');
   const observatoryCloudContext=observatoryCloudCanvas.getContext('2d');
   let observatoryTelescopeActive=false;
@@ -3999,7 +4005,9 @@ Velocity: not set</div>
     observatoryCloudRequestController=null;
     observatoryCloudRequestKey='';
     if(clearData) observatoryCloudData=null;
-    observatoryCloudRenderTime=0;
+    observatoryCloudSynthesisTime=0;
+    observatoryCloudSynthesisKey='';
+    observatoryCloudProjectionKey='';
     observatoryCloudStatusKey='';
   }
 
@@ -4066,7 +4074,9 @@ Velocity: not set</div>
           observatoryCloudCache.delete(observatoryCloudCache.keys().next().value);
         }
         observatoryCloudData=data;
-        observatoryCloudRenderTime=0;
+        observatoryCloudSynthesisTime=0;
+        observatoryCloudSynthesisKey='';
+        observatoryCloudProjectionKey='';
         observatoryCloudStatusKey='';
       } catch(error){
         if(error.name==='AbortError' ||
@@ -4084,17 +4094,15 @@ Velocity: not set</div>
     },250);
   }
 
-  function renderObservatoryCloudCanvas(frame,camera,daylight,weather,timestamp){
-    const scale=Math.max(1,Math.ceil(Math.max(W,H)/240));
-    const width=Math.ceil(W/scale);
-    const height=Math.ceil(H/scale);
-    if(observatoryCloudCanvas.width!==width ||
-      observatoryCloudCanvas.height!==height){
-      observatoryCloudCanvas.width=width;
-      observatoryCloudCanvas.height=height;
+  function synthesizeObservatoryCloudSky(weather,timestamp){
+    const width=384;
+    const height=96;
+    if(observatoryCloudSkyCanvas.width!==width ||
+      observatoryCloudSkyCanvas.height!==height){
+      observatoryCloudSkyCanvas.width=width;
+      observatoryCloudSkyCanvas.height=height;
     }
-    const image=observatoryCloudContext.createImageData(width,height);
-    const focal=H/(2*Math.tan(observatoryFov/2));
+    const image=observatoryCloudSkyContext.createImageData(width,height);
     const windAngle=weather.windDirection*DEG;
     const hoursIntoDay=(timestamp-Date.parse(
       observatoryCloudData.date+'T00:00:00Z'
@@ -4113,47 +4121,77 @@ Velocity: not set</div>
         observatoryLatitude,observatoryLongitude,'sky-v1',layer.name
       );
     }
-    const cloudColor=Math.round(24+211*daylight);
     for(let y=0;y<height;y++){
-      const screenY=(y+0.5)*scale;
-      const vertical=(H/2-screenY)/focal;
       for(let x=0;x<width;x++){
-        const screenX=(x+0.5)*scale;
-        const horizontal=(screenX-W/2)/focal;
-        const direction=normalizeObservatoryVector({
-          x:camera.forward.x+camera.right.x*horizontal+camera.up.x*vertical,
-          y:camera.forward.y+camera.right.y*horizontal+camera.up.y*vertical,
-          z:camera.forward.z+camera.right.z*horizontal+camera.up.z*vertical
-        });
-        const altitude=Math.asin(Math.max(
-          -1,Math.min(1,observatoryDot(direction,frame.up))
-        ));
-        if(altitude<=0) continue;
-        const localEast=observatoryDot(direction,frame.east);
-        const localNorth=observatoryDot(direction,frame.north);
-        const localUp=observatoryDot(direction,frame.up);
+        const local=observatoryCloudSkyDirection(x,y,width,height);
         let transparency=1;
         for(const layer of layers){
           if(layer.cover<0.5) continue;
           const shift=windDistance*layer.speed;
           const noise=observatoryCloudNoise(
-            localEast*layer.frequency+Math.sin(windAngle)*shift,
-            localNorth*layer.frequency+Math.cos(windAngle)*shift,
-            localUp*layer.frequency+shift*0.17,
+            local.east*layer.frequency+Math.sin(windAngle)*shift,
+            local.north*layer.frequency+Math.cos(windAngle)*shift,
+            local.up*layer.frequency+shift*0.17,
             layer.seed
           );
           transparency*=1-observatoryCloudAlpha(
             noise,layer.cover,layer.opacity
           );
         }
-        const horizonFade=Math.min(1,altitude/(3*DEG));
+        const horizonFade=Math.min(1,Math.asin(local.up)/(3*DEG));
         const alpha=(1-transparency)*horizonFade;
         if(alpha<0.01) continue;
+        const index=(y*width+x)*4;
+        image.data[index]=255;
+        image.data[index+1]=255;
+        image.data[index+2]=255;
+        image.data[index+3]=Math.round(alpha*255);
+      }
+    }
+    observatoryCloudSkyContext.putImageData(image,0,0);
+  }
+
+  function projectObservatoryCloudSky(frame,camera,daylight){
+    const scale=Math.max(1,Math.ceil(Math.max(W,H)/240));
+    const width=Math.ceil(W/scale);
+    const height=Math.ceil(H/scale);
+    if(observatoryCloudCanvas.width!==width ||
+      observatoryCloudCanvas.height!==height){
+      observatoryCloudCanvas.width=width;
+      observatoryCloudCanvas.height=height;
+    }
+    const source=observatoryCloudSkyContext.getImageData(
+      0,0,observatoryCloudSkyCanvas.width,observatoryCloudSkyCanvas.height
+    ).data;
+    const image=observatoryCloudContext.createImageData(width,height);
+    const focal=H/(2*Math.tan(observatoryFov/2));
+    const cloudColor=Math.round(24+211*daylight);
+    for(let y=0;y<height;y++){
+      const vertical=(H/2-(y+0.5)*scale)/focal;
+      for(let x=0;x<width;x++){
+        const horizontal=((x+0.5)*scale-W/2)/focal;
+        const direction=normalizeObservatoryVector({
+          x:camera.forward.x+camera.right.x*horizontal+camera.up.x*vertical,
+          y:camera.forward.y+camera.right.y*horizontal+camera.up.y*vertical,
+          z:camera.forward.z+camera.right.z*horizontal+camera.up.z*vertical
+        });
+        const coordinates=observatoryCloudTextureCoordinates(
+          observatoryDot(direction,frame.east),
+          observatoryDot(direction,frame.north),
+          observatoryDot(direction,frame.up),
+          observatoryCloudSkyCanvas.width,observatoryCloudSkyCanvas.height
+        );
+        if(!coordinates) continue;
+        const sourceIndex=(
+          coordinates.y*observatoryCloudSkyCanvas.width+coordinates.x
+        )*4;
+        const alpha=source[sourceIndex+3];
+        if(alpha<3) continue;
         const index=(y*width+x)*4;
         image.data[index]=cloudColor;
         image.data[index+1]=cloudColor;
         image.data[index+2]=Math.min(255,cloudColor+6);
-        image.data[index+3]=Math.round(alpha*255);
+        image.data[index+3]=alpha;
       }
     }
     observatoryCloudContext.putImageData(image,0,0);
@@ -4179,10 +4217,34 @@ Velocity: not set</div>
         Math.round(weather.mid)+'/'+Math.round(weather.high)+'%'
       );
     }
+    const synthesisKey=[
+      observatoryCloudData.key,Math.floor(timestamp/300000),
+      Math.round(weather.total),Math.round(weather.low),
+      Math.round(weather.mid),Math.round(weather.high),
+      Math.round(weather.windSpeed),Math.round(weather.windDirection)
+    ].join(':');
     const now=performance.now();
-    if(!observatoryCloudRenderTime || now-observatoryCloudRenderTime>=200){
-      renderObservatoryCloudCanvas(frame,camera,daylight,weather,timestamp);
-      observatoryCloudRenderTime=now;
+    if(
+      synthesisKey!==observatoryCloudSynthesisKey &&
+      (
+        !observatoryCloudSynthesisTime ||
+        now-observatoryCloudSynthesisTime>=250
+      )
+    ){
+      synthesizeObservatoryCloudSky(weather,timestamp);
+      observatoryCloudSynthesisKey=synthesisKey;
+      observatoryCloudSynthesisTime=now;
+      observatoryCloudProjectionKey='';
+    }
+    if(!observatoryCloudSynthesisKey) return;
+    const projectionKey=[
+      observatoryCloudSynthesisKey,W,H,
+      observatoryAzimuth.toFixed(6),observatoryAltitude.toFixed(6),
+      observatoryFov.toFixed(7),Math.round(daylight*255)
+    ].join(':');
+    if(projectionKey!==observatoryCloudProjectionKey){
+      projectObservatoryCloudSky(frame,camera,daylight);
+      observatoryCloudProjectionKey=projectionKey;
     }
     ctx.save();
     ctx.imageSmoothingEnabled=true;
