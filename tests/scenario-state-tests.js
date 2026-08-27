@@ -21,7 +21,13 @@ const coreState={
     speed:2,
     enhance:true,
     paths:false,
-    timeZone:'America/Los_Angeles'
+    timeZone:'America/Los_Angeles',
+    telescope:{
+      target:'Jupiter',
+      tracking:true,
+      exposure:1.4,
+      wideFov:70*Math.PI/180
+    }
   }
 };
 
@@ -173,6 +179,25 @@ assert.equal(ScenarioState.validate({
 assert.equal(ScenarioState.validate({
   ...noPlanState,
   observatory:{...noPlanState.observatory,timeZone:'Not/A_Time_Zone'}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,
+  observatory:{
+    ...noPlanState.observatory,
+    fov:0.05*Math.PI/180,
+    telescope:{
+      target:'Moon',tracking:true,exposure:1,wideFov:70*Math.PI/180
+    }
+  }
+}),true);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,
+  observatory:{
+    ...noPlanState.observatory,
+    telescope:{
+      target:'Moon',tracking:true,exposure:4,wideFov:70*Math.PI/180
+    }
+  }
 }),false);
 assert.throws(()=>ScenarioState.encode({
   ...noPlanState,

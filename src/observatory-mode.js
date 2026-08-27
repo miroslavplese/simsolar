@@ -5,6 +5,8 @@
 })(typeof globalThis!=='undefined' ? globalThis : this,function(){
   const DEG=Math.PI/180;
   const TWO_PI=Math.PI*2;
+  const TELESCOPE_MIN_FOV=0.05*DEG;
+  const TELESCOPE_MAX_FOV=10*DEG;
 
   const SURFACES={
     Mercury:{rotationHours:1407.6,tiltDeg:0.034,phaseDeg:329.6,ground:'#625d58'},
@@ -209,6 +211,28 @@
     return Math.max(0,Math.min(1,twilight))*atmosphereDensity;
   }
 
+  function telescopeFovFromSlider(value){
+    if(!Number.isFinite(value)) return 2*DEG;
+    const degrees=10**value;
+    return Math.max(
+      TELESCOPE_MIN_FOV,
+      Math.min(TELESCOPE_MAX_FOV,degrees*DEG)
+    );
+  }
+
+  function telescopeSliderFromFov(fov){
+    const clamped=Math.max(
+      TELESCOPE_MIN_FOV,
+      Math.min(TELESCOPE_MAX_FOV,Number.isFinite(fov)?fov:2*DEG)
+    );
+    return Math.log10(clamped/DEG);
+  }
+
+  function telescopeMagnification(fov){
+    if(!(fov>0)) return 1;
+    return 70*DEG/fov;
+  }
+
   function collapsedSatelliteLabels(entries,projectEntry,thresholdPixels=46){
     const byName=new Map(entries.map(entry=>[entry.body.name,entry]));
     const hidden=new Set();
@@ -234,6 +258,8 @@
     DEG,SURFACES,surfaceDefinition,locationPresets,surfaceFrame,
     horizontalDirection,horizontalCoordinates,cameraFrame,projectDirection,
     altitudeForDirection,angularRadius,daylightFactor,
+    TELESCOPE_MIN_FOV,TELESCOPE_MAX_FOV,
+    telescopeFovFromSlider,telescopeSliderFromFov,telescopeMagnification,
     collapsedSatelliteLabels,normalize,dot
   };
 });

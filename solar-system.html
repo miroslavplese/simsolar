@@ -383,6 +383,7 @@
     position:absolute; top:62px; left:20px; width:250px;
     background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
     padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+    max-height:calc(100vh - 140px); overflow-y:auto;
   }
   #observatoryPanel .heading{ color:#7fd8ff; font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
   #observatoryPanel label{ display:block; margin-top:7px; color:var(--ink-dim); font-size:8px; text-transform:uppercase; letter-spacing:.05em; }
@@ -397,7 +398,46 @@
     font-size:8.5px; cursor:pointer;
   }
   #observatoryPanel .checkRow input{ accent-color:var(--accent); }
+  #observatoryPanel .observatoryActions{
+    display:flex; gap:6px; margin-top:9px;
+  }
+  #observatoryPanel .observatoryActions button{ flex:1; }
+  #observatoryTelescopeSection{
+    display:none; margin-top:9px; padding-top:8px; border-top:1px solid var(--line);
+  }
+  #observatoryPanel.telescope-active #observatoryTelescopeSection{ display:block; }
+  #observatoryPanel input[type=range]{ margin-top:8px; }
+  .observatoryTelescopeValues{
+    display:flex; justify-content:space-between; margin-top:4px;
+    color:#7380a8; font-size:8px;
+  }
+  #observatoryPhotoStatus{
+    min-height:12px; margin-top:6px; color:#72e6c1; font-size:8px;
+  }
   #observatoryReadout{ margin-top:8px; padding-top:7px; border-top:1px solid var(--line); color:#7380a8; font-size:8px; line-height:1.5; }
+  #telescopeOverlay{
+    position:absolute; inset:0; display:none; pointer-events:none;
+    font-family:var(--mono);
+  }
+  #stage.telescope-active #telescopeOverlay{ display:block; }
+  #telescopeOverlay::before{
+    content:""; position:absolute; left:50%; top:50%; width:42px; height:42px;
+    transform:translate(-50%,-50%); border:1px solid rgba(127,216,255,.7);
+    border-radius:50%; box-shadow:0 0 16px rgba(127,216,255,.12);
+  }
+  #telescopeOverlay::after{
+    content:""; position:absolute; left:50%; top:50%; width:70px; height:70px;
+    transform:translate(-50%,-50%);
+    background:
+      linear-gradient(rgba(127,216,255,.7),rgba(127,216,255,.7)) center/1px 70px no-repeat,
+      linear-gradient(90deg,rgba(127,216,255,.7),rgba(127,216,255,.7)) center/70px 1px no-repeat;
+    clip-path:polygon(0 47%,42% 47%,42% 0,58% 0,58% 47%,100% 47%,100% 53%,58% 53%,58% 100%,42% 100%,42% 53%,0 53%);
+  }
+  #telescopeTargetReadout{
+    position:absolute; left:50%; top:calc(50% + 44px); transform:translateX(-50%);
+    color:rgba(170,226,250,.78); font-size:8px; letter-spacing:.08em;
+    text-transform:uppercase; text-shadow:0 1px 3px #000;
+  }
   #stage.observatory-active #orbits,
   #stage.spacecraft-view-active #orbits{ display:none; }
   #stage.observatory-active #legend,
@@ -607,7 +647,38 @@
       <input id="observatoryPaths" type="checkbox">
       Show trajectory and orbit lines
     </label>
+    <div class="observatoryActions">
+      <button class="timelineBtn" id="observatoryTelescopeBtn" type="button">TELESCOPE</button>
+    </div>
+    <div id="observatoryTelescopeSection">
+      <label for="observatoryTelescopeTarget">Tracked target</label>
+      <select id="observatoryTelescopeTarget"></select>
+      <label class="checkRow">
+        <input id="observatoryTelescopeTracking" type="checkbox" checked>
+        Track target as time advances
+      </label>
+      <label for="observatoryTelescopeFov">Field of view</label>
+      <input id="observatoryTelescopeFov" type="range"
+        min="-1.30103" max="1" step="0.001" value="0.30103">
+      <div class="observatoryTelescopeValues">
+        <span id="observatoryTelescopeFovValue">2.00°</span>
+        <span id="observatoryTelescopeMagnification">35×</span>
+      </div>
+      <label for="observatoryExposure">Exposure</label>
+      <input id="observatoryExposure" type="range"
+        min="0.5" max="3" step="0.05" value="1">
+      <div class="observatoryTelescopeValues">
+        <span id="observatoryExposureValue">1.00×</span>
+      </div>
+      <div class="observatoryActions">
+        <button class="timelineBtn" id="observatoryCaptureBtn" type="button">CAPTURE PNG</button>
+      </div>
+      <div id="observatoryPhotoStatus" role="status" aria-live="polite"></div>
+    </div>
     <div id="observatoryReadout">Drag to look around · wheel to zoom</div>
+  </div>
+  <div id="telescopeOverlay" aria-hidden="true">
+    <div id="telescopeTargetReadout">Telescope</div>
   </div>
 
   <div id="legend"></div>
@@ -845,9 +916,9 @@ Velocity: not set</div>
 <script src="src/frame-profiler.js"></script>
 <script src="src/view-transform.js?v=20260819-2"></script>
 <script src="src/star-field.js"></script>
-<script src="src/observatory-mode.js?v=20260820-1"></script>
+<script src="src/observatory-mode.js?v=20260826-1"></script>
 <script src="src/system-model.js?v=20260820-1"></script>
-<script src="src/scenario-state.js?v=20260820-1"></script>
+<script src="src/scenario-state.js?v=20260826-1"></script>
 <script src="src/guided-tutorial.js"></script>
 <script src="src/panel-drag.js"></script>
 <script src="src/body-rendering.js?v=20260826-1"></script>
@@ -939,7 +1010,7 @@ Velocity: not set</div>
         backdrop.beginPath();
         backdrop.fillStyle=`rgba(${star.rgb},${projected.alpha})`;
         backdrop.arc(
-          projected.x,projected.y,projected.radius,0,Math.PI*2
+          projected.x,projected.y,star.radius,0,Math.PI*2
         );
         backdrop.fill();
       }
@@ -1010,6 +1081,9 @@ Velocity: not set</div>
     altitudeForDirection:observatoryAltitudeForDirection,
     angularRadius:observatoryAngularRadius,
     daylightFactor:observatoryDaylightFactor,
+    TELESCOPE_MIN_FOV,TELESCOPE_MAX_FOV,
+    telescopeFovFromSlider,telescopeSliderFromFov,
+    telescopeMagnification,
     collapsedSatelliteLabels:collapsedObservatorySatelliteLabels,
     normalize:normalizeObservatoryVector,
     dot:observatoryDot
@@ -1846,6 +1920,11 @@ Velocity: not set</div>
   let observatoryFov=70*DEG;
   let observatoryEnhance=true;
   let observatoryShowPaths=false;
+  let observatoryTelescopeActive=false;
+  let observatoryTelescopeTarget=null;
+  let observatoryTelescopeTracking=true;
+  let observatoryExposure=1;
+  let observatoryWideFov=70*DEG;
   let observatoryTimeZone='UTC';
   let observatoryPreviousPlaying=true;
   let observatoryProjectedBodies=[];
@@ -3755,16 +3834,16 @@ Velocity: not set</div>
 
   function drawObservatoryStars(frame,camera,daylight){
     ensureCatalogStars();
-    const fovScale=Math.min(3,70*DEG/observatoryFov);
+    const cameraPrecision=Math.max(500,Math.ceil(H/observatoryFov));
     const vectors=[
       camera.forward,camera.right,camera.up,frame.up
     ].flatMap(vector=>[
-      backdropComponent(vector.x,500),
-      backdropComponent(vector.y,500),
-      backdropComponent(vector.z,500)
+      backdropComponent(vector.x,cameraPrecision),
+      backdropComponent(vector.y,cameraPrecision),
+      backdropComponent(vector.z,cameraPrecision)
     ]);
     const key='observatory:'+W+':'+H+':'+vectors.join(':')+':'+
-      backdropComponent(observatoryFov,1000)+':'+
+      backdropComponent(observatoryFov,1000000)+':'+
       backdropComponent(daylight,100);
     renderStarBackdrop(key,backdrop=>{
       for(const star of stars){
@@ -3781,7 +3860,7 @@ Velocity: not set</div>
         backdrop.beginPath();
         backdrop.fillStyle=`rgba(${star.rgb},${alpha})`;
         backdrop.arc(
-          projected.x,projected.y,star.radius*fovScale,0,Math.PI*2
+          projected.x,projected.y,star.radius,0,Math.PI*2
         );
         backdrop.fill();
       }
@@ -4016,7 +4095,7 @@ Velocity: not set</div>
         ctx.fill();
       }
     }
-    if(body===selected){
+    if(body===selected && options.showSelection!==false){
       ctx.strokeStyle='#f2b544';
       ctx.lineWidth=1.4;
       ctx.beginPath();
@@ -4033,6 +4112,26 @@ Velocity: not set</div>
     });
   }
 
+  function updateObservatoryTelescopeAim(frame,observerPosition){
+    if(
+      !observatoryTelescopeActive ||
+      !observatoryTelescopeTracking ||
+      !observatoryTelescopeTarget
+    ) return;
+    const position=positionForBody(
+      observatoryTelescopeTarget,simDaysSinceJ2000
+    );
+    if(!position){
+      setObservatoryTelescopeTracking(false);
+      return;
+    }
+    const direction=observatoryDirection(observerPosition,position);
+    if(Math.hypot(direction.x,direction.y,direction.z)<1e-12) return;
+    const coordinates=observatoryHorizontalCoordinates(direction,frame);
+    observatoryAzimuth=coordinates.azimuth;
+    observatoryAltitude=coordinates.altitude;
+  }
+
   function drawObservatory(){
     const surface=observatorySurfaceDefinition(observatoryObserver?.name);
     const center=observatoryObserver &&
@@ -4044,14 +4143,15 @@ Velocity: not set</div>
     const frame=observatorySurfaceFrame(
       surface,simDaysSinceJ2000,observatoryLatitude,observatoryLongitude
     );
-    const camera=observatoryCameraFrame(
-      frame,observatoryAzimuth,observatoryAltitude
-    );
     const observerPosition={
       x:center.x+frame.up.x*observatoryObserver.radius/AU_KM,
       y:center.y+frame.up.y*observatoryObserver.radius/AU_KM,
       z:center.z+frame.up.z*observatoryObserver.radius/AU_KM
     };
+    updateObservatoryTelescopeAim(frame,observerPosition);
+    const camera=observatoryCameraFrame(
+      frame,observatoryAzimuth,observatoryAltitude
+    );
     const lightBody=dominantLightBody(activeSystemBodies());
     const sunPosition=lightBody &&
       positionForBody(lightBody,simDaysSinceJ2000);
@@ -4072,7 +4172,7 @@ Velocity: not set</div>
     drawObservatoryStars(frame,camera,daylight);
     ctx.clearRect(0,0,W,H);
     observatoryProjectedBodies=[];
-    if(observatoryShowPaths){
+    if(observatoryShowPaths && !observatoryTelescopeActive){
       drawObservatoryPaths(observerPosition,frame,camera);
     }
     const bodyEntries=[];
@@ -4100,18 +4200,33 @@ Velocity: not set</div>
     for(const {body,position,distance} of bodyEntries){
       drawObservatoryBody(
         body,position,distance,observerPosition,frame,camera,sunProjected,{
-          showLabel:!suppressedLabels.has(body)
+          enhance:observatoryTelescopeActive ? false : undefined,
+          showLabel:!observatoryTelescopeActive &&
+            !suppressedLabels.has(body),
+          showSelection:!observatoryTelescopeActive
         }
       );
     }
-    drawObservatoryGrid(frame,camera);
+    if(!observatoryTelescopeActive) drawObservatoryGrid(frame,camera);
     drawObservatoryGround(surface,horizonY,daylight);
     const readout=document.getElementById('observatoryReadout');
     readout.textContent=
       'Az '+((observatoryAzimuth/DEG+360)%360).toFixed(1)+'° · Alt '+
       (observatoryAltitude/DEG).toFixed(1)+'° · FOV '+
-      (observatoryFov/DEG).toFixed(0)+'°\n'+
-      'Drag to look around · wheel to zoom';
+      (
+        observatoryFov<DEG
+          ? (observatoryFov/DEG).toFixed(2)
+          : (observatoryFov/DEG).toFixed(1)
+      )+'°\n'+
+      (
+        observatoryTelescopeActive
+          ? (
+            observatoryTelescopeTracking
+              ? 'Tracking '+(observatoryTelescopeTarget?.name||'target')
+              : 'Manual telescope aiming'
+          )+' · wheel to zoom'
+          : 'Drag to look around · wheel to zoom'
+      );
   }
 
   function spacecraftSceneBodies(){
@@ -4120,7 +4235,6 @@ Velocity: not set</div>
 
   function drawSpacecraftStars(camera){
     ensureCatalogStars();
-    const fovScale=Math.min(3,70*DEG/spacecraftFov);
     const vectors=[camera.forward,camera.right,camera.up].flatMap(vector=>[
       backdropComponent(vector.x,500),
       backdropComponent(vector.y,500),
@@ -4138,7 +4252,7 @@ Velocity: not set</div>
         backdrop.beginPath();
         backdrop.fillStyle=`rgba(${star.rgb},${star.alpha})`;
         backdrop.arc(
-          projected.x,projected.y,star.radius*fovScale,0,Math.PI*2
+          projected.x,projected.y,star.radius,0,Math.PI*2
         );
         backdrop.fill();
       }
@@ -4944,6 +5058,8 @@ Velocity: not set</div>
       }
     }
     document.getElementById('observatoryBtn').disabled=!observers.length;
+    refreshObservatoryTelescopeTargets();
+    if(observatoryTelescopeActive) syncObservatoryTelescopeControls();
   }
 
   function cleanAfterSystemChange(removed=new Set()){
@@ -4952,6 +5068,10 @@ Velocity: not set</div>
     if(removed.has(hovered?.id)) hovered=null;
     if(removed.has(observatoryObserver?.id) && observatoryActive){
       setObservatoryMode(false,true);
+    }
+    if(removed.has(observatoryTelescopeTarget?.id)){
+      observatoryTelescopeTarget=null;
+      refreshObservatoryTelescopeTargets();
     }
     if(
       removed.has(activeLagrangeSystem?.primary?.id) ||
@@ -5648,10 +5768,21 @@ Velocity: not set</div>
     } else if(dragMode==='observatory' && activePointers.size===1){
       const dx=e.clientX-dragStartInfo.x;
       const dy=e.clientY-dragStartInfo.y;
-      if(Math.hypot(dx,dy)>6) dragMoved=true;
-      observatoryAzimuth=dragStartInfo.observatoryAzimuth-dx*0.004;
+      if(Math.hypot(dx,dy)>6){
+        dragMoved=true;
+        if(observatoryTelescopeActive){
+          setObservatoryTelescopeTracking(false);
+        }
+      }
+      const sensitivity=observatoryTelescopeActive
+        ? dragStartInfo.observatoryFov/Math.max(320,H)
+        : 0.004;
+      observatoryAzimuth=dragStartInfo.observatoryAzimuth-dx*sensitivity;
       observatoryAltitude=Math.max(
-        -89*DEG,Math.min(89*DEG,dragStartInfo.observatoryAltitude+dy*0.003)
+        -89*DEG,Math.min(
+          89*DEG,
+          dragStartInfo.observatoryAltitude+dy*sensitivity
+        )
       );
     } else if(dragMode==='rotate' && activePointers.size===1){
       const dx=e.clientX-dragStartInfo.x, dy=e.clientY-dragStartInfo.y;
@@ -5698,9 +5829,16 @@ Velocity: not set</div>
         return;
       }
       if(observatoryActive){
+        const minimum=observatoryTelescopeActive
+          ? TELESCOPE_MIN_FOV
+          : 8*DEG;
+        const maximum=observatoryTelescopeActive
+          ? TELESCOPE_MAX_FOV
+          : 120*DEG;
         observatoryFov=Math.max(
-          8*DEG,Math.min(120*DEG,pinchStartInfo.observatoryFov/scale)
+          minimum,Math.min(maximum,pinchStartInfo.observatoryFov/scale)
         );
+        if(observatoryTelescopeActive) syncObservatoryTelescopeControls();
         return;
       }
       const newZoom=constrainedZoom(pinchStartInfo.zoom*scale);
@@ -5735,7 +5873,13 @@ Velocity: not set</div>
     if(activePointers.size===0){
       if(!dragMoved && tapStart && (performance.now()-tapStart.t) < 500){
         const hit = hitTest(tapStart.x, tapStart.y);
-        if(hit) toggleBodySelection(hit);
+        if(hit){
+          if(observatoryActive && observatoryTelescopeActive){
+            setObservatoryTelescopeTarget(hit);
+          } else {
+            toggleBodySelection(hit);
+          }
+        }
       }
       dragMode = null; dragStartInfo = null; pinchStartInfo = null; tapStart = null; dragMoved=false;
       scene.style.cursor = 'grab';
@@ -6068,6 +6212,177 @@ Velocity: not set</div>
     closeBodyPanel();
   }
 
+  function observatoryTelescopeTargets(){
+    return observatorySceneBodies().filter(body=>
+      body!==observatoryObserver && body.kind!=='lagrange'
+    );
+  }
+
+  function defaultObservatoryTelescopeTarget(targets){
+    if(targets.includes(selected)) return selected;
+    const surface=observatorySurfaceDefinition(observatoryObserver?.name);
+    const center=observatoryObserver &&
+      positionForBody(observatoryObserver,simDaysSinceJ2000);
+    if(!surface || !center) return targets[0]||null;
+    const frame=observatorySurfaceFrame(
+      surface,simDaysSinceJ2000,observatoryLatitude,observatoryLongitude
+    );
+    const observerPosition={
+      x:center.x+frame.up.x*observatoryObserver.radius/AU_KM,
+      y:center.y+frame.up.y*observatoryObserver.radius/AU_KM,
+      z:center.z+frame.up.z*observatoryObserver.radius/AU_KM
+    };
+    let best=null;
+    let bestAltitude=-Infinity;
+    let fallback=null;
+    let fallbackAltitude=-Infinity;
+    for(const body of targets){
+      const position=positionForBody(body,simDaysSinceJ2000);
+      if(!position) continue;
+      const altitude=observatoryAltitudeForDirection(
+        observatoryDirection(observerPosition,position),frame
+      );
+      if(altitude>fallbackAltitude){
+        fallback=body;
+        fallbackAltitude=altitude;
+      }
+      if(isLuminous(body)) continue;
+      if(altitude>bestAltitude){
+        best=body;
+        bestAltitude=altitude;
+      }
+    }
+    return bestAltitude>=0
+      ? best
+      : fallback||best||targets[0]||null;
+  }
+
+  function refreshObservatoryTelescopeTargets(){
+    const select=document.getElementById('observatoryTelescopeTarget');
+    if(!select) return;
+    const targets=observatoryTelescopeTargets();
+    const previous=observatoryTelescopeTarget;
+    select.innerHTML='';
+    for(const body of targets){
+      const option=document.createElement('option');
+      option.value=body.name;
+      option.textContent=body.name.toUpperCase();
+      select.appendChild(option);
+    }
+    if(previous && targets.includes(previous)){
+      select.value=previous.name;
+      return;
+    }
+    const preferred=defaultObservatoryTelescopeTarget(targets);
+    observatoryTelescopeTarget=preferred;
+    if(preferred) select.value=preferred.name;
+  }
+
+  function updateObservatoryExposure(){
+    const filter=observatoryActive && observatoryTelescopeActive
+      ? `brightness(${observatoryExposure})`
+      : '';
+    sky.style.filter=filter;
+    scene.style.filter=filter;
+    document.getElementById('observatoryExposureValue').textContent=
+      observatoryExposure.toFixed(2)+'×';
+  }
+
+  function syncObservatoryTelescopeControls(){
+    const panel=document.getElementById('observatoryPanel');
+    panel.classList.toggle('telescope-active',observatoryTelescopeActive);
+    document.getElementById('stage').classList.toggle(
+      'telescope-active',observatoryActive && observatoryTelescopeActive
+    );
+    const button=document.getElementById('observatoryTelescopeBtn');
+    button.classList.toggle('active',observatoryTelescopeActive);
+    button.textContent=observatoryTelescopeActive
+      ? 'EXIT TELESCOPE'
+      : 'TELESCOPE';
+    const fovDegrees=observatoryFov/DEG;
+    document.getElementById('observatoryTelescopeFov').value=
+      String(telescopeSliderFromFov(observatoryFov));
+    document.getElementById('observatoryTelescopeFovValue').textContent=
+      (fovDegrees<1?fovDegrees.toFixed(2):fovDegrees.toFixed(1))+'°';
+    document.getElementById('observatoryTelescopeMagnification').textContent=
+      Math.round(telescopeMagnification(observatoryFov))+'×';
+    document.getElementById('observatoryTelescopeTracking').checked=
+      observatoryTelescopeTracking;
+    document.getElementById('telescopeTargetReadout').textContent=
+      observatoryTelescopeTarget?.name||'Telescope';
+    updateObservatoryExposure();
+    starBackdropKey='';
+  }
+
+  function setObservatoryTelescopeTarget(body,selectBody=true){
+    if(!observatoryTelescopeTargets().includes(body)) return false;
+    observatoryTelescopeTarget=body;
+    observatoryTelescopeTracking=true;
+    document.getElementById('observatoryTelescopeTarget').value=body.name;
+    if(selectBody) setSelectedBody(body,false);
+    syncObservatoryTelescopeControls();
+    return true;
+  }
+
+  function setObservatoryTelescopeTracking(enabled){
+    observatoryTelescopeTracking=enabled && !!observatoryTelescopeTarget;
+    document.getElementById('observatoryTelescopeTracking').checked=
+      observatoryTelescopeTracking;
+  }
+
+  function setObservatoryTelescopeMode(enabled,preserveFov=false){
+    observatoryTelescopeActive=enabled;
+    if(enabled){
+      refreshObservatoryTelescopeTargets();
+      if(!preserveFov){
+        observatoryWideFov=observatoryFov;
+        observatoryFov=2*DEG;
+      }
+      if(!observatoryTelescopeTarget){
+        refreshObservatoryTelescopeTargets();
+      }
+      observatoryTelescopeTracking=preserveFov
+        ? observatoryTelescopeTracking && !!observatoryTelescopeTarget
+        : !!observatoryTelescopeTarget;
+      if(observatoryTelescopeTarget){
+        setSelectedBody(observatoryTelescopeTarget,false);
+      }
+    } else if(!preserveFov){
+      observatoryFov=observatoryWideFov;
+    }
+    syncObservatoryTelescopeControls();
+  }
+
+  function captureObservatoryPhoto(){
+    if(!observatoryActive || !observatoryTelescopeActive) return;
+    const capture=document.createElement('canvas');
+    capture.width=W;
+    capture.height=H;
+    const captureContext=capture.getContext('2d');
+    captureContext.filter=`brightness(${observatoryExposure})`;
+    captureContext.drawImage(sky,0,0);
+    captureContext.drawImage(scene,0,0);
+    captureContext.filter='none';
+    const status=document.getElementById('observatoryPhotoStatus');
+    status.textContent='Preparing image…';
+    capture.toBlob(blob=>{
+      if(!blob){
+        status.textContent='Unable to create image.';
+        return;
+      }
+      const date=new Date(J2000+simDaysSinceJ2000*86400000)
+        .toISOString().replace(/[:]/g,'-').replace(/\.\d{3}Z$/,'Z');
+      const target=(observatoryTelescopeTarget?.name||'sky')
+        .replace(/[^A-Za-z0-9_-]+/g,'-');
+      const link=document.createElement('a');
+      link.href=URL.createObjectURL(blob);
+      link.download=`simsolar-${target}-${date}.png`;
+      link.click();
+      setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      status.textContent='PNG captured at '+W+'×'+H+'.';
+    },'image/png');
+  }
+
   function applyObservatoryPreset(index){
     const preset=observatoryLocationPresets(observatoryObserver.name)[index];
     if(!preset) return;
@@ -6112,8 +6427,11 @@ Velocity: not set</div>
       return;
     }
     observatoryObserver=body;
+    observatoryTelescopeTarget=null;
     document.getElementById('observatoryBody').value=body.name;
     buildObservatoryPresets(selectFirst);
+    refreshObservatoryTelescopeTargets();
+    if(observatoryTelescopeActive) syncObservatoryTelescopeControls();
   }
 
   function aimObservatoryAtEvent(event){
@@ -6202,6 +6520,38 @@ Velocity: not set</div>
     document.getElementById('observatoryPaths').addEventListener(
       'change',event=>{ observatoryShowPaths=event.target.checked; }
     );
+    document.getElementById('observatoryTelescopeBtn').addEventListener(
+      'click',()=>setObservatoryTelescopeMode(!observatoryTelescopeActive)
+    );
+    document.getElementById('observatoryTelescopeTarget').addEventListener(
+      'change',event=>{
+        const body=observatoryTelescopeTargets().find(
+          candidate=>candidate.name===event.target.value
+        );
+        if(body) setObservatoryTelescopeTarget(body);
+      }
+    );
+    document.getElementById('observatoryTelescopeTracking').addEventListener(
+      'change',event=>setObservatoryTelescopeTracking(event.target.checked)
+    );
+    document.getElementById('observatoryTelescopeFov').addEventListener(
+      'input',event=>{
+        observatoryFov=telescopeFovFromSlider(Number(event.target.value));
+        syncObservatoryTelescopeControls();
+      }
+    );
+    document.getElementById('observatoryExposure').addEventListener(
+      'input',event=>{
+        observatoryExposure=Math.max(
+          0.5,Math.min(3,Number(event.target.value)||1)
+        );
+        updateObservatoryExposure();
+      }
+    );
+    document.getElementById('observatoryCaptureBtn').addEventListener(
+      'click',captureObservatoryPhoto
+    );
+    syncObservatoryTelescopeControls();
   }
 
   function setObservatoryMode(enabled,preservePlayback=false){
@@ -6255,11 +6605,16 @@ Velocity: not set</div>
     }
     updateSpeedLabel();
     if(!enabled){
+      if(observatoryTelescopeActive){
+        setObservatoryTelescopeMode(false);
+      }
       playing=observatoryPreviousPlaying;
       playBtn.textContent=playing?'⏸':'▶';
       skyCtx.clearRect(0,0,W,H);
       drawStars(true);
       invalidateProjection();
+    } else {
+      syncObservatoryTelescopeControls();
     }
   }
 
@@ -6425,7 +6780,13 @@ Velocity: not set</div>
         speed:Number(observatorySpeedExp.toFixed(4)),
         enhance:observatoryEnhance,
         paths:observatoryShowPaths,
-        timeZone:observatoryTimeZone
+        timeZone:observatoryTimeZone,
+        telescope:observatoryTelescopeActive ? {
+          target:observatoryTelescopeTarget?.name||null,
+          tracking:observatoryTelescopeTracking,
+          exposure:Number(observatoryExposure.toFixed(2)),
+          wideFov:Number(observatoryWideFov.toFixed(6))
+        } : null
       } : null,
       spacecraftView:spacecraftViewActive ? {
         yaw:Number(spacecraftLookYaw.toFixed(6)),
@@ -6485,6 +6846,15 @@ Velocity: not set</div>
         observatoryEnhance=state.observatory.enhance;
         observatoryShowPaths=state.observatory.paths;
         observatoryTimeZone=state.observatory.timeZone;
+        const telescopeState=state.observatory.telescope;
+        observatoryTelescopeTarget=telescopeState
+          ? observatoryTelescopeTargets().find(
+            body=>body.name===telescopeState.target
+          )||null
+          : null;
+        observatoryTelescopeTracking=telescopeState?.tracking??true;
+        observatoryExposure=telescopeState?.exposure??1;
+        observatoryWideFov=telescopeState?.wideFov??70*DEG;
         document.getElementById('observatoryPreset').value='custom';
         document.getElementById('observatoryLatitude').value=
           observatoryLatitude.toFixed(4);
@@ -6493,6 +6863,9 @@ Velocity: not set</div>
         document.getElementById('observatoryEnhance').checked=observatoryEnhance;
         document.getElementById('observatoryPaths').checked=observatoryShowPaths;
         setObservatoryMode(true,true);
+        if(telescopeState){
+          setObservatoryTelescopeMode(true,true);
+        }
       }
     }
     setSelectedBody(selectedBody,false);
@@ -6754,7 +7127,11 @@ Velocity: not set</div>
     if(spacecraftViewActive){
       spacecraftFov=Math.max(8*DEG,spacecraftFov/1.25);
     } else if(observatoryActive){
-      observatoryFov=Math.max(8*DEG,observatoryFov/1.25);
+      observatoryFov=Math.max(
+        observatoryTelescopeActive ? TELESCOPE_MIN_FOV : 8*DEG,
+        observatoryFov/1.25
+      );
+      if(observatoryTelescopeActive) syncObservatoryTelescopeControls();
     } else {
       applyZoom(zoom*1.35,cx,cy);
     }
@@ -6763,7 +7140,11 @@ Velocity: not set</div>
     if(spacecraftViewActive){
       spacecraftFov=Math.min(120*DEG,spacecraftFov*1.25);
     } else if(observatoryActive){
-      observatoryFov=Math.min(120*DEG,observatoryFov*1.25);
+      observatoryFov=Math.min(
+        observatoryTelescopeActive ? TELESCOPE_MAX_FOV : 120*DEG,
+        observatoryFov*1.25
+      );
+      if(observatoryTelescopeActive) syncObservatoryTelescopeControls();
     } else {
       applyZoom(zoom/1.35,cx,cy);
     }
@@ -6777,9 +7158,16 @@ Velocity: not set</div>
       );
     } else if(observatoryActive){
       const factor=e.deltaY<0?0.9:1.1;
+      const minimum=observatoryTelescopeActive
+        ? TELESCOPE_MIN_FOV
+        : 8*DEG;
+      const maximum=observatoryTelescopeActive
+        ? TELESCOPE_MAX_FOV
+        : 120*DEG;
       observatoryFov=Math.max(
-        8*DEG,Math.min(120*DEG,observatoryFov*factor)
+        minimum,Math.min(maximum,observatoryFov*factor)
       );
+      if(observatoryTelescopeActive) syncObservatoryTelescopeControls();
     } else {
       applyZoom(zoom*(e.deltaY<0?1.1:0.9),e.clientX,e.clientY);
     }
@@ -6944,6 +7332,23 @@ Velocity: not set</div>
     if(observatoryActive!==tutorialSnapshot.observatory){
       setObservatoryMode(tutorialSnapshot.observatory,true);
     }
+    if(tutorialSnapshot.observatory){
+      if(observatoryTelescopeActive){
+        setObservatoryTelescopeMode(false,true);
+      }
+      observatoryFov=tutorialSnapshot.telescope.fov;
+      observatoryWideFov=tutorialSnapshot.telescope.wideFov;
+      observatoryExposure=tutorialSnapshot.telescope.exposure;
+      observatoryTelescopeTracking=tutorialSnapshot.telescope.tracking;
+      observatoryTelescopeTarget=observatoryTelescopeTargets().find(
+        body=>body.name===tutorialSnapshot.telescope.target
+      )||null;
+      if(tutorialSnapshot.telescope.active){
+        setObservatoryTelescopeMode(true,true);
+      } else {
+        syncObservatoryTelescopeControls();
+      }
+    }
     if(tutorialSnapshot.spacecraftView) setSpacecraftView(true,true);
     for(const [id,visible] of Object.entries(tutorialSnapshot.panels)){
       setPanelVisible(id,visible);
@@ -6968,6 +7373,14 @@ Velocity: not set</div>
     onStart(){
       tutorialSnapshot={
         observatory:observatoryActive,
+        telescope:{
+          active:observatoryTelescopeActive,
+          target:observatoryTelescopeTarget?.name||null,
+          tracking:observatoryTelescopeTracking,
+          exposure:observatoryExposure,
+          fov:observatoryFov,
+          wideFov:observatoryWideFov
+        },
         spacecraftView:spacecraftViewActive,
         spacecraft:showSpacecraft,
         comets:showComets,

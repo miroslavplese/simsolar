@@ -60,6 +60,10 @@ assert.deepEqual(
   projectStar(forward,yaw,tilt,800,600),
   {x:400,y:300,radius:1,alpha:1,depth:camera.depth}
 );
+assert.equal(
+  projectStar(forward,yaw,tilt,800,600,0.05*Math.PI/180).radius,
+  projectStar(forward,yaw,tilt,800,600,70*Math.PI/180).radius
+);
 
 const rotated=projectStar(
   {x:0,y:1,z:0,radius:1,alpha:1},

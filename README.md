@@ -25,7 +25,8 @@ web server is required.
 - Surface observatory mode for solid planets and moons with location presets,
   configurable coordinates, atmospheric daylight, horizon coordinates, and
   true-angular-size sky objects, optional orbit/trajectory guides, scaled time,
-  and local civil-time display
+  local civil-time display, tracked telescopic views, exposure control, and
+  clean PNG capture
 - Interactive insertion of configurable stars, black holes, planets, and comets
   with 0–180° orbital inclination
 - Editable star systems with per-body and cascading deletion, blank-system

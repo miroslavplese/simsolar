@@ -105,11 +105,21 @@
         finite(obs.longitude,-180,180) &&
         finite(obs.azimuth,0,Math.PI*2) &&
         finite(obs.altitude,-Math.PI/2,Math.PI/2) &&
-        finite(obs.fov,8*Math.PI/180,120*Math.PI/180) &&
+        finite(obs.fov,0.05*Math.PI/180,120*Math.PI/180) &&
         finite(obs.speed,0,3.6) &&
         typeof obs.enhance==='boolean' &&
         typeof obs.paths==='boolean' &&
         validTimeZone(obs.timeZone))) return false;
+      if(obs.telescope!==undefined && obs.telescope!==null){
+        const telescope=obs.telescope;
+        if(!(!!telescope &&
+          optionalName(telescope.target) &&
+          typeof telescope.tracking==='boolean' &&
+          finite(telescope.exposure,0.5,3) &&
+          finite(telescope.wideFov,8*Math.PI/180,120*Math.PI/180))){
+          return false;
+        }
+      }
     }
     if(state.spacecraftView!==undefined && state.spacecraftView!==null){
       const view=state.spacecraftView;

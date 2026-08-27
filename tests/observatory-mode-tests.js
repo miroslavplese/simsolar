@@ -3,6 +3,8 @@ const {
   DEG,SURFACES,locationPresets,surfaceFrame,horizontalCoordinates,
   cameraFrame,projectDirection,
   altitudeForDirection,angularRadius,daylightFactor,
+  TELESCOPE_MIN_FOV,TELESCOPE_MAX_FOV,
+  telescopeFovFromSlider,telescopeSliderFromFov,telescopeMagnification,
   collapsedSatelliteLabels,dot
 }=require('../src/observatory-mode');
 
@@ -59,6 +61,11 @@ assert.equal(angularRadius(0,2),0);
 assert.equal(daylightFactor(-13*DEG,1),0);
 assert.equal(daylightFactor(6*DEG,1),1);
 assert.ok(daylightFactor(-3*DEG,0.5)>0);
+close(telescopeFovFromSlider(Math.log10(2)),2*DEG);
+close(telescopeSliderFromFov(2*DEG),Math.log10(2));
+close(telescopeFovFromSlider(-10),TELESCOPE_MIN_FOV);
+close(telescopeFovFromSlider(10),TELESCOPE_MAX_FOV);
+close(telescopeMagnification(2*DEG),35);
 
 const planet={name:'Jupiter'};
 const moon={name:'Europa',parentName:'Jupiter'};
