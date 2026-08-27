@@ -420,6 +420,7 @@
     font-family:var(--mono);
   }
   #stage.telescope-active #telescopeOverlay{ display:block; }
+  #stage.telescope-reticle-hidden #telescopeOverlay{ display:none; }
   #telescopeOverlay::before{
     content:""; position:absolute; left:50%; top:50%; width:42px; height:42px;
     transform:translate(-50%,-50%); border:1px solid rgba(127,216,255,.7);
@@ -656,6 +657,10 @@
       <label class="checkRow">
         <input id="observatoryTelescopeTracking" type="checkbox" checked>
         Track target as time advances
+      </label>
+      <label class="checkRow">
+        <input id="observatoryTelescopeReticle" type="checkbox" checked>
+        Show telescope reticle
       </label>
       <label for="observatoryTelescopeFov">Field of view</label>
       <input id="observatoryTelescopeFov" type="range"
@@ -1923,6 +1928,7 @@ Velocity: not set</div>
   let observatoryTelescopeActive=false;
   let observatoryTelescopeTarget=null;
   let observatoryTelescopeTracking=true;
+  let observatoryTelescopeReticle=true;
   let observatoryExposure=1;
   let observatoryWideFov=70*DEG;
   let observatoryTimeZone='UTC';
@@ -6294,6 +6300,9 @@ Velocity: not set</div>
     document.getElementById('stage').classList.toggle(
       'telescope-active',observatoryActive && observatoryTelescopeActive
     );
+    document.getElementById('stage').classList.toggle(
+      'telescope-reticle-hidden',!observatoryTelescopeReticle
+    );
     const button=document.getElementById('observatoryTelescopeBtn');
     button.classList.toggle('active',observatoryTelescopeActive);
     button.textContent=observatoryTelescopeActive
@@ -6308,6 +6317,8 @@ Velocity: not set</div>
       Math.round(telescopeMagnification(observatoryFov))+'×';
     document.getElementById('observatoryTelescopeTracking').checked=
       observatoryTelescopeTracking;
+    document.getElementById('observatoryTelescopeReticle').checked=
+      observatoryTelescopeReticle;
     document.getElementById('telescopeTargetReadout').textContent=
       observatoryTelescopeTarget?.name||'Telescope';
     updateObservatoryExposure();
@@ -6533,6 +6544,12 @@ Velocity: not set</div>
     );
     document.getElementById('observatoryTelescopeTracking').addEventListener(
       'change',event=>setObservatoryTelescopeTracking(event.target.checked)
+    );
+    document.getElementById('observatoryTelescopeReticle').addEventListener(
+      'change',event=>{
+        observatoryTelescopeReticle=event.target.checked;
+        syncObservatoryTelescopeControls();
+      }
     );
     document.getElementById('observatoryTelescopeFov').addEventListener(
       'input',event=>{
@@ -6784,6 +6801,7 @@ Velocity: not set</div>
         telescope:observatoryTelescopeActive ? {
           target:observatoryTelescopeTarget?.name||null,
           tracking:observatoryTelescopeTracking,
+          reticle:observatoryTelescopeReticle,
           exposure:Number(observatoryExposure.toFixed(2)),
           wideFov:Number(observatoryWideFov.toFixed(6))
         } : null
@@ -6853,6 +6871,7 @@ Velocity: not set</div>
           )||null
           : null;
         observatoryTelescopeTracking=telescopeState?.tracking??true;
+        observatoryTelescopeReticle=telescopeState?.reticle??true;
         observatoryExposure=telescopeState?.exposure??1;
         observatoryWideFov=telescopeState?.wideFov??70*DEG;
         document.getElementById('observatoryPreset').value='custom';
@@ -7340,6 +7359,7 @@ Velocity: not set</div>
       observatoryWideFov=tutorialSnapshot.telescope.wideFov;
       observatoryExposure=tutorialSnapshot.telescope.exposure;
       observatoryTelescopeTracking=tutorialSnapshot.telescope.tracking;
+      observatoryTelescopeReticle=tutorialSnapshot.telescope.reticle;
       observatoryTelescopeTarget=observatoryTelescopeTargets().find(
         body=>body.name===tutorialSnapshot.telescope.target
       )||null;
@@ -7377,6 +7397,7 @@ Velocity: not set</div>
           active:observatoryTelescopeActive,
           target:observatoryTelescopeTarget?.name||null,
           tracking:observatoryTelescopeTracking,
+          reticle:observatoryTelescopeReticle,
           exposure:observatoryExposure,
           fov:observatoryFov,
           wideFov:observatoryWideFov

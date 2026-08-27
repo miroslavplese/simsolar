@@ -115,6 +115,10 @@
         if(!(!!telescope &&
           optionalName(telescope.target) &&
           typeof telescope.tracking==='boolean' &&
+          (
+            telescope.reticle===undefined ||
+            typeof telescope.reticle==='boolean'
+          ) &&
           finite(telescope.exposure,0.5,3) &&
           finite(telescope.wideFov,8*Math.PI/180,120*Math.PI/180))){
           return false;

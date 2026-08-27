@@ -25,6 +25,7 @@ const coreState={
     telescope:{
       target:'Jupiter',
       tracking:true,
+      reticle:false,
       exposure:1.4,
       wideFov:70*Math.PI/180
     }

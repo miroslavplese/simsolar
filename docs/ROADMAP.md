@@ -167,7 +167,7 @@ introduced.
 
 - [x] 2026-08-26 - Added an Observatory-integrated telescope with automatic
   target tracking, logarithmic 0.05–10° fields of view, fine manual aiming,
-  exposure control, fixed-size stellar point sources, reticle, clean PNG
+  exposure control, fixed-size stellar point sources, optional reticle, clean PNG
   capture, and shareable state restoration.
 - [x] 2026-08-19 - Added Spacecraft View for solved mission-planner routes with
   velocity-aligned cockpit free-look, live travel HUD, selectable flyby bodies,
