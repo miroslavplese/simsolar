@@ -109,6 +109,13 @@
         finite(obs.speed,0,3.6) &&
         typeof obs.enhance==='boolean' &&
         typeof obs.paths==='boolean' &&
+        (
+          obs.clouds===undefined ||
+          (
+            typeof obs.clouds==='boolean' &&
+            (!obs.clouds || obs.body==='Earth')
+          )
+        ) &&
         validTimeZone(obs.timeZone))) return false;
       if(obs.telescope!==undefined && obs.telescope!==null){
         const telescope=obs.telescope;

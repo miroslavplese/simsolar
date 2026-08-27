@@ -21,6 +21,7 @@ const coreState={
     speed:2,
     enhance:true,
     paths:false,
+    clouds:true,
     timeZone:'America/Los_Angeles',
     telescope:{
       target:'Jupiter',
@@ -180,6 +181,14 @@ assert.equal(ScenarioState.validate({
 assert.equal(ScenarioState.validate({
   ...noPlanState,
   observatory:{...noPlanState.observatory,timeZone:'Not/A_Time_Zone'}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,
+  observatory:{...noPlanState.observatory,body:'Mars',clouds:true}
+}),false);
+assert.equal(ScenarioState.validate({
+  ...noPlanState,
+  observatory:{...noPlanState.observatory,clouds:'yes'}
 }),false);
 assert.equal(ScenarioState.validate({
   ...noPlanState,

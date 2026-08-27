@@ -434,6 +434,11 @@
   #observatoryPhotoStatus{
     min-height:12px; margin-top:6px; color:#72e6c1; font-size:8px;
   }
+  #observatoryCloudStatus{
+    min-height:12px; margin-top:4px; color:#7380a8; font-size:8px;
+    line-height:1.4;
+  }
+  #observatoryCloudStatus.error{ color:#ff8f9f; }
   #observatoryReadout{ margin-top:8px; padding-top:7px; border-top:1px solid var(--line); color:#7380a8; font-size:8px; line-height:1.5; }
   #telescopeOverlay{
     position:absolute; inset:0; display:none; pointer-events:none;
@@ -668,6 +673,11 @@
       <input id="observatoryPaths" type="checkbox">
       Show trajectory and orbit lines
     </label>
+    <label class="checkRow" id="observatoryCloudLabel">
+      <input id="observatoryClouds" type="checkbox">
+      Historical/live Earth cloud cover
+    </label>
+    <div id="observatoryCloudStatus" role="status" aria-live="polite"></div>
     <div class="observatoryActions">
       <button class="timelineBtn" id="observatoryTelescopeBtn" type="button">TELESCOPE</button>
     </div>
@@ -942,6 +952,7 @@ Velocity: not set</div>
 <script src="src/view-transform.js?v=20260819-2"></script>
 <script src="src/star-field.js"></script>
 <script src="src/observatory-mode.js?v=20260826-1"></script>
+<script src="src/observatory-clouds.js?v=20260826-1"></script>
 <script src="src/system-model.js?v=20260820-1"></script>
 <script src="src/scenario-state.js?v=20260826-1"></script>
 <script src="src/guided-tutorial.js"></script>
@@ -1114,6 +1125,12 @@ Velocity: not set</div>
     normalize:normalizeObservatoryVector,
     dot:observatoryDot
   }=window.ObservatoryMode;
+  const {
+    cloudWeatherRequest,cloudWeatherAt,
+    fractalNoise3:observatoryCloudNoise,
+    cloudAlpha:observatoryCloudAlpha,
+    cloudSeed:observatoryCloudSeed
+  }=window.ObservatoryClouds;
   const {
     refinedSweptSphereImpact,
     linearImpactTime,impactStillInProgress,mergeKinematics,
@@ -1946,6 +1963,16 @@ Velocity: not set</div>
   let observatoryFov=70*DEG;
   let observatoryEnhance=true;
   let observatoryShowPaths=false;
+  let observatoryCloudsEnabled=false;
+  let observatoryCloudData=null;
+  let observatoryCloudRequestKey='';
+  let observatoryCloudRequestTimer=null;
+  let observatoryCloudRequestController=null;
+  let observatoryCloudRenderTime=0;
+  let observatoryCloudStatusKey='';
+  const observatoryCloudCache=new Map();
+  const observatoryCloudCanvas=document.createElement('canvas');
+  const observatoryCloudContext=observatoryCloudCanvas.getContext('2d');
   let observatoryTelescopeActive=false;
   let observatoryTelescopeTarget=null;
   let observatoryTelescopeTracking=true;
@@ -3957,6 +3984,212 @@ Velocity: not set</div>
     skyCtx.drawImage(starBackdrop,0,0);
   }
 
+  function setObservatoryCloudStatus(message,error=false){
+    const status=document.getElementById('observatoryCloudStatus');
+    status.textContent=message;
+    status.classList.toggle('error',error);
+  }
+
+  function clearObservatoryCloudRequest(clearData=true){
+    if(observatoryCloudRequestTimer!==null){
+      clearTimeout(observatoryCloudRequestTimer);
+      observatoryCloudRequestTimer=null;
+    }
+    observatoryCloudRequestController?.abort();
+    observatoryCloudRequestController=null;
+    observatoryCloudRequestKey='';
+    if(clearData) observatoryCloudData=null;
+    observatoryCloudRenderTime=0;
+    observatoryCloudStatusKey='';
+  }
+
+  function syncObservatoryCloudControls(){
+    const earth=observatoryObserver?.name==='Earth';
+    const checkbox=document.getElementById('observatoryClouds');
+    checkbox.disabled=!earth;
+    checkbox.checked=earth && observatoryCloudsEnabled;
+    document.getElementById('observatoryCloudLabel').title=earth
+      ? 'Uses Open-Meteo hourly cloud data for the simulation time.'
+      : 'Cloud data is available only to Earth observers.';
+    if(!earth){
+      setObservatoryCloudStatus('Available on Earth only.');
+    } else if(!observatoryCloudsEnabled){
+      setObservatoryCloudStatus('');
+    }
+  }
+
+  function scheduleObservatoryCloudRequest(){
+    if(!observatoryCloudsEnabled || observatoryObserver?.name!=='Earth') return;
+    const timestamp=J2000+simDaysSinceJ2000*86400000;
+    const request=cloudWeatherRequest(
+      timestamp,observatoryLatitude,observatoryLongitude
+    );
+    if(!request.supported){
+      const key='unsupported:'+request.reason;
+      if(observatoryCloudRequestKey!==key){
+        clearObservatoryCloudRequest();
+        observatoryCloudRequestKey=key;
+        setObservatoryCloudStatus(request.reason,true);
+      }
+      return;
+    }
+    if(observatoryCloudData?.key===request.key ||
+      observatoryCloudRequestKey===request.key) return;
+    clearObservatoryCloudRequest();
+    observatoryCloudRequestKey=request.key;
+    const cached=observatoryCloudCache.get(request.key);
+    if(cached){
+      observatoryCloudData=cached;
+      return;
+    }
+    setObservatoryCloudStatus('Loading '+request.source.toLowerCase()+'…');
+    observatoryCloudRequestTimer=setTimeout(async()=>{
+      observatoryCloudRequestTimer=null;
+      const controller=new AbortController();
+      observatoryCloudRequestController=controller;
+      try{
+        const response=await fetch(request.url,{signal:controller.signal});
+        if(!response.ok){
+          throw new Error('weather service returned HTTP '+response.status);
+        }
+        const payload=await response.json();
+        if(!cloudWeatherAt(payload.hourly,timestamp)){
+          throw new Error('weather service returned incomplete cloud data');
+        }
+        if(observatoryCloudRequestKey!==request.key) return;
+        const data={
+          key:request.key,source:request.source,date:request.date,
+          hourly:payload.hourly
+        };
+        observatoryCloudCache.set(request.key,data);
+        while(observatoryCloudCache.size>24){
+          observatoryCloudCache.delete(observatoryCloudCache.keys().next().value);
+        }
+        observatoryCloudData=data;
+        observatoryCloudRenderTime=0;
+        observatoryCloudStatusKey='';
+      } catch(error){
+        if(error.name==='AbortError' ||
+          observatoryCloudRequestKey!==request.key) return;
+        observatoryCloudData=null;
+        observatoryCloudRequestKey='';
+        setObservatoryCloudStatus(
+          'Cloud data unavailable: '+error.message+'.',true
+        );
+      } finally {
+        if(observatoryCloudRequestController===controller){
+          observatoryCloudRequestController=null;
+        }
+      }
+    },250);
+  }
+
+  function renderObservatoryCloudCanvas(frame,camera,daylight,weather,timestamp){
+    const scale=Math.max(1,Math.ceil(Math.max(W,H)/240));
+    const width=Math.ceil(W/scale);
+    const height=Math.ceil(H/scale);
+    if(observatoryCloudCanvas.width!==width ||
+      observatoryCloudCanvas.height!==height){
+      observatoryCloudCanvas.width=width;
+      observatoryCloudCanvas.height=height;
+    }
+    const image=observatoryCloudContext.createImageData(width,height);
+    const focal=H/(2*Math.tan(observatoryFov/2));
+    const windAngle=weather.windDirection*DEG;
+    const hoursIntoDay=(timestamp-Date.parse(
+      observatoryCloudData.date+'T00:00:00Z'
+    ))/3600000;
+    const windDistance=hoursIntoDay*(0.0015+weather.windSpeed*0.00008);
+    const layers=[
+      {name:'high',cover:weather.high,frequency:36,opacity:0.56,speed:1.6},
+      {name:'mid',cover:weather.mid,frequency:24,opacity:0.72,speed:1.0},
+      {name:'low',cover:weather.low,frequency:15,opacity:0.94,speed:0.65}
+    ];
+    if(layers.every(layer=>layer.cover<0.5) && weather.total>=0.5){
+      layers[1].cover=weather.total;
+    }
+    for(const layer of layers){
+      layer.seed=observatoryCloudSeed(
+        observatoryLatitude,observatoryLongitude,'sky-v1',layer.name
+      );
+    }
+    const cloudColor=Math.round(24+211*daylight);
+    for(let y=0;y<height;y++){
+      const screenY=(y+0.5)*scale;
+      const vertical=(H/2-screenY)/focal;
+      for(let x=0;x<width;x++){
+        const screenX=(x+0.5)*scale;
+        const horizontal=(screenX-W/2)/focal;
+        const direction=normalizeObservatoryVector({
+          x:camera.forward.x+camera.right.x*horizontal+camera.up.x*vertical,
+          y:camera.forward.y+camera.right.y*horizontal+camera.up.y*vertical,
+          z:camera.forward.z+camera.right.z*horizontal+camera.up.z*vertical
+        });
+        const altitude=Math.asin(Math.max(
+          -1,Math.min(1,observatoryDot(direction,frame.up))
+        ));
+        if(altitude<=0) continue;
+        const localEast=observatoryDot(direction,frame.east);
+        const localNorth=observatoryDot(direction,frame.north);
+        const localUp=observatoryDot(direction,frame.up);
+        let transparency=1;
+        for(const layer of layers){
+          if(layer.cover<0.5) continue;
+          const shift=windDistance*layer.speed;
+          const noise=observatoryCloudNoise(
+            localEast*layer.frequency+Math.sin(windAngle)*shift,
+            localNorth*layer.frequency+Math.cos(windAngle)*shift,
+            localUp*layer.frequency+shift*0.17,
+            layer.seed
+          );
+          transparency*=1-observatoryCloudAlpha(
+            noise,layer.cover,layer.opacity
+          );
+        }
+        const horizonFade=Math.min(1,altitude/(3*DEG));
+        const alpha=(1-transparency)*horizonFade;
+        if(alpha<0.01) continue;
+        const index=(y*width+x)*4;
+        image.data[index]=cloudColor;
+        image.data[index+1]=cloudColor;
+        image.data[index+2]=Math.min(255,cloudColor+6);
+        image.data[index+3]=Math.round(alpha*255);
+      }
+    }
+    observatoryCloudContext.putImageData(image,0,0);
+  }
+
+  function drawObservatoryClouds(frame,camera,daylight){
+    if(!observatoryCloudsEnabled || observatoryObserver?.name!=='Earth') return;
+    scheduleObservatoryCloudRequest();
+    if(!observatoryCloudData) return;
+    const timestamp=J2000+simDaysSinceJ2000*86400000;
+    const weather=cloudWeatherAt(observatoryCloudData.hourly,timestamp);
+    if(!weather) return;
+    const statusKey=[
+      observatoryCloudData.key,Math.floor(timestamp/3600000),
+      Math.round(weather.total),Math.round(weather.low),
+      Math.round(weather.mid),Math.round(weather.high)
+    ].join(':');
+    if(statusKey!==observatoryCloudStatusKey){
+      observatoryCloudStatusKey=statusKey;
+      setObservatoryCloudStatus(
+        observatoryCloudData.source+' · '+Math.round(weather.total)+
+        '% total · L/M/H '+Math.round(weather.low)+'/'+
+        Math.round(weather.mid)+'/'+Math.round(weather.high)+'%'
+      );
+    }
+    const now=performance.now();
+    if(!observatoryCloudRenderTime || now-observatoryCloudRenderTime>=200){
+      renderObservatoryCloudCanvas(frame,camera,daylight,weather,timestamp);
+      observatoryCloudRenderTime=now;
+    }
+    ctx.save();
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(observatoryCloudCanvas,0,0,W,H);
+    ctx.restore();
+  }
+
   function drawObservatoryGround(surface,horizonY,daylight){
     const groundTop=Math.max(0,Math.min(H,horizonY));
     if(groundTop>=H) return;
@@ -4308,6 +4541,7 @@ Velocity: not set</div>
         }
       );
     }
+    drawObservatoryClouds(frame,camera,daylight);
     if(!observatoryTelescopeActive) drawObservatoryGrid(frame,camera);
     drawObservatoryGround(surface,horizonY,daylight);
     const readout=document.getElementById('observatoryReadout');
@@ -6464,6 +6698,7 @@ Velocity: not set</div>
       observatoryLatitude.toFixed(4);
     document.getElementById('observatoryLongitude').value=
       observatoryLongitude.toFixed(4);
+    clearObservatoryCloudRequest();
   }
 
   function buildObservatoryPresets(selectFirst){
@@ -6498,10 +6733,13 @@ Velocity: not set</div>
       return;
     }
     observatoryObserver=body;
+    if(body.name!=='Earth') observatoryCloudsEnabled=false;
     observatoryTelescopeTarget=null;
     document.getElementById('observatoryBody').value=body.name;
     buildObservatoryPresets(selectFirst);
     refreshObservatoryTelescopeTargets();
+    clearObservatoryCloudRequest();
+    syncObservatoryCloudControls();
     if(observatoryTelescopeActive) syncObservatoryTelescopeControls();
   }
 
@@ -6578,6 +6816,7 @@ Velocity: not set</div>
       observatoryLongitude=Math.max(-180,Math.min(180,longitude));
       observatoryTimeZone='UTC';
       document.getElementById('observatoryPreset').value='custom';
+      clearObservatoryCloudRequest();
     }
     document.getElementById('observatoryLatitude').addEventListener(
       'input',updateCoordinates
@@ -6590,6 +6829,15 @@ Velocity: not set</div>
     );
     document.getElementById('observatoryPaths').addEventListener(
       'change',event=>{ observatoryShowPaths=event.target.checked; }
+    );
+    document.getElementById('observatoryClouds').addEventListener(
+      'change',event=>{
+        observatoryCloudsEnabled=
+          event.target.checked && observatoryObserver?.name==='Earth';
+        clearObservatoryCloudRequest();
+        syncObservatoryCloudControls();
+        if(observatoryCloudsEnabled) scheduleObservatoryCloudRequest();
+      }
     );
     document.getElementById('observatoryTelescopeBtn').addEventListener(
       'click',()=>setObservatoryTelescopeMode(!observatoryTelescopeActive)
@@ -6698,6 +6946,7 @@ Velocity: not set</div>
       invalidateProjection();
     } else {
       syncObservatoryTelescopeControls();
+      syncObservatoryCloudControls();
     }
   }
 
@@ -6863,6 +7112,7 @@ Velocity: not set</div>
         speed:Number(observatorySpeedExp.toFixed(4)),
         enhance:observatoryEnhance,
         paths:observatoryShowPaths,
+        clouds:observatoryCloudsEnabled,
         timeZone:observatoryTimeZone,
         telescope:observatoryTelescopeActive ? {
           target:observatoryTelescopeTarget?.name||null,
@@ -6929,6 +7179,9 @@ Velocity: not set</div>
         observatorySpeedExp=state.observatory.speed;
         observatoryEnhance=state.observatory.enhance;
         observatoryShowPaths=state.observatory.paths;
+        observatoryCloudsEnabled=
+          state.observatory.body==='Earth' &&
+          (state.observatory.clouds??false);
         observatoryTimeZone=state.observatory.timeZone;
         const telescopeState=state.observatory.telescope;
         observatoryTelescopeTarget=telescopeState
@@ -6947,6 +7200,7 @@ Velocity: not set</div>
           observatoryLongitude.toFixed(4);
         document.getElementById('observatoryEnhance').checked=observatoryEnhance;
         document.getElementById('observatoryPaths').checked=observatoryShowPaths;
+        syncObservatoryCloudControls();
         setObservatoryMode(true,true);
         if(telescopeState){
           setObservatoryTelescopeMode(true,true);
@@ -7334,6 +7588,9 @@ Velocity: not set</div>
   function prepareTutorialView(){
     if(spacecraftViewActive) setSpacecraftView(false);
     if(observatoryActive) setObservatoryMode(false,true);
+    observatoryCloudsEnabled=false;
+    clearObservatoryCloudRequest();
+    syncObservatoryCloudControls();
     setProfilerVisible(false);
     document.getElementById('bodyPanel').classList.remove('show');
     document.getElementById('addBodyBtn').classList.remove('active');
@@ -7414,6 +7671,9 @@ Velocity: not set</div>
     viewYaw=tutorialSnapshot.view.yaw;
     viewTilt=tutorialSnapshot.view.tilt;
     setFollowTarget(tutorialSnapshot.follow);
+    observatoryCloudsEnabled=tutorialSnapshot.clouds;
+    clearObservatoryCloudRequest();
+    syncObservatoryCloudControls();
     if(observatoryActive!==tutorialSnapshot.observatory){
       setObservatoryMode(tutorialSnapshot.observatory,true);
     }
@@ -7459,6 +7719,7 @@ Velocity: not set</div>
     onStart(){
       tutorialSnapshot={
         observatory:observatoryActive,
+        clouds:observatoryCloudsEnabled,
         telescope:{
           active:observatoryTelescopeActive,
           target:observatoryTelescopeTarget?.name||null,

@@ -165,6 +165,9 @@ introduced.
 
 ## Completed
 
+- [x] 2026-08-26 - Added optional Earth-only Observatory cloud cover using
+  hourly Open-Meteo forecast or ECMWF ERA5 historical low, mid, and high cloud
+  layers, with deterministic rendering and cached requests.
 - [x] 2026-08-26 - Added an Observatory-integrated telescope with automatic
   target tracking, logarithmic 0.05–10° fields of view, fine manual aiming,
   exposure control, fixed-size stellar point sources, optional reticle, clean PNG
