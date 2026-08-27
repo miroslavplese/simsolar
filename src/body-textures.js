@@ -5,6 +5,8 @@
 })(typeof globalThis!=='undefined' ? globalThis : this,function(){
   const TWO_PI=Math.PI*2;
   const MIN_RADIUS_PX=7;
+  const MAX_SAMPLE_RADIUS=256;
+  const FRAMEBUFFER_SIZE=MAX_SAMPLE_RADIUS*2+2;
   const DEFINITIONS={
     Sun:{file:'sun.webp',rotationHours:609.12,tiltDeg:7.25,phaseDeg:0,emissive:true},
     Mercury:{file:'mercury.webp',rotationHours:1407.6,tiltDeg:0.034,phaseDeg:329.6},
@@ -236,6 +238,8 @@
     options=options||{};
     if(typeof document==='undefined' || typeof Image==='undefined') return null;
     const canvas=document.createElement('canvas');
+    canvas.width=FRAMEBUFFER_SIZE;
+    canvas.height=FRAMEBUFFER_SIZE;
     const gl=canvas.getContext('webgl',{
       alpha:true,antialias:true,premultipliedAlpha:true,
       preserveDrawingBuffer:true
@@ -341,14 +345,15 @@
       if(state.status!=='ready') return false;
       renderOptions=renderOptions||{};
       const sampleRadius=Math.max(
-        8,Math.min(256,Math.ceil(radius*(definition.polarScale||1)))
+        8,Math.min(
+          MAX_SAMPLE_RADIUS,
+          Math.ceil(radius*(definition.polarScale||1))
+        )
       );
       const size=sampleRadius*2+2;
-      if(canvas.width!==size || canvas.height!==size){
-        canvas.width=size;
-        canvas.height=size;
-      }
       gl.viewport(0,0,size,size);
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(0,0,size,size);
       gl.clearColor(0,0,0,0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(program);
@@ -399,6 +404,7 @@
       const polarScale=definition.polarScale||1;
       targetContext.drawImage(
         canvas,
+        0,FRAMEBUFFER_SIZE-size,size,size,
         x-radius-1,y-radius*polarScale-1,
         radius*2+2,radius*polarScale*2+2
       );
@@ -409,7 +415,8 @@
   }
 
   return {
-    TWO_PI,MIN_RADIUS_PX,DEFINITIONS,textureDefinition,rotationTurns,
+    TWO_PI,MIN_RADIUS_PX,MAX_SAMPLE_RADIUS,FRAMEBUFFER_SIZE,
+    DEFINITIONS,textureDefinition,rotationTurns,
     cloudOffsetTurns,
     shouldUseTexture,poleVector,viewBasis,orientationMatrix,createRenderer
   };

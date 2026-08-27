@@ -1,9 +1,11 @@
 const assert=require('node:assert/strict');
 const {
-  MIN_RADIUS_PX,textureDefinition,rotationTurns,shouldUseTexture,poleVector,
+  MIN_RADIUS_PX,MAX_SAMPLE_RADIUS,FRAMEBUFFER_SIZE,
+  textureDefinition,rotationTurns,shouldUseTexture,poleVector,
   cloudOffsetTurns,viewBasis,orientationMatrix,createRenderer
 }=require('../src/body-textures.js');
 
+assert.equal(FRAMEBUFFER_SIZE,MAX_SAMPLE_RADIUS*2+2);
 assert.equal(textureDefinition('Earth').file,'earth.webp');
 assert.equal(textureDefinition('Earth').cloudFile,'earth-clouds.webp');
 assert.equal(textureDefinition('Saturn').polarScale,0.902);

@@ -8,6 +8,7 @@ const {
   planetMarkerRadiusPixels,
   customMarkerRadiusPixels,
   displayRadiusPixels,
+  circleIntersectsViewport,
   distanceToSegment,
   distanceToPolyline,
   pathSegmentsByDepth
@@ -71,6 +72,13 @@ const close=displayRadiusPixels({
 });
 assert.equal(close.radius,close.physicalRadius);
 assert.equal(close.scaleAccurate,true);
+
+assert.equal(circleIntersectsViewport(50,50,10,100,100),true);
+assert.equal(circleIntersectsViewport(-10,50,10,100,100),true);
+assert.equal(circleIntersectsViewport(-10.01,50,10,100,100),false);
+assert.equal(circleIntersectsViewport(50,110,10,100,100),true);
+assert.equal(circleIntersectsViewport(50,110.01,10,100,100),false);
+assert.equal(circleIntersectsViewport(50,50,-1,100,100),false);
 
 assert.equal(distanceToSegment(5,3,0,0,10,0),3);
 assert.equal(distanceToSegment(-2,0,0,0,10,0),2);

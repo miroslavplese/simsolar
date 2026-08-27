@@ -850,8 +850,8 @@ Velocity: not set</div>
 <script src="src/scenario-state.js?v=20260820-1"></script>
 <script src="src/guided-tutorial.js"></script>
 <script src="src/panel-drag.js"></script>
-<script src="src/body-rendering.js"></script>
-<script src="src/body-textures.js?v=20260820-1"></script>
+<script src="src/body-rendering.js?v=20260826-1"></script>
+<script src="src/body-textures.js?v=20260826-1"></script>
 <script src="src/body-placement.js"></script>
 <script src="src/body-lighting.js"></script>
 <script src="src/moon-system.js"></script>
@@ -963,6 +963,7 @@ Velocity: not set</div>
   }=window.ViewTransform;
   const {
     displayRadiusPixels,planetMarkerRadiusPixels,customMarkerRadiusPixels,
+    circleIntersectsViewport,
     distanceToPolyline,pathSegmentsByDepth,maximumZoomForRadius,
     zoomForPhysicalRadius
   }=window.BodyRendering;
@@ -4436,14 +4437,16 @@ Velocity: not set</div>
         ctx.beginPath();
         ctx.arc(sunP.x,sunP.y,sunGlowR,0,Math.PI*2);
         ctx.fill();
-        if(!drawBodyTexture(
-          sunReference,sunP.x,sunP.y,sunR,ctx,
-          {x:0,y:0,z:1},systemTextureViewBasis()
-        )){
-          ctx.fillStyle='#fff3d6';
-          ctx.beginPath();
-          ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2);
-          ctx.fill();
+        if(sunDiskVisible){
+          if(!drawBodyTexture(
+            sunReference,sunP.x,sunP.y,sunR,ctx,
+            {x:0,y:0,z:1},systemTextureViewBasis()
+          )){
+            ctx.fillStyle='#fff3d6';
+            ctx.beginPath();
+            ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2);
+            ctx.fill();
+          }
         }
       }
       sunReference._screen={
@@ -4511,7 +4514,9 @@ Velocity: not set</div>
           ctx.arc(px,py,r+5,0,Math.PI*2);
           ctx.stroke();
         }
-        drawCustomBody(b,pos,px,py,radiusRendering,lightScreen);
+        if(circleIntersectsViewport(px,py,r,W,H)){
+          drawCustomBody(b,pos,px,py,radiusRendering,lightScreen);
+        }
         ctx.font='9.5px "SF Mono", Consolas, monospace';
         ctx.fillStyle=b===selected?b.color:'rgba(232,236,247,0.6)';
         ctx.fillText(b.name,px+r+6,py+3);
@@ -4526,7 +4531,9 @@ Velocity: not set</div>
           ctx.arc(px,py,r+4,0,Math.PI*2);
           ctx.stroke();
         }
-        drawBodySphere(b,pos,px,py,radiusRendering);
+        if(circleIntersectsViewport(px,py,r,W,H)){
+          drawBodySphere(b,pos,px,py,radiusRendering);
+        }
         ctx.font='8.5px "SF Mono", Consolas, monospace';
         ctx.fillStyle=b===selected?'#f2b544':'rgba(232,236,247,0.58)';
         ctx.fillText(b.name,px+r+5,py+3);
@@ -4539,7 +4546,9 @@ Velocity: not set</div>
         );
         drawPlanetRingSide(ringGeometry,false);
         if(b===selected){ ctx.beginPath(); ctx.strokeStyle='rgba(242,181,68,0.9)'; ctx.lineWidth=1.5; ctx.arc(px,py,r+5,0,Math.PI*2); ctx.stroke(); }
-        drawBodySphere(b,pos,px,py,radiusRendering);
+        if(circleIntersectsViewport(px,py,r,W,H)){
+          drawBodySphere(b,pos,px,py,radiusRendering);
+        }
         drawMoonOrbitSide(moonOrbitGeometry,true,b);
         drawPlanetRingSide(ringGeometry,true);
         if(zoom>0.4 || b===selected || b===hovered){

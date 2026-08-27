@@ -58,6 +58,16 @@
     };
   }
 
+  function circleIntersectsViewport(x,y,radius,width,height){
+    if(
+      !Number.isFinite(x) || !Number.isFinite(y) ||
+      !Number.isFinite(radius) || radius<0 ||
+      !(width>=0) || !(height>=0)
+    ) return false;
+    return x+radius>=0 && x-radius<=width &&
+      y+radius>=0 && y-radius<=height;
+  }
+
   function distanceToSegment(px,py,x1,y1,x2,y2){
     const dx=x2-x1;
     const dy=y2-y1;
@@ -94,6 +104,7 @@
     planetMarkerRadiusPixels,
     maximumZoomForRadius,customMarkerRadiusPixels,
     displayRadiusPixels,
+    circleIntersectsViewport,
     distanceToSegment,distanceToPolyline,pathSegmentsByDepth
   };
 });
