@@ -3047,9 +3047,11 @@ Velocity: not set</div>
         const bodyMu=b.mu||GM_BY_BODY[b.name]||
           MOON_GM_BY_BODY[b.name]||
           (b.massKg ? massKgToMu(b.massKg) : 0);
-        pts=osculatingOrbitPoints(
+        const orbitPoints=osculatingOrbitPoints(
           relative,primaryMu+(bodyMu||0),220
-        ).map(point=>project(
+        );
+        if(orbitPoints.length<2) continue;
+        pts=orbitPoints.map(point=>project(
           point.x+primaryPosition.x,
           point.y+primaryPosition.y,
           point.z+primaryPosition.z
@@ -8072,6 +8074,9 @@ Velocity: not set</div>
       }
       if(!editableSystem && simDaysSinceJ2000>=HYBRID_MAX_DAYS){
         stopAtHybridLimit();
+      }
+      if(editableSystem && simDaysSinceJ2000!==previousDays){
+        orbitLayerDirty=true;
       }
     }
     if(t-lastImpactPredictionUpdate>1000){

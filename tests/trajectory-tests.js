@@ -102,6 +102,14 @@ assert.deepEqual(osculating[128],{x:1,y:0,z:0});
 for(const point of osculating){
   close(Math.hypot(point.x,point.y,point.z),1,1e-12,'circular osculating radius');
 }
+assert.deepEqual(osculatingOrbitPoints({
+  ...currentOrbitState,
+  vy:Math.sqrt(2*GM_SUN_AU_DAY)
+},GM_SUN_AU_DAY,256),[]);
+assert.deepEqual(osculatingOrbitPoints({
+  ...currentOrbitState,
+  vy:0
+},GM_SUN_AU_DAY,256),[]);
 
 const spacecraft=loadGenerated('data/spacecraft-trajectories.js','SPACECRAFT_TRAJECTORIES').trajectories;
 const planets=loadGenerated('data/planet-ephemerides.js','PLANET_EPHEMERIDES').ephemerides;
