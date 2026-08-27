@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const {
   sweptSphereImpact,refinedSweptSphereImpact,
   linearImpactTime,impactStillInProgress,mergeKinematics,
-  mergedRadius,estimatedRadiusKm
+  mergedRadius,estimatedRadiusKm,memoizedStateSampler
 }=require('../src/collision-system.js');
 
 const stationary={x:0,y:0,z:0,vx:0,vy:0,vz:0};
@@ -53,6 +53,22 @@ const curvedFalsePositive=refinedSweptSphereImpact(
   0.5
 );
 assert.equal(curvedFalsePositive,null);
+
+let stateSamples=0;
+const sampleBody=memoizedStateSampler(
+  time=>{
+    stateSamples++;
+    return new Map([
+      ['a',{x:time,y:0,z:0}],
+      ['b',{x:0,y:time,z:0}]
+    ]);
+  },
+  (state,body)=>state.get(body)
+);
+assert.deepEqual(sampleBody('a',2),{x:2,y:0,z:0});
+assert.deepEqual(sampleBody('b',2),{x:0,y:2,z:0});
+assert.deepEqual(sampleBody('a',3),{x:3,y:0,z:0});
+assert.equal(stateSamples,2);
 
 const merged=mergeKinematics(
   {mu:1,x:-1,y:0,z:0,vx:2,vy:0,vz:0},

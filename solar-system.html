@@ -965,7 +965,7 @@ Velocity: not set</div>
 <script src="src/ring-system.js"></script>
 <script src="src/lagrange-system.js"></script>
 <script src="src/occultation-system.js"></script>
-<script src="src/collision-system.js"></script>
+<script src="src/collision-system.js?v=20260827-1"></script>
 <script src="src/nbody-simulation.js?v=20260820-1"></script>
 <script src="src/hierarchical-moon-simulation.js"></script>
 <script>
@@ -1136,7 +1136,7 @@ Velocity: not set</div>
   const {
     refinedSweptSphereImpact,
     linearImpactTime,impactStillInProgress,mergeKinematics,
-    mergedRadius,estimatedRadiusKm
+    mergedRadius,estimatedRadiusKm,memoizedStateSampler
   }=window.CollisionSystem;
   const {
     GM_BY_BODY,MOON_GM_BY_BODY,MASS_KG,massKgToMu,cloneState,createBarycentricState,
@@ -3007,9 +3007,6 @@ Velocity: not set</div>
     const editableSnapshot=editableSystem
       ? editableSnapshotAt(simDaysSinceJ2000)
       : null;
-    const editableLight=editableSystem
-      ? dominantLightBody(activeSystemBodies())
-      : null;
     for(const b of drawList){
       if(
         b.hideOrbit || (!editableSnapshot && b.kind==='custom') ||
@@ -3027,7 +3024,8 @@ Velocity: not set</div>
           candidate.id===b.parentId || candidate.name===b.parentName
         );
         const primary=configuredPrimary || (
-          b.kind!=='custom' && editableLight!==b ? editableLight : null
+          b.kind!=='custom' && sunReference!==b &&
+          isBodyActive(sunReference) ? sunReference : null
         );
         const bodyPosition=bodyState(editableSnapshot,b.id);
         const primaryPosition=primary &&
@@ -6362,9 +6360,9 @@ Velocity: not set</div>
   function collisionRadiusKm(body){
     return body===sunReference ? SUN_RADIUS_KM : body.radius;
   }
-  function collisionPairsAt(tDays){
+  function collisionPairsAt(tDays,positionAt=positionForBody){
     const candidates=activeSystemBodies().filter(
-      body=>collisionRadiusKm(body)>0 && positionForBody(body,tDays)
+      body=>collisionRadiusKm(body)>0 && positionAt(body,tDays)
     );
     const pairs=[];
     for(let i=0;i<candidates.length;i++){
@@ -6426,11 +6424,17 @@ Velocity: not set</div>
   function detectImpact(startDays,endDays){
     const epoch=editableSystem?.epoch??HYBRID_EPOCH_DAYS;
     if(endDays<=startDays || startDays<epoch) return null;
+    const positionAt=editableSystem
+      ? memoizedStateSampler(
+          time=>editableSystem.simulator.stateAt(time),
+          (state,body)=>bodyState(state,body.id)
+        )
+      : (body,time)=>positionForBody(body,time);
     let earliest=null;
-    for(const [a,b] of collisionPairsAt(startDays)){
+    for(const [a,b] of collisionPairsAt(startDays,positionAt)){
       const key=impactKey(a,b);
-      const startA=positionForBody(a,startDays);
-      const startB=positionForBody(b,startDays);
+      const startA=positionAt(a,startDays);
+      const startB=positionAt(b,startDays);
       if(!startA || !startB) continue;
       const radius=(collisionRadiusKm(a)+collisionRadiusKm(b))/AU_KM;
       if(ignoredImpactKey===key){
@@ -6439,14 +6443,14 @@ Velocity: not set</div>
       }
       const hit=refinedSweptSphereImpact(
         startDays,endDays,
-        time=>positionForBody(a,time),
-        time=>positionForBody(b,time),
+        time=>positionAt(a,time),
+        time=>positionAt(b,time),
         radius
       );
       if(!hit) continue;
       const time=hit.time;
       if(!earliest || time<earliest.time){
-        const stateA=positionForBody(a,time), stateB=positionForBody(b,time);
+        const stateA=positionAt(a,time), stateB=positionAt(b,time);
         earliest={
           a,b,key,time,
           speedKmS:relativeSpeedKmS(stateA,stateB)

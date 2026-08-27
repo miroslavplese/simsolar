@@ -126,6 +126,14 @@
       position.z*velocity.z<0;
   }
 
+  function memoizedStateSampler(sampleState,selectBody){
+    const cache=new Map();
+    return (body,time)=>{
+      if(!cache.has(time)) cache.set(time,sampleState(time));
+      return selectBody(cache.get(time),body);
+    };
+  }
+
   function mergeKinematics(a,b){
     const totalMu=a.mu+b.mu;
     if(!(a.mu>0) || !(b.mu>0) || !(totalMu>0)){
@@ -165,6 +173,6 @@
   return {
     sweptSphereImpact,refinedSweptSphereImpact,
     linearImpactTime,impactStillInProgress,mergeKinematics,
-    mergedRadius,estimatedRadiusKm
+    mergedRadius,estimatedRadiusKm,memoizedStateSampler
   };
 });
