@@ -1,6 +1,8 @@
 const assert=require('node:assert/strict');
 const {
-  DEG,SURFACES,locationPresets,surfaceFrame,horizontalCoordinates,
+  DEG,SURFACES,locationPresets,locationPresetsForBody,
+  surfaceDefinitionForBody,
+  surfaceFrame,horizontalCoordinates,
   cameraFrame,projectDirection,
   altitudeForDirection,angularRadius,daylightFactor,
   TELESCOPE_MIN_FOV,TELESCOPE_MAX_FOV,
@@ -30,6 +32,25 @@ assert.ok(earth.pole.y>0,'Earth north pole must face the positive ecliptic Y sid
 assert.ok(SURFACES.Venus.rotationHours>0 && SURFACES.Venus.tiltDeg>90);
 assert.ok(SURFACES.Pluto.rotationHours>0 && SURFACES.Pluto.tiltDeg>90);
 assert.ok(SURFACES.Triton.rotationHours>0 && SURFACES.Triton.tiltDeg>90);
+assert.equal(surfaceDefinitionForBody(null),null);
+assert.equal(surfaceDefinitionForBody({
+  name:'Second Earth',kind:'custom',appearance:'star',radius:1000
+}),null);
+const customPlanetSurface=surfaceDefinitionForBody({
+  name:'Second Earth',kind:'custom',appearance:'planet',
+  radius:6371,color:'#70b7ff'
+});
+assert.deepEqual(customPlanetSurface,{
+  rotationHours:24,tiltDeg:0,phaseDeg:0,ground:'#70b7ff'
+});
+assert.equal(
+  surfaceDefinitionForBody({name:'Earth',kind:'planet'}),
+  SURFACES.Earth
+);
+assert.equal(locationPresetsForBody({
+  name:'Earth',kind:'custom',appearance:'planet'
+})[0].name,'Prime meridian');
+assert.equal(locationPresetsForBody({name:'Earth',kind:'planet'})[0].name,'Auckland');
 const seattle=locationPresets('Earth').find(
   preset=>preset.name==='Seattle'
 );

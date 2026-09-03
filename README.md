@@ -22,11 +22,11 @@ web server is required.
   search with direct Observatory Mode navigation
 - 8,870-star Hipparcos celestial sphere with catalog positions, Johnson V
   magnitudes, B−V colors, and a cached offscreen rendering backdrop
-- Surface observatory mode for solid planets and moons with location presets,
-  configurable coordinates, atmospheric daylight, horizon coordinates, and
-  true-angular-size sky objects, optional orbit/trajectory guides, scaled time,
-  local civil-time display, optional historical/live Earth cloud layers,
-  tracked telescopic views, exposure control, and clean PNG capture
+- Surface observatory mode for solid planets, moons, and custom planets with
+  location presets, configurable coordinates, atmospheric daylight, horizon
+  coordinates, and true-angular-size sky objects, optional orbit/trajectory
+  guides, scaled time, local civil-time display, optional historical/live Earth
+  cloud layers, tracked telescopic views, exposure control, and clean PNG capture
 - Interactive insertion of configurable stars, black holes, planets, and comets
   with 0–180° orbital inclination
 - Editable star systems with per-body and cascading deletion, blank-system
@@ -160,8 +160,8 @@ web server is required.
 - Custom-system links are limited to 4096 encoded characters. Large systems
   remain usable in the current browser session but must be simplified before
   they can be shared by URL.
-- Observatory surfaces and location presets remain limited to supported
-  built-in planets and moons.
+- Custom planets use a generic airless, zero-tilt surface with a 24-hour
+  rotation and generic coordinate presets.
 - Optional Earth cloud cover uses hourly Open-Meteo forecasts or ECMWF ERA5
   historical reanalysis from 1940 onward and requires an internet connection.
 - Illumination, comet tails, and occultation tools use the most massive active

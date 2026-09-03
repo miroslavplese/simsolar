@@ -117,12 +117,30 @@
     return SURFACES[name]||null;
   }
 
+  function surfaceDefinitionForBody(body){
+    if(!body) return null;
+    if(body.kind==='custom'){
+      if(body.appearance!=='planet' || !(body.radius>0)) return null;
+      return {
+        rotationHours:24,
+        tiltDeg:0,
+        phaseDeg:0,
+        ground:body.color||'#38465a'
+      };
+    }
+    return surfaceDefinition(body.name);
+  }
+
   function locationPresets(name){
     return LOCATION_PRESETS[name]||[
       {name:'Prime meridian',latitude:0,longitude:0},
       {name:'Equator 90° E',latitude:0,longitude:90},
       {name:'North polar region',latitude:80,longitude:0}
     ];
+  }
+
+  function locationPresetsForBody(body){
+    return locationPresets(body?.kind==='custom' ? '' : body?.name);
   }
 
   function surfaceFrame(definition,tDays,latitudeDeg,longitudeDeg){
@@ -255,7 +273,8 @@
   }
 
   return {
-    DEG,SURFACES,surfaceDefinition,locationPresets,surfaceFrame,
+    DEG,SURFACES,surfaceDefinition,surfaceDefinitionForBody,
+    locationPresets,locationPresetsForBody,surfaceFrame,
     horizontalDirection,horizontalCoordinates,cameraFrame,projectDirection,
     altitudeForDirection,angularRadius,daylightFactor,
     TELESCOPE_MIN_FOV,TELESCOPE_MAX_FOV,

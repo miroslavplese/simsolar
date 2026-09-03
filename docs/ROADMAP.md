@@ -178,6 +178,8 @@ introduced.
 - [x] 2026-08-18 - Added physical-scale, appearance-specific rendering for
   user-introduced stars, black holes, planets, and comets in both Solar System
   and Observatory views.
+- [x] 2026-09-03 - Enabled custom planets as Observatory and Telescope observer
+  worlds using a generic rotating surface model and coordinate presets.
 - [x] 2026-08-18 - Added a first-run guided tutorial with persistent completion,
   responsive pointers, major-feature walkthroughs, and a toolbar restart action.
 - [x] 2026-08-17 - Replaced the generated random star sphere with 8,870

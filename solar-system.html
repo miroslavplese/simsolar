@@ -1107,9 +1107,8 @@ Velocity: not set</div>
     apparentOccultation,apparentSeparation,goldenMinimum
   }=window.OccultationSystem;
   const {
-    SURFACES:OBSERVATORY_SURFACES,
-    surfaceDefinition:observatorySurfaceDefinition,
-    locationPresets:observatoryLocationPresets,
+    surfaceDefinitionForBody:observatorySurfaceDefinitionForBody,
+    locationPresetsForBody:observatoryLocationPresetsForBody,
     surfaceFrame:observatorySurfaceFrame,
     horizontalDirection:observatoryHorizontalDirection,
     horizontalCoordinates:observatoryHorizontalCoordinates,
@@ -2083,7 +2082,7 @@ Velocity: not set</div>
 
   function eventObserverState(observer,tDays){
     const center=occultationSearchPositionForBody(observer,tDays);
-    const surface=observatorySurfaceDefinition(observer.name);
+    const surface=observatorySurfaceDefinitionForBody(observer);
     if(!center || !surface || observer!==observatoryObserver) return center;
     const frame=observatorySurfaceFrame(
       surface,tDays,observatoryLatitude,observatoryLongitude
@@ -3818,9 +3817,13 @@ Velocity: not set</div>
   }
 
   function observatoryObserverBodies(){
-    return activeBodiesOf([...planets,...moons]).filter(body=>
-      !!observatorySurfaceDefinition(body.name)
+    return activeSystemBodies().filter(body=>
+      !!observatorySurfaceDefinitionForBody(body)
     );
+  }
+
+  function isEarthObservatoryBody(body){
+    return body?.kind==='planet' && body.name==='Earth';
   }
 
   function observatorySceneBodies(){
@@ -4012,7 +4015,7 @@ Velocity: not set</div>
   }
 
   function syncObservatoryCloudControls(){
-    const earth=observatoryObserver?.name==='Earth';
+    const earth=isEarthObservatoryBody(observatoryObserver);
     const checkbox=document.getElementById('observatoryClouds');
     checkbox.disabled=!earth;
     checkbox.checked=earth && observatoryCloudsEnabled;
@@ -4027,7 +4030,8 @@ Velocity: not set</div>
   }
 
   function scheduleObservatoryCloudRequest(){
-    if(!observatoryCloudsEnabled || observatoryObserver?.name!=='Earth') return;
+    if(!observatoryCloudsEnabled ||
+      !isEarthObservatoryBody(observatoryObserver)) return;
     const timestamp=J2000+simDaysSinceJ2000*86400000;
     const request=cloudWeatherRequest(
       timestamp,observatoryLatitude,observatoryLongitude
@@ -4529,7 +4533,7 @@ Velocity: not set</div>
   }
 
   function drawObservatory(){
-    const surface=observatorySurfaceDefinition(observatoryObserver?.name);
+    const surface=observatorySurfaceDefinitionForBody(observatoryObserver);
     const center=observatoryObserver &&
       positionForBody(observatoryObserver,simDaysSinceJ2000);
     if(!surface || !center){
@@ -5944,7 +5948,7 @@ Velocity: not set</div>
       const observer=activeOccultationObservers().find(
         body=>body.name===select.value
       );
-      if(observatorySurfaceDefinition(observer?.name)){
+      if(observatorySurfaceDefinitionForBody(observer)){
         setObservatoryObserver(observer);
       }
       document.getElementById('previousOccultationBtn').disabled=false;
@@ -5982,7 +5986,7 @@ Velocity: not set</div>
     );
     if(visible && activeOccultationObservers().includes(selected)){
       document.getElementById('occultationObserver').value=selected.name;
-      if(observatorySurfaceDefinition(selected.name)){
+      if(observatorySurfaceDefinitionForBody(selected)){
         setObservatoryObserver(selected);
       }
     }
@@ -6757,7 +6761,7 @@ Velocity: not set</div>
   }
 
   function applyObservatoryPreset(index){
-    const preset=observatoryLocationPresets(observatoryObserver.name)[index];
+    const preset=observatoryLocationPresetsForBody(observatoryObserver)[index];
     if(!preset) return;
     observatoryLatitude=preset.latitude;
     observatoryLongitude=preset.longitude;
@@ -6772,8 +6776,8 @@ Velocity: not set</div>
   function buildObservatoryPresets(selectFirst){
     const select=document.getElementById('observatoryPreset');
     select.innerHTML='';
-    for(const [index,preset] of observatoryLocationPresets(
-      observatoryObserver.name
+    for(const [index,preset] of observatoryLocationPresetsForBody(
+      observatoryObserver
     ).entries()){
       const option=document.createElement('option');
       option.value=String(index);
@@ -6785,8 +6789,8 @@ Velocity: not set</div>
     custom.textContent='CUSTOM COORDINATES';
     select.appendChild(custom);
     if(selectFirst){
-      const presets=observatoryLocationPresets(observatoryObserver.name);
-      const defaultIndex=observatoryObserver.name==='Earth'
+      const presets=observatoryLocationPresetsForBody(observatoryObserver);
+      const defaultIndex=isEarthObservatoryBody(observatoryObserver)
         ? Math.max(0,presets.findIndex(preset=>preset.name==='Greenwich'))
         : 0;
       select.value=String(defaultIndex);
@@ -6795,13 +6799,15 @@ Velocity: not set</div>
   }
 
   function setObservatoryObserver(body,selectFirst=true){
-    if(!body || !observatorySurfaceDefinition(body.name)) return;
+    if(!observatorySurfaceDefinitionForBody(body)) return;
     if(body===observatoryObserver && !selectFirst){
       document.getElementById('observatoryBody').value=body.name;
       return;
     }
     observatoryObserver=body;
-    if(body.name!=='Earth') observatoryCloudsEnabled=false;
+    if(!isEarthObservatoryBody(body)){
+      observatoryCloudsEnabled=false;
+    }
     observatoryTelescopeTarget=null;
     document.getElementById('observatoryBody').value=body.name;
     buildObservatoryPresets(selectFirst);
@@ -6812,7 +6818,7 @@ Velocity: not set</div>
   }
 
   function aimObservatoryAtEvent(event){
-    const surface=observatorySurfaceDefinition(event.observer.name);
+    const surface=observatorySurfaceDefinitionForBody(event.observer);
     const observerCenter=positionForBody(event.observer,event.time);
     if(!surface || !observerCenter) return;
     const frame=observatorySurfaceFrame(
@@ -6901,7 +6907,8 @@ Velocity: not set</div>
     document.getElementById('observatoryClouds').addEventListener(
       'change',event=>{
         observatoryCloudsEnabled=
-          event.target.checked && observatoryObserver?.name==='Earth';
+          event.target.checked &&
+          isEarthObservatoryBody(observatoryObserver);
         clearObservatoryCloudRequest();
         syncObservatoryCloudControls();
         if(observatoryCloudsEnabled) scheduleObservatoryCloudRequest();
@@ -7248,7 +7255,7 @@ Velocity: not set</div>
         observatoryEnhance=state.observatory.enhance;
         observatoryShowPaths=state.observatory.paths;
         observatoryCloudsEnabled=
-          state.observatory.body==='Earth' &&
+          isEarthObservatoryBody(observer) &&
           (state.observatory.clouds??false);
         observatoryTimeZone=state.observatory.timeZone;
         const telescopeState=state.observatory.telescope;
