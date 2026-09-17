@@ -3,7 +3,8 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const {
-  OBLIQUITY,bvToRgb,createStars,cameraCoordinates,projectStar
+  OBLIQUITY,bvToRgb,createStars,cameraCoordinates,projectStar,
+  systemBackdropOrientation
 }=require('../src/star-field.js');
 
 const records=[
@@ -74,5 +75,12 @@ assert.equal(
   projectStar({x:0,y:0,z:-1,radius:1,alpha:1},0,0,800,600),
   null
 );
+const restTilt=58*Math.PI/180;
+assert.deepEqual(systemBackdropOrientation(0,restTilt,restTilt),{
+  yaw:0,tilt:restTilt
+});
+assert.deepEqual(systemBackdropOrientation(-0.6,restTilt-0.3,restTilt),{
+  yaw:0.6,tilt:restTilt+0.3
+});
 
 console.log('Star field tests passed.');

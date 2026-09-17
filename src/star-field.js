@@ -85,5 +85,15 @@
     return {x,y,radius:star.radius,alpha:star.alpha,depth:camera.depth};
   }
 
-  return {OBLIQUITY,bvToRgb,catalogStar,createStars,cameraCoordinates,projectStar};
+  function systemBackdropOrientation(yaw,tilt,restTilt){
+    return {
+      yaw:yaw===0 ? 0 : -yaw,
+      tilt:2*restTilt-tilt
+    };
+  }
+
+  return {
+    OBLIQUITY,bvToRgb,catalogStar,createStars,cameraCoordinates,projectStar,
+    systemBackdropOrientation
+  };
 });

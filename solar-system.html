@@ -949,8 +949,8 @@ Velocity: not set</div>
 <script src="src/mission-planner-ui.js?v=20260820-4"></script>
 <script src="src/spacecraft-view.js?v=20260820-2"></script>
 <script src="src/frame-profiler.js"></script>
-<script src="src/view-transform.js?v=20260819-2"></script>
-<script src="src/star-field.js"></script>
+<script src="src/view-transform.js?v=20260916-1"></script>
+<script src="src/star-field.js?v=20260916-1"></script>
 <script src="src/observatory-mode.js?v=20260826-1"></script>
 <script src="src/observatory-clouds.js?v=20260826-2"></script>
 <script src="src/system-model.js?v=20260820-1"></script>
@@ -1034,13 +1034,16 @@ Velocity: not set</div>
 
   function drawStars(force){
     ensureCatalogStars();
+    const backdropOrientation=StarField.systemBackdropOrientation(
+      viewYaw,viewTilt,DEFAULT_TILT
+    );
     const key='system:'+W+':'+H+':'+
-      backdropComponent(viewYaw,1000)+':'+
-      backdropComponent(viewTilt,1000);
+      backdropComponent(backdropOrientation.yaw,1000)+':'+
+      backdropComponent(backdropOrientation.tilt,1000);
     renderStarBackdrop(key,backdrop=>{
       for(const star of stars){
         const projected=StarField.projectStar(
-          star,viewYaw,viewTilt,W,H
+          star,backdropOrientation.yaw,backdropOrientation.tilt,W,H
         );
         if(!projected) continue;
         backdrop.beginPath();
