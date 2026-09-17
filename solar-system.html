@@ -6076,6 +6076,8 @@ Velocity: not set</div>
   function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
   function selectedRotationPivot(){
     if(!selected) return null;
+    const rendering=bodyRadiusRendering(selected,selected===sunReference);
+    if(!rendering.scaleAccurate) return null;
     const position=positionForBody(selected,simDaysSinceJ2000);
     if(!position) return null;
     const screen=project(position.x,position.y,position.z);
@@ -6187,7 +6189,10 @@ Velocity: not set</div>
       );
     } else if(dragMode==='rotate' && activePointers.size===1){
       const dx=e.clientX-dragStartInfo.x, dy=e.clientY-dragStartInfo.y;
-      if(Math.hypot(dx,dy)>6) dragMoved=true;
+      if(Math.hypot(dx,dy)>6){
+        dragMoved=true;
+        if(!dragStartInfo.rotationPivot) setFollowTarget(null);
+      }
       const rotation=rotationFromDrag(dragStartInfo.yaw,dragStartInfo.tilt,dx,dy);
       viewYaw=rotation.yaw;
       viewTilt=rotation.tilt;
