@@ -21,8 +21,8 @@
   function rotationFromDrag(startYaw,startTilt,deltaX,deltaY,sensitivity){
     const scale=sensitivity||0.006;
     return {
-      yaw:startYaw+deltaX*scale,
-      tilt:Math.max(MIN_TILT,Math.min(MAX_TILT,startTilt+deltaY*scale))
+      yaw:startYaw-deltaX*scale,
+      tilt:Math.max(MIN_TILT,Math.min(MAX_TILT,startTilt-deltaY*scale))
     };
   }
 

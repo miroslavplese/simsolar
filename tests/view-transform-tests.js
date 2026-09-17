@@ -20,9 +20,9 @@ const sourceLength=Math.hypot(3,-4,5);
 const projected=viewCoordinates(3,-4,5,0.7,1.1);
 assert.ok(Math.abs(Math.hypot(projected.x,projected.y,projected.depth)-sourceLength)<1e-12);
 
-assert.equal(rotationFromDrag(0,1,100,0).yaw,0.6);
-assert.equal(rotationFromDrag(0,1,0,-1000).tilt,MIN_TILT);
-assert.equal(rotationFromDrag(0,1,0,1000).tilt,MAX_TILT);
+assert.equal(rotationFromDrag(0,1,100,0).yaw,-0.6);
+assert.equal(rotationFromDrag(0,1,0,1000).tilt,MIN_TILT);
+assert.equal(rotationFromDrag(0,1,0,-1000).tilt,MAX_TILT);
 
 const pivot={x:3,y:-2,z:1};
 const pivotPan=panForRotationPivot(420,260,pivot,0.8,1.2,50,400,300);
