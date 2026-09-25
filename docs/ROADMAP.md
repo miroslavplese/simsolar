@@ -50,7 +50,8 @@ validation.
   the current checkpoint interval.
 - [ ] Replace remaining trajectory segment scans with spatial indexing or
   marker-first selection at large scales.
-- [ ] Reduce path sample counts based on projected size while preserving visual
+- [x] 2026-09-25 - Reduce historical spacecraft and comet path vertices with
+  sub-pixel screen-space simplification while preserving endpoints and visual
   curvature.
 
 **Target:** Maintain 60 frames per second on a typical laptop and 30 frames per

@@ -10,6 +10,7 @@ const {
   sampledStateAt,
   adaptiveTrajectoryPoints,
   appendIncrementalTrajectoryPoint,
+  simplifyProjectedPath,
   osculatingOrbitPoints,
   propagateState
 }=require('../src/trajectory-math.js');
@@ -91,6 +92,33 @@ appendIncrementalTrajectoryPoint(
   {minDistance:0.1,maxSpan:1,maxPoints:5}
 );
 assert.equal(incremental.at(-1).t,0.15);
+
+const straightProjected=Array.from({length:1000},(_,index)=>({
+  x:index/10,y:50
+}));
+const simplifiedStraight=simplifyProjectedPath(straightProjected,0.75);
+assert.deepEqual(simplifiedStraight,[
+  {x:0,y:50,sourceIndex:0},
+  {x:99.9,y:50,sourceIndex:999}
+]);
+const curvedProjected=Array.from({length:1000},(_,index)=>{
+  const x=(index-500)/50;
+  return {x,y:x*x};
+});
+const farProjected=curvedProjected.map(point=>({
+  x:point.x*0.05,y:point.y*0.05
+}));
+const nearSimplified=simplifyProjectedPath(curvedProjected,0.75);
+const farSimplified=simplifyProjectedPath(farProjected,0.75);
+assert.ok(nearSimplified.length>farSimplified.length);
+assert.ok(farSimplified.length<curvedProjected.length/20);
+assert.equal(nearSimplified[0].sourceIndex,0);
+assert.equal(nearSimplified.at(-1).sourceIndex,curvedProjected.length-1);
+assert.throws(
+  ()=>simplifyProjectedPath(curvedProjected,0),
+  /tolerance must be positive/
+);
+
 const currentOrbitState={
   x:1,y:0,z:0,vx:0,vy:Math.sqrt(GM_SUN_AU_DAY),vz:0
 };

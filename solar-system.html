@@ -1064,7 +1064,8 @@ Velocity: not set</div>
   const J2000 = Date.UTC(2000,0,1,12,0,0);
   const {
     AU_KM,interpolateTrajectory,sampledStateAt,propagateState,
-    appendIncrementalTrajectoryPoint,osculatingOrbitPoints,
+    appendIncrementalTrajectoryPoint,simplifyProjectedPath,
+    osculatingOrbitPoints,
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS
   }=window.TrajectoryMath;
   const {zoomForTarget,zoomForDistance,findRelativeEvent}=window.MissionTimeline;
@@ -2918,10 +2919,52 @@ Velocity: not set</div>
         maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y);
       }
       obj._pathPts = pts;
+      obj._renderPathPts=obj._trajectoryPoints
+        ? simplifyProjectedPath(pts,0.75)
+        : pts;
       obj._pathBounds = {minX,minY,maxX,maxY};
       obj._projectedRevision = projectionRevision;
     }
     return obj._pathPts;
+  }
+
+  function appendProjectedTrajectoryPath(
+    targetCtx,obj,startIndex=0,endIndex
+  ){
+    const sourcePts=getProjectedOrbitPoints(obj);
+    if(!sourcePts || sourcePts.length<2) return;
+    const end=Math.min(
+      sourcePts.length-1,
+      endIndex===undefined ? sourcePts.length-1 : endIndex
+    );
+    const start=Math.max(0,Math.min(startIndex,end));
+    const renderPts=obj._renderPathPts;
+    const margin=80;
+    let previous=sourcePts[start];
+    let previousIndex=start;
+    let drawing=false;
+    function append(next){
+      const visible=
+        Math.max(previous.x,next.x)>=-margin &&
+        Math.min(previous.x,next.x)<=W+margin &&
+        Math.max(previous.y,next.y)>=-margin &&
+        Math.min(previous.y,next.y)<=H+margin;
+      if(!visible){
+        drawing=false;
+      } else {
+        if(!drawing) targetCtx.moveTo(previous.x,previous.y);
+        targetCtx.lineTo(next.x,next.y);
+        drawing=true;
+      }
+      previous=next;
+    }
+    for(const point of renderPts){
+      if(point.sourceIndex<=start) continue;
+      if(point.sourceIndex>end) break;
+      append(point);
+      previousIndex=point.sourceIndex;
+    }
+    if(previousIndex<end) append(sourcePts[end]);
   }
 
   function appendVisiblePath(targetCtx,pts,startIndex,endIndex){
@@ -3080,9 +3123,12 @@ Velocity: not set</div>
         let cutoff=0;
         while(cutoff+1<worldPoints.length &&
           worldPoints[cutoff+1].t<=HYBRID_EPOCH_DAYS) cutoff++;
-        visiblePath=pts.slice(0,cutoff+1);
+        orbitCtx.beginPath();
+        appendProjectedTrajectoryPath(orbitCtx,b,0,cutoff);
+        orbitCtx.stroke();
+      } else {
+        strokePath(orbitCtx,visiblePath);
       }
-      strokePath(orbitCtx,visiblePath);
 
       if(b.kind==='spacecraft' && (isHi || zoom>0.8)){
         orbitCtx.setLineDash([]);
@@ -4873,7 +4919,7 @@ Velocity: not set</div>
           while(end+1 < worldPts.length && worldPts[end+1].nu <= current.pos.nu) end++;
         }
         ctx.beginPath();
-        appendVisiblePath(ctx,projectedPts,0,end);
+        appendProjectedTrajectoryPath(ctx,b,0,end);
         if(simDaysSinceJ2000>HYBRID_EPOCH_DAYS){
           appendCurrentHybridTrail(ctx,b,current);
         } else if(b._trajectoryPoints && simDaysSinceJ2000 > worldPts[worldPts.length-1].t){
@@ -6054,7 +6100,9 @@ Velocity: not set</div>
       const bounds = b._pathBounds;
       if(mx < bounds.minX-LINE_TOL || mx > bounds.maxX+LINE_TOL ||
          my < bounds.minY-LINE_TOL || my > bounds.maxY+LINE_TOL) continue;
-      const distance=distanceToPolyline(mx,my,pts);
+      const distance=distanceToPolyline(
+        mx,my,b._trajectoryPoints ? b._renderPathPts : pts
+      );
       if(distance<bestDist){ bestDist=distance; best=b; }
     }
     return best;
