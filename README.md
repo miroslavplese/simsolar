@@ -1,68 +1,161 @@
 # SimSolar
 
-SimSolar is a dependency-free browser visualization of the solar system and
-selected spacecraft trajectories. It uses Keplerian orbital elements, a
-lightweight 3D-to-2D projection, and the Canvas 2D API.
+<p align="center">
+  <strong>An interactive solar-system, spacecraft, and gravity simulator that runs entirely in your browser.</strong>
+</p>
+
+<p align="center">
+  <a href="https://miroslavplese.github.io/simsolar/"><strong>Launch SimSolar</strong></a>
+  ·
+  <a href="#explore-simsolar">Explore the highlights</a>
+  ·
+  <a href="#run-locally">Run locally</a>
+</p>
+
+<p align="center">
+  <a href="https://miroslavplese.github.io/simsolar/">
+    <img src="assets/screenshots/spacecraft-comet-trajectories.png" alt="Standard outer Solar System view with spacecraft and comet trajectories" width="100%">
+  </a>
+  <br>
+  <em>Historic spacecraft missions and iconic comet paths in the standard Solar System view.</em>
+</p>
+
+SimSolar combines NASA/JPL ephemerides, interactive 3D projection, historical
+mission paths, future Newtonian N-body integration, surface observation, and
+mission planning in a dependency-free web app. Explore the real Solar System or
+replace it with an editable system of stars, black holes, planets, and comets.
+
+## Explore SimSolar
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/jupiter-moons-closeup.png" alt="Close view of Jupiter with Io and Ganymede" width="100%">
+      <br>
+      <strong>Planet and moon close-ups</strong><br>
+      Zoom from the outer Solar System down to textured planets, rings, moving
+      moon shadows, and 13 major moons with hierarchical dynamics.
+    </td>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/telescope-mode.png" alt="Telescope mode tracking Saturn from an Earth observatory" width="100%">
+      <br>
+      <strong>Tracked telescope mode</strong><br>
+      Observe a target from a planetary surface with adjustable field of view,
+      exposure, automatic tracking, an optional reticle, and clean PNG capture.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/observatory-mode.png" alt="Nighttime Observatory Mode from Los Angeles with Saturn, Neptune, and the Moon visible" width="100%">
+      <br>
+      <strong>Surface observation</strong><br>
+      Stand on Earth, another solid world, a major moon, or a custom planet.
+      Choose coordinates, identify planets in the night sky, accelerate time,
+      and optionally reveal orbit and trajectory guides.
+    </td>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/mission-planner.png" alt="Mission planner showing ranked feasible Earth to Mars routes" width="100%">
+      <br>
+      <strong>Interplanetary mission planning</strong><br>
+      Search launch and arrival windows, add gravity assists, compare ranked
+      Lambert routes, inspect maneuvers, preview a flight, or enter the
+      spacecraft cockpit.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/eclipse-search.png" alt="Partial solar eclipse found from Earth and displayed in Observatory Mode" width="100%">
+      <br>
+      <strong>Eclipse, transit, and alignment search</strong><br>
+      Find the next or previous event visible from a selected world, jump to
+      its exact time, and inspect the geometry directly from the observer's
+      surface.
+    </td>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/multiple-body-trajectories.png" alt="An editable multi-star system with a planet and multiple simulated body trajectories" width="100%">
+      <br>
+      <strong>Editable N-body systems</strong><br>
+      Replace the Solar System with stars, black holes, planets, and comets,
+      then follow their barycentric trajectories, close encounters, and
+      collisions.
+    </td>
+  </tr>
+</table>
+
+## Features
+
+### Explore and observe
+
+- Eight planets, Pluto and Charon, 13 major moons, six historic spacecraft, and
+  five comets with NASA/JPL-derived positions and trajectories
+- Lazy-loaded planetary textures with axial rotation, physical-scale close
+  rendering, illumination, Earth clouds, moving moon shadows, depth-aware
+  occultation, and shadowed planetary rings
+- A camera-relative sphere of 8,870 Hipparcos stars with catalog positions,
+  Johnson V magnitudes, B−V colors, and a cached offscreen backdrop
+- Surface Observatory Mode for solid planets, moons, and custom planets with
+  location presets, configurable coordinates, atmospheric daylight, horizon
+  coordinates, true angular sizes, local civil time, and optional projected
+  orbit and trajectory guides
+- Optional live or historical Earth cloud cover using Open-Meteo forecasts and
+  ECMWF ERA5 reanalysis
+- Telescope mode with target tracking, a 0.05–10° field of view, fine aiming,
+  exposure control, optional reticle, planetary rings, and PNG capture
+- Eclipse, planetary transit, and one-degree planet-conjunction search with
+  direct navigation to the event in Observatory Mode
+- Selectable L1–L5 markers and co-rotating Sun-planet or planet-moon frames
+
+### Missions and trajectories
+
+- Mission timeline with launch and flyby jumps, UTC date navigation, automatic
+  focus, object following, and physical information cards
+- Patched-conic mission planner with Earth parking-orbit injection, ranked
+  Lambert routes, optional finite-periapsis gravity assists, destination flyby
+  or orbit insertion, maneuver details, animated previews, local saves, and
+  shareable plans
+- Spacecraft View for riding a planned mission with a velocity-aligned cockpit,
+  free-look and field-of-view controls, live telemetry, progress milestones,
+  selectable encounter bodies, time acceleration, and shareable cockpit state
+- Clickable planet, spacecraft, and comet paths, with incrementally sampled
+  future trails that remain responsive through close encounters
+
+### Physics and experimentation
+
+- Elliptical and hyperbolic Kepler solvers plus future-only barycentric
+  Newtonian N-body gravity initialized from exact JPL state vectors
+- Hierarchical major-moon integration with external tides, mutual moon
+  perturbations, parent recoil, checkpoints, and custom-body gravity
+- Interactive insertion of stars, black holes, planets, and comets with
+  configurable properties and 0–180° orbital inclination
+- Editable star systems with blank-system creation, direct camera navigation,
+  per-body and cascading deletion, barycentric evolution, and Solar preset
+  restoration
+- Physical-scale custom-body rendering in both system and Observatory views,
+  including custom planets as observer worlds
+- Swept-contact detection, predicted-impact warnings, deterministic
+  close-encounter substeps, and momentum-conserving custom-body merging
+
+### Interaction and sharing
+
+- Animated simulation clock with adjustable speed and direction, responsive
+  orbit rotation, right-button or two-finger panning, pinch/wheel zoom, movable
+  panels, and Inner/Outer/Deep view presets
+- Versioned scenario links that restore time, playback, camera, visible layers,
+  selection, follow target, Observatory/telescope state, planned missions, and
+  compact custom systems
+- First-run guided tutorial with persistent completion and an always-available
+  restart button
+- Selection cards with physical and orbital data plus Wikipedia links
+- Rolling average and p95 frame-time profiler for every view preset
+- Keyboard shortcuts for major tools: `V` Spacecraft View, `W` mission planner,
+  `M` mission timeline, `L` bodies, `T` time/view controls, `E` event search,
+  `O` Observatory Mode, `G` Lagrange points, `R` rotating frame, and `P`
+  profiler
 
 ## Run locally
 
 Open `solar-system.html` in a modern browser. No build, package installation, or
 web server is required.
-
-## Features
-
-- Elliptical and hyperbolic Kepler solvers
-- Eight planets, Pluto and Charon, 13 major planetary moons, and six spacecraft
-- Five iconic comets with JPL-derived paths and Sun-facing tails
-- Future-only Newtonian N-body gravity initialized from JPL state vectors
-- Incrementally sampled future trails that avoid blocking close-flyby frames
-- Hierarchical major-moon dynamics with external and mutual perturbations
-- Selectable L1-L5 markers and co-rotating Sun-planet or planet-moon views
-- Surface-observer eclipse, planetary transit, and one-degree planet-conjunction
-  search with direct Observatory Mode navigation
-- 8,870-star Hipparcos celestial sphere with catalog positions, Johnson V
-  magnitudes, B−V colors, and a cached offscreen rendering backdrop
-- Surface observatory mode for solid planets, moons, and custom planets with
-  location presets, configurable coordinates, atmospheric daylight, horizon
-  coordinates, and true-angular-size sky objects, optional orbit/trajectory
-  guides, scaled time, local civil-time display, optional historical/live Earth
-  cloud layers, tracked telescopic views, exposure control, and clean PNG capture
-- Interactive insertion of configurable stars, black holes, planets, and comets
-  with 0–180° orbital inclination
-- Editable star systems with per-body and cascading deletion, blank-system
-  creation, barycentric N-body evolution, and Solar preset restoration
-- Physical-scale close rendering and Observatory visibility for custom bodies,
-  with appearance-specific stars, black holes, planets, and comets
-- Lazy-loaded 1024px planetary surface textures with axial orientation,
-  rotation, sphere projection, illumination, Earth clouds, moving moon shadows,
-  and flat-color fallback
-- Swept-contact detection for custom bodies, impact warnings, and momentum-conserving custom-body merging
-- Animated simulation clock with adjustable speed and direction
-- Versioned shareable scenario links that restore the date, playback, camera,
-  visible object groups, selection, Observatory location/view, and compact
-  custom-system definitions
-- First-run guided tutorial with responsive pointers, feature explanations,
-  completion persistence, and an always-available restart button
-- Mission timeline with launch/flyby jumps and UTC date navigation
-- Patched-conic mission planner with Earth parking-orbit injection, optional
-  planetary gravity assists at finite periapsis altitudes, destination flyby or
-  orbit insertion, ranked Lambert routes, maneuver details, animated previews,
-  local saves, and shareable active plans
-- Spacecraft View for riding inside a selected planned mission with a
-  velocity-aligned camera, free-look and FOV controls, live flight telemetry,
-  selectable planets, normal time acceleration, and shareable cockpit state
-- Automatic zoom/focus/follow from the body list and spacecraft mission events
-- Rolling average and p95 frame-time profiler for each view preset
-- Pointer orbit rotation, right-button drag or two-finger pan, pinch/wheel zoom,
-  movable panels, and view presets
-- Panel shortcuts: `W` mission planner, `M` mission timeline, `L` body/craft
-  list, `T` time/view
-  controls, and `P` frame-time profiler
-- Observatory shortcut: `O`
-- Selection cards with physical mass, planetary-body radius, orbital
-  information, and Wikipedia links
-- Sun-directed sphere lighting, depth-aware occultation, and shadowed planetary rings
-- Planet and spacecraft trajectory hit testing
 
 ## Repository layout
 
