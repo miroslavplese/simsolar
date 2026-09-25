@@ -231,6 +231,66 @@
     return points;
   }
 
+  function projectedPointSegmentDistanceSquared(point,start,end){
+    const dx=end.x-start.x;
+    const dy=end.y-start.y;
+    if(dx===0 && dy===0){
+      return (point.x-start.x)**2+(point.y-start.y)**2;
+    }
+    const projection=Math.max(0,Math.min(1,
+      ((point.x-start.x)*dx+(point.y-start.y)*dy)/(dx*dx+dy*dy)
+    ));
+    const offsetX=point.x-(start.x+projection*dx);
+    const offsetY=point.y-(start.y+projection*dy);
+    return offsetX*offsetX+offsetY*offsetY;
+  }
+
+  function simplifyProjectedPath(points,tolerance=0.75){
+    if(!Array.isArray(points)){
+      throw new TypeError('Projected path points must be an array.');
+    }
+    if(!(tolerance>0)){
+      throw new RangeError('Projected path tolerance must be positive.');
+    }
+    if(points.length<=2){
+      return points.map((point,sourceIndex)=>({...point,sourceIndex}));
+    }
+    const keep=new Uint8Array(points.length);
+    keep[0]=1;
+    keep[points.length-1]=1;
+    const toleranceSquared=tolerance*tolerance;
+    const ranges=[[0,points.length-1]];
+    while(ranges.length){
+      const [startIndex,endIndex]=ranges.pop();
+      const start=points[startIndex];
+      const end=points[endIndex];
+      let furthestIndex=-1;
+      let furthestDistance=toleranceSquared;
+      for(let index=startIndex+1;index<endIndex;index++){
+        const distance=projectedPointSegmentDistanceSquared(
+          points[index],start,end
+        );
+        if(distance>furthestDistance){
+          furthestDistance=distance;
+          furthestIndex=index;
+        }
+      }
+      if(furthestIndex<0) continue;
+      keep[furthestIndex]=1;
+      ranges.push(
+        [startIndex,furthestIndex],
+        [furthestIndex,endIndex]
+      );
+    }
+    const simplified=[];
+    for(let sourceIndex=0;sourceIndex<points.length;sourceIndex++){
+      if(keep[sourceIndex]){
+        simplified.push({...points[sourceIndex],sourceIndex});
+      }
+    }
+    return simplified;
+  }
+
   function osculatingOrbitPoints(state,mu,steps){
     if(!(mu>0)) throw new RangeError('Orbit gravitational parameter must be positive.');
     const count=Math.max(32,steps||256);
@@ -360,6 +420,7 @@
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS,trajectorySegment,
     interpolateTrajectory,sampledStateAt,adaptiveTrajectoryPoints,
     appendIncrementalTrajectoryPoint,
+    simplifyProjectedPath,
     osculatingOrbitPoints,propagateState
   };
 });
