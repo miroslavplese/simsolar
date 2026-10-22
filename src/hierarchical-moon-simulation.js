@@ -2,10 +2,12 @@
   const trajectory=typeof module==='object' && module.exports
     ? require('./trajectory-math.js')
     : root.TrajectoryMath;
-  const api=factory(trajectory);
+  const scheduler=typeof module==='object' && module.exports
+    ? require('./work-scheduler.js') : root.WorkScheduler;
+  const api=factory(trajectory,scheduler);
   if(typeof module==='object' && module.exports) module.exports=api;
   root.HierarchicalMoonSimulation=api;
-})(typeof globalThis!=='undefined' ? globalThis : this,function(trajectory){
+})(typeof globalThis!=='undefined' ? globalThis : this,function(trajectory,scheduler){
   const {propagateState}=trajectory;
 
   function cloneVector(state){
@@ -203,7 +205,7 @@
     let stateCursor=cloneState(initialState);
     let stateCursorIndex=0;
 
-    function stateAt(targetTime){
+    function* advanceState(targetTime){
       if(targetTime<epoch){
         throw new RangeError('Moon target time precedes the simulation epoch.');
       }
@@ -226,6 +228,7 @@
           checkpoints.set(index+1,cloneState(state));
           maxCheckpointIndex=Math.max(maxCheckpointIndex,index+1);
         }
+        yield (index+1)/Math.max(1,lowerIndex);
       }
       if(lowerIndex>=stateCursorIndex){
         stateCursor=cloneState(state);
@@ -238,19 +241,12 @@
       return state;
     }
 
+    function stateAt(targetTime){
+      return scheduler.run(advanceState(targetTime));
+    }
+
     async function prepareTo(targetTime,prepareOptions){
-      const chunkDays=prepareOptions?.chunkDays||30;
-      const total=Math.max(stepDays,targetTime-epoch);
-      while(epoch+maxCheckpointIndex*stepDays<targetTime-checkpointDays){
-        if(prepareOptions?.cancelled?.()) return null;
-        const prepared=epoch+maxCheckpointIndex*stepDays;
-        const chunkTarget=Math.min(targetTime,prepared+chunkDays);
-        stateAt(chunkTarget);
-        prepareOptions?.onProgress?.(Math.min(1,(chunkTarget-epoch)/total));
-        await new Promise(resolve=>setTimeout(resolve,0));
-      }
-      if(prepareOptions?.cancelled?.()) return null;
-      return stateAt(targetTime);
+      return scheduler.runAsync(advanceState(targetTime),prepareOptions);
     }
 
     return {epoch,stepDays,stateAt,prepareTo};

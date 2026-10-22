@@ -86,7 +86,7 @@ replace it with an editable system of stars, black holes, planets, and comets.
 
 ### Explore and observe
 
-- Eight planets, Pluto and Charon, 13 major moons, six historic spacecraft, and
+- Eight planets, Pluto and Charon, 13 major moons, ten spacecraft, and
   five comets with NASA/JPL-derived positions and trajectories
 - Lazy-loaded planetary textures with axial rotation, physical-scale close
   rendering, illumination, Earth clouds, moving moon shadows, depth-aware
@@ -146,6 +146,11 @@ replace it with an editable system of stars, black holes, planets, and comets.
 - First-run guided tutorial with persistent completion and an always-available
   restart button
 - Selection cards with physical and orbital data plus Wikipedia links
+- Reference images for all 39 built-in objects, bundled from Wikipedia/Wikimedia
+  with clickable source links and attribution tooltips; custom objects and Lagrange points
+  have explicitly labeled schematics
+- Recent mission trajectories and milestones for the James Webb Space Telescope,
+  Lucy, Psyche, and Europa Clipper, alongside the six original missions
 - Rolling average and p95 frame-time profiler for every view preset
 - Keyboard shortcuts for major tools: `V` Spacecraft View, `W` mission planner,
   `M` mission timeline, `L` bodies, `T` time/view controls, `E` event search,
@@ -161,7 +166,15 @@ web server is required.
 
 | Path | Purpose |
 | --- | --- |
-| `solar-system.html` | Complete application: markup, styles, data, simulation, rendering, and input |
+| `solar-system.html` | Static page shell and ordered script loading; still opens directly |
+| `src/app.js`, `src/app.css` | Application coordination, view rendering, input, and styles |
+| `src/spacecraft-catalog.js` | Mission metadata, links, and timeline milestones |
+| `src/scenario-controller.js` | Validated scenario restoration and share-link coordination |
+| `src/work-scheduler.js`, `src/playback-clock.js` | Cooperative work budgets and visibility-aware playback timing |
+| `src/mission-search.js`, `src/mission-worker.js` | Worker-based route search with direct-file cooperative fallback |
+| `src/object-images.js` | Selection-scoped reference images, attribution, and schematic fallbacks |
+| `data/recent-spacecraft-trajectories.js` | JPL vectors for Webb, Lucy, Psyche, and Europa Clipper |
+| `assets/objects/credits.json`, `data/object-images.js` | Image provenance, licenses, and browser manifest |
 | `data/planet-ephemerides.js` | Generated NASA/JPL Horizons planet state vectors |
 | `data/planet-cutoff-states.js` | Exact NASA/JPL Horizons future-integration seed vectors |
 | `data/moon-cutoff-states.js` | Generated NASA/JPL Horizons major-moon cutoff vectors |
@@ -240,7 +253,8 @@ web server is required.
   into each parent system's gravitational parameter.
 - Eclipse, transit, and conjunction searches use the configured surface
   observer. Atmospheric refraction and formal contact times are not yet modeled.
-- Planet and spacecraft data is embedded in the application.
+- Planet metadata remains in the application coordinator; spacecraft metadata
+  is in a separate catalog.
 - Star positions are Hipparcos ICRS catalog directions at epoch J1991.25;
   proper motion and long-term precession are not yet applied.
 - Dynamic body positions and traveled trails are rendered every animation frame,
@@ -263,7 +277,8 @@ web server is required.
 - Custom-system patched-conic planning treats the active massive system as a
   central barycentric gravity source; strongly non-central binary-star routes
   require full N-body mission planning.
-- Interaction and visual regression tests are not yet automated.
+- Chromium interaction regression tests cover major workflows. Cross-browser
+  and broad visual/performance coverage remain future work.
 - The interface has limited keyboard and screen-reader support.
 
 ## Hybrid gravity model
@@ -281,6 +296,19 @@ browser can repaint progress between them. Adaptive substeps resolve
 Newtonian custom-body flybys, but relativistic compact-object encounters
 remain deferred. The browser UI currently caps future navigation at 2100 to
 bound integration time and checkpoint memory.
+
+Mission searches run in a Web Worker when served over HTTP(S), or cooperatively
+when opened directly from disk. Future-state preparation yields at an 8 ms
+wall-clock budget between complete integration steps, without changing numerical
+timesteps. A single expensive step can exceed that budget. Hidden-tab time is not
+replayed on return, and visible playback advances by at most 100 ms of wall time
+per frame. Reduced-motion preferences disable initial autoplay, but explicit
+playback and shared scenarios still work.
+
+Recent mission data ends at the same August 2026 cutover as the original data.
+Webb station-keeping, Psyche ion thrust, and subsequent planned burns are **not**
+modeled by future Newtonian trajectories. Horizons records may include
+mission-reference predictions as well as reconstructed tracking solutions.
 
 ## Contributing
 
@@ -307,6 +335,20 @@ ephemeris endpoint continuity, long-range propagation, N-body conservation and
 deterministic replay, hierarchical moon continuity and stability, launch
 proximity, flyby alignment, and mission navigation helpers.
 
+For the browser suite (development-only dependencies):
+
+```text
+npm ci
+npx playwright install chromium
+npm run test:all
+```
+
+The browser suite starts its own loopback-only static server. It exercises
+HTTP and direct-file launch, v1/v2/v3 links, mission planning and cockpit
+restoration, observatory/telescope controls, editable systems, mobile controls,
+recent missions, image loading/failure/offline behavior, and future navigation.
+GitHub Actions runs the numerical and Chromium suites and retains failure traces.
+
 ## Refresh trajectory data
 
 Run:
@@ -316,5 +358,25 @@ python tools/fetch-trajectories.py
 ```
 
 The generator downloads heliocentric Ecliptic J2000 vectors from NASA/JPL
-Horizons and rewrites both generated files under `data/`. Internet access is
-required only when regenerating the data, not when running the application.
+Horizons and rewrites the legacy spacecraft, planet, comet, and cutoff datasets.
+To refresh only the four recent missions without changing the legacy datasets:
+
+```text
+python tools/fetch-trajectories.py --recent-only
+```
+
+To refresh attributed object thumbnails:
+
+```text
+python tools/fetch-object-images.py
+```
+
+Use `--resume` to retain successfully downloaded image entries after a failed
+request. The image generator rejects unverified licenses; inspect any changed
+Wikipedia lead image before choosing an alternative. Images load only when their
+object is selected and work offline. Clicking an image opens its original source
+page; its tooltip retains author, license, and thumbnail-change notices.
+Full attribution is also preserved in
+`assets/objects/credits.json`. Earth uses NASA's Apollo 17 Blue Marble rather than
+the changing article lead image. Some spacecraft images are artist illustrations.
+Internet access is needed for regeneration, not for ordinary simulation or cards.

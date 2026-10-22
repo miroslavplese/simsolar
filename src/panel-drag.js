@@ -4,7 +4,7 @@
   root.PanelDrag=api;
 })(typeof globalThis!=='undefined' ? globalThis : this,function(root){
   const DEFAULT_INTERACTIVE_SELECTOR=[
-    'a','button','input','select','textarea','label',
+    'a','button','input','select','textarea','label','summary',
     '[contenteditable="true"]','[role="button"]',
     '.btn','.item','.grp-label','.close'
   ].join(',');

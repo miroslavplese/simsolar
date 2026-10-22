@@ -254,8 +254,13 @@
       options.onStatus?.(message,error);
     }
 
-    function clearSolution(cancelSearch=true){
-      if(cancelSearch) searchRevision++;
+    function cancelSearch(){
+      element('plannerSearchBtn').disabled=false;
+      return ++searchRevision;
+    }
+
+    function clearSolution(cancelPending=true){
+      if(cancelPending) cancelSearch();
       routes=[];
       activeRoute=null;
       delete plan.selectedTimes;
@@ -387,7 +392,7 @@
         showStatus('Check that every date window is complete and ordered.',true);
         return;
       }
-      const revision=++searchRevision;
+      const revision=cancelSearch();
       const searchPlan=JSON.parse(JSON.stringify(plan));
       element('plannerSearchBtn').disabled=true;
       showStatus('Preparing ephemerides…');
@@ -397,22 +402,25 @@
           if(revision===searchRevision){
             showStatus('Preparing ephemerides… '+Math.round(progress*100)+'%');
           }
-        });
+        },()=>revision!==searchRevision);
         if(revision!==searchRevision) return;
         showStatus('Solving Lambert branches…');
         await new Promise(resolve=>window.setTimeout(resolve,0));
         const samplesPerWindow=searchPlan.waypoints.length>=5
           ? 2
           : searchPlan.waypoints.length===4 ? 3 : 4;
-        routes=planner.searchRoutes(searchPlan,options.stateAt,{
+        const found=await window.MissionSearch.search(searchPlan,options.stateAt,{
           bodyInfo:options.bodyInfo,
           mu:typeof options.centralMu==='function'
             ? options.centralMu()
             : options.centralMu,
           samplesPerWindow,
           maxCombinations:256,
-          maxCandidates:8
+          maxCandidates:8,
+          cancelled:()=>revision!==searchRevision
         });
+        if(revision!==searchRevision || !found) return;
+        routes=found;
         if(!routes.length){
           throw new RangeError('No route connects the selected windows.');
         }
@@ -420,6 +428,7 @@
         setTab('review');
         showStatus(routes.length+' candidate routes found.');
       } catch(error){
+        if(revision!==searchRevision) return;
         clearSolution(false);
         showStatus(error.message||'Mission search failed.',true);
       } finally{
@@ -450,7 +459,7 @@
     }
 
     function newPlan(){
-      searchRevision++;
+      cancelSearch();
       plan=createDefaultPlan(options.nowDays());
       routes=[];
       activeRoute=null;
@@ -497,7 +506,7 @@
         showStatus('This mission references a body unavailable in this scenario.',true);
         return false;
       }
-      const revision=++searchRevision;
+      const revision=cancelSearch();
       plan=JSON.parse(JSON.stringify(nextPlan));
       routes=[];
       activeRoute=null;
@@ -505,7 +514,7 @@
       if(Array.isArray(plan.selectedTimes)){
         try{
           const latest=Math.max(...plan.selectedTimes);
-          await options.prepareTo?.(latest);
+          await options.prepareTo?.(latest,undefined,()=>revision!==searchRevision);
           if(revision!==searchRevision) return false;
           const route=planner.routeFromPlanSelection(
             plan,options.stateAt,{
@@ -575,7 +584,7 @@
       route:()=>activeRoute,
       restore,
       setTab,
-      cancelSearch:()=>{ searchRevision++; }
+      cancelSearch
     };
   }
 

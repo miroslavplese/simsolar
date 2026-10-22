@@ -1,7 +1,13 @@
 {
   "name": "simsolar",
   "private": true,
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  },
   "scripts": {
+    "posttest": "node tests/application-tests.js && node tests/recent-mission-tests.js && node tests/object-images-tests.js",
+    "test:browser": "playwright test",
+    "test:all": "npm test && npm run test:browser",
     "test": "node tests/trajectory-tests.js && node tests/mission-planner-tests.js && node tests/mission-planner-ui-tests.js && node tests/spacecraft-view-tests.js && node tests/frame-profiler-tests.js && node tests/view-transform-tests.js && node tests/star-field-tests.js && node tests/observatory-mode-tests.js && node tests/observatory-clouds-tests.js && node tests/scenario-state-tests.js && node tests/system-model-tests.js && node tests/guided-tutorial-tests.js && node tests/panel-drag-tests.js && node tests/body-placement-tests.js && node tests/body-rendering-tests.js && node tests/body-texture-tests.js && node tests/body-lighting-tests.js && node tests/moon-system-tests.js && node tests/ring-system-tests.js && node tests/lagrange-system-tests.js && node tests/occultation-system-tests.js && node tests/collision-system-tests.js && node tests/hierarchical-moon-tests.js && node tests/nbody-tests.js"
   }
 }
