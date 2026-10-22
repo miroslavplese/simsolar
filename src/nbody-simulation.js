@@ -1,8 +1,9 @@
 (function(root,factory){
-  const api=factory();
+  const api=factory(typeof module==='object' && module.exports
+    ? require('./work-scheduler.js') : root.WorkScheduler);
   if(typeof module==='object' && module.exports) module.exports=api;
   root.NBodySimulation=api;
-})(typeof globalThis!=='undefined' ? globalThis : this,function(){
+})(typeof globalThis!=='undefined' ? globalThis : this,function(scheduler){
   const AU_KM=1.495978707e8;
   const SECONDS_PER_DAY=86400;
   const G_KM3_KG_S2=6.67430e-20;
@@ -308,7 +309,7 @@
     let massiveCursor=cloneState(massiveCheckpoints.get(0));
     let massiveCursorIndex=0;
 
-    function stateAt(targetTime){
+    function* advanceState(targetTime){
       if(targetTime<epoch) throw new RangeError('N-body target time precedes the simulation epoch.');
       const exactIndex=(targetTime-epoch)/stepDays;
       const lowerIndex=Math.floor(exactIndex+1e-10);
@@ -329,6 +330,7 @@
           checkpoints.set(index+1,cloneState(lower));
           maxCheckpointIndex=Math.max(maxCheckpointIndex,index+1);
         }
+        yield (index+1)/Math.max(1,lowerIndex);
       }
       if(lowerIndex>=stateCursorIndex){
         stateCursor=cloneState(lower);
@@ -338,6 +340,10 @@
       stepState(lower,stepDays*fraction,particleStepDays);
       lower.t=targetTime;
       return lower;
+    }
+
+    function stateAt(targetTime){
+      return scheduler.run(advanceState(targetTime));
     }
 
     function massiveStateAt(targetTime){
@@ -377,21 +383,7 @@
     }
 
     async function prepareTo(targetTime,prepareOptions){
-      if(targetTime<epoch) return stateAt(targetTime);
-      const chunkDays=prepareOptions?.chunkDays||180;
-      const totalSpan=targetTime-epoch;
-      while(epoch+maxCheckpointIndex*stepDays<targetTime-checkpointDays){
-        if(prepareOptions?.cancelled?.()) return null;
-        const preparedTime=epoch+maxCheckpointIndex*stepDays;
-        const chunkTarget=Math.min(targetTime,preparedTime+chunkDays);
-        stateAt(chunkTarget);
-        if(prepareOptions?.onProgress){
-          prepareOptions.onProgress(Math.min(1,(chunkTarget-epoch)/totalSpan));
-        }
-        await new Promise(resolve=>setTimeout(resolve,0));
-      }
-      if(prepareOptions?.cancelled?.()) return null;
-      return stateAt(targetTime);
+      return scheduler.runAsync(advanceState(targetTime),prepareOptions);
     }
 
     return {epoch,stepDays,particleStepDays,stateAt,massiveStateAt,prepareTo};

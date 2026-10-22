@@ -2,10 +2,12 @@
   const trajectory=typeof module==='object' && module.exports
     ? require('./trajectory-math.js')
     : root.TrajectoryMath;
-  const api=factory(trajectory);
+  const scheduler=typeof module==='object' && module.exports
+    ? require('./work-scheduler.js') : root.WorkScheduler;
+  const api=factory(trajectory,scheduler);
   if(typeof module==='object' && module.exports) module.exports=api;
   root.MissionPlanner=api;
-})(typeof globalThis!=='undefined' ? globalThis : this,function(trajectory){
+})(typeof globalThis!=='undefined' ? globalThis : this,function(trajectory,scheduler){
   'use strict';
 
   const {
@@ -427,7 +429,7 @@
     };
   }
 
-  function evaluateRoute(waypoints,options){
+  function* evaluateRouteSteps(waypoints,options){
     if(!Array.isArray(waypoints) || waypoints.length<2){
       throw new TypeError('A route requires at least two waypoints.');
     }
@@ -446,9 +448,14 @@
       } catch(error){
         if(!(error instanceof RangeError)) throw error;
       }
+      yield;
     }
     if(!best) throw new RangeError('No Lambert branch connects these waypoints.');
     return best;
+  }
+
+  function evaluateRoute(waypoints,options){
+    return scheduler.run(evaluateRouteSteps(waypoints,options));
   }
 
   function sampleWindow(earliest,latest,count){
@@ -458,19 +465,23 @@
     );
   }
 
-  function searchRoutes(plan,stateAt,options){
-    if(!validatePlan(plan)) throw new TypeError('Invalid mission plan.');
-    if(typeof stateAt!=='function') throw new TypeError('Mission search requires stateAt.');
-    options=options||{};
+  function searchTimeSets(plan,options={}){
     const samplesPerWindow=clamp(options.samplesPerWindow||5,2,9);
-    const maxCandidates=options.maxCandidates||8;
-    const maxCombinations=options.maxCombinations||256;
-    const timeSets=plan.waypoints.map((waypoint,index)=>sampleWindow(
+    return plan.waypoints.map((waypoint,index)=>sampleWindow(
       waypoint.earliest,waypoint.latest,
       index===plan.waypoints.length-1
         ? Math.min(9,samplesPerWindow+2)
         : samplesPerWindow
     ));
+  }
+
+  function* searchRouteSteps(plan,stateAt,options={}){
+    options=options||{};
+    if(!validatePlan(plan)) throw new TypeError('Invalid mission plan.');
+    if(typeof stateAt!=='function') throw new TypeError('Mission search requires stateAt.');
+    const maxCandidates=options.maxCandidates||8;
+    const maxCombinations=options.maxCombinations||256;
+    const timeSets=searchTimeSets(plan,options);
     const stateCache=new Map();
     function waypointState(waypoint,time){
       const key=waypoint.body+'@'+time.toFixed(8);
@@ -484,12 +495,12 @@
     const routes=[];
     const chosen=[];
     let combinations=0;
-    function visit(index){
+    function* visit(index){
       if(index===plan.waypoints.length){
         if(combinations>=maxCombinations) return;
         combinations++;
         try{
-          routes.push(evaluateRoute(chosen,options));
+          routes.push(yield* evaluateRouteSteps(chosen,options));
         } catch(error){
           if(!(error instanceof RangeError)) throw error;
         }
@@ -502,13 +513,21 @@
         const resolved=waypointState(waypoint,time);
         if(!resolved) continue;
         chosen.push(resolved);
-        visit(index+1);
+        yield* visit(index+1);
         chosen.pop();
       }
     }
-    visit(0);
+    yield* visit(0);
     routes.sort((a,b)=>a.score-b.score);
     return routes.slice(0,maxCandidates);
+  }
+
+  function searchRoutes(plan,stateAt,options){
+    return scheduler.run(searchRouteSteps(plan,stateAt,options));
+  }
+
+  function searchRoutesAsync(plan,stateAt,options){
+    return scheduler.runAsync(searchRouteSteps(plan,stateAt,options),options);
   }
 
   function routeFromPlanSelection(plan,stateAt,options){
@@ -687,6 +706,7 @@
   return {
     PLAN_VERSION,STORAGE_KEY,MAX_WAYPOINTS,
     solveLambert,sampleTransfer,flybyAssessment,evaluateRoute,searchRoutes,
+    searchTimeSets,searchRoutesAsync,
     routeFromPlanSelection,sampleRoute,stateAlongSamples,
     validatePlan,loadPlans,savePlan,deletePlan,
     vector,add,subtract,scale,dot,cross,magnitude,speedKmS,

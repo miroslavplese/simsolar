@@ -12,6 +12,17 @@ The browser application remains statically runnable. Pure numerical and mission
 navigation logic is shared through small UMD modules that also load directly in
 Node for regression testing.
 
+`solar-system.html` is the markup/script-loading shell; its former inline script
+and stylesheet live in `src/app.js` and `src/app.css`. Mission metadata is in
+`src/spacecraft-catalog.js`. Scenario transport/restore sequencing, playback
+timing, cooperative scheduling, worker dispatch, and object-card imagery have
+separate modules. Rendering and view-state adapters remain together in the app
+coordinator; this is an incremental extraction, not a framework rewrite.
+
+Browser modules continue to use classic scripts so `file://` remains supported.
+The numerical UMD modules depend on `work-scheduler.js`; load it before the
+planner and integrators. Node remains a development/testing tool only.
+
 1. **Document and styling** - canvas surfaces, controls, legend, and detail card.
 2. **Orbital data** - static planet and spacecraft element records.
 3. **Simulation** - clock state, sampled ephemeris interpolation, Kepler
@@ -25,6 +36,42 @@ Node for regression testing.
 This arrangement keeps deployment trivial while allowing the correctness-
 critical calculations to be tested without a browser.
 
+### Work scheduling and playback
+
+Both integrators expose their unchanged fixed-step operations as iterators.
+Synchronous sampling consumes the iterator immediately; asynchronous preparation
+consumes the same steps using an 8 ms wall-clock budget, yielding between steps
+and checking cancellation before continuing. Checkpoints and replay results are
+unchanged. The budget is cooperative, not a hard limit on a single close-encounter
+step. Live rendering still uses synchronous sampling.
+
+Route search similarly shares one iterator between synchronous and asynchronous
+consumers. Over HTTP(S), the client gathers the exact sampled waypoint states and
+body parameters, then sends only serializable data to a dedicated Worker.
+File launch and browsers without Worker support use the cooperative iterator.
+Workers terminate on completion, failure, or cancellation; unexpected worker
+errors are shown in the planner rather than silently returning empty results.
+
+`PlaybackClock` resets on visibility changes and ignores hidden-tab elapsed
+time. Visible playback caps elapsed time at 100 ms per frame, preventing a long
+stall from triggering an uncontrolled catch-up. The profiler still records the
+uncapped elapsed frame duration.
+
+### Object reference images
+
+All 39 built-in objects have bundled Wikipedia/Wikimedia reference thumbnails.
+Only the selected card assigns an image URL; per-frame card updates do not
+reload it. `assets/objects/credits.json` preserves source-file URLs, authors,
+credits, licenses, descriptions, and thumbnail-change notices. The generator
+accepts public-domain, CC0, and CC BY/CC BY-SA imagery; NASA Commons files marked
+as having no known copyright restrictions retain that exact designation.
+Earth uses a public-domain NASA Apollo photograph. Schematics for custom bodies
+and Lagrange points are labeled, and image failures produce an explicit notice
+and schematic rather than an unrelated photograph.
+Reference images link directly to their original Wikimedia source page in a
+new tab. Author, license, and modification notices remain in the link tooltip
+and attribution manifest, without a caption or separate credits section.
+
 ### Editable systems
 
 The built-in Solar System is an immutable preset. The first body insertion or
@@ -33,6 +80,10 @@ runtime body IDs. Subsequent edits rebuild the N-body simulator at the current
 date, so removed mass no longer affects future motion. Parent deletion cascades
 to dependent moons, while an empty system remains a valid paused editor state.
 The first new body starts at the barycentric origin with zero velocity.
+
+Existing built-in IDs include their original catalog index. New missions are
+appended after all legacy bodies when assigning IDs, keeping old comet and
+editable-system scenario references stable.
 
 Luminous bodies are identified by metadata rather than the literal name
 `Sun`. Rendering, tails, occultation availability, and custom-system mission
@@ -95,6 +146,25 @@ the final JPL position and velocity under solar gravity. The propagated segment
 starts at the exact ephemeris endpoint, so the marker remains attached to its
 path. Adaptive display sampling is capped to control rendering cost. This
 continuation excludes later planetary perturbations and maneuvers.
+
+The four recent missions are generated separately with `--recent-only`, leaving
+legacy samples and the cutover epoch untouched. Horizons target IDs are Webb
+`-170`, Lucy `-49`, Psyche `-255`, and Europa Clipper `-159`. Each dataset includes
+post-separation launch-day samples, daily encounter windows, and an exact
+`2026-08-12 00:00` cutoff sample. Sources are heliocentric Ecliptic J2000/ICRF
+vectors in AU and AU/day; Horizons vector epochs use TDB, matching the existing
+pipeline's numerical time convention. The UI labels dates in UTC without a
+TDB-to-UTC conversion (roughly a minute offset); this is not event-timing-grade
+ephemeris software.
+
+Webb's source covers its L2 halo trajectory; Lucy includes main-belt and Earth
+encounters; Psyche and Europa Clipper include Mars gravity assists. Horizons
+may supply reference/predicted segments. New cards intentionally omit fixed
+Kepler-element values rather than inventing an ellipse for maneuvering missions.
+After the common cutoff, all are massless gravity-only particles: no Webb
+station-keeping, Psyche ion propulsion, or later targeting/capture burns.
+Mission descriptions link to NASA mission pages; the generator's Horizons
+target records provide the spacecraft identifiers and trajectory provenance.
 
 `tools/fetch-trajectories.py` regenerates the browser-ready data file. Runtime
 network access is intentionally avoided so direct `file://` execution remains
@@ -263,10 +333,11 @@ centers and moon states remain continuous at the cutoff. Custom massive-body
 insertion creates matching global and moon hierarchy branches, allowing the new
 body's tidal gravity to affect moons without double-counting their mass.
 
-Long future jumps extend checkpoints in 180-day chunks and yield to the browser
-between chunks so progress remains visible. Navigation is capped at 2100 to
-bound total work and checkpoint memory; moving integration to a Web Worker
-remains the next performance phase.
+Long future jumps extend checkpoints with wall-clock-budgeted cooperative work
+and yield to the browser so progress remains visible. Navigation is capped at
+2100 to bound total work and checkpoint memory. Route search uses a Worker;
+moving live global/moon integration off-thread remains a separate future step
+because rendering currently requires synchronous state queries.
 
 Gravitational parameters are stored in km³/s² from NASA/JPL Solar System
 Dynamics values and converted once to AU³/day². DE440 system parameters are

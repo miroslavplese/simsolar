@@ -8,8 +8,8 @@ validation.
 
 - **Phase:** Functional prototype with synchronous hybrid gravity
 - **Deployment:** Standalone static HTML
-- **Dependencies:** None
-- **Automated tests:** Numerical and mission-navigation regression suite
+- **Dependencies:** None at runtime; Playwright for development-only browser tests
+- **Automated tests:** Numerical, scheduling, mission/image data, and Chromium workflow suites in CI
 - **Primary technical concern:** Measuring frame time and scaling interaction to
   larger object counts
 
@@ -61,6 +61,9 @@ second on a mid-range mobile device in the deep-space view.
 
 - [ ] Split CSS, orbital data, simulation math, rendering, and interaction into
   separate files or ES modules.
+  - 2026-10-22: Extracted page script/styles, spacecraft metadata, playback clock,
+    scenario coordination, work scheduling, worker search, and card images.
+    Rendering and view adapters remain in the application coordinator.
 - [ ] Introduce explicit object schemas and validation for orbital records.
 - [ ] Centralize repeated rotation and orbital-plane transformation logic.
 - [ ] Replace repeated DOM lookups with cached element references.
@@ -72,6 +75,8 @@ introduced.
 ## Priority 3 - User experience and accessibility
 
 - [ ] Add visible keyboard focus and semantic buttons.
+  - 2026-10-22: Added focus outlines, semantic time/zoom/card/legend controls,
+    reduced-motion initial playback, and a mobile toolbar overlap fix.
 - [ ] Add keyboard controls for zoom, date stepping, presets, and selection.
 - [ ] Provide accessible labels and a text alternative for selected-body data.
 - [ ] Respect `prefers-reduced-motion`.
@@ -98,8 +103,9 @@ introduced.
   - Validate continuity, energy and momentum drift, and deterministic replay.
 - [ ] Move long-running future integration into a Web Worker after the
   synchronous reference implementation is validated.
-  - Cooperative main-thread preparation currently yields between 180-day
-    integration chunks and reports progress.
+  - 2026-10-22: Cooperative integration preparation now yields using an 8 ms
+    wall-clock budget between unchanged numerical steps. Route search runs in
+    a Worker over HTTP(S), with cooperative direct-file fallback.
   - Remove or extend the temporary 2100 navigation cap once integration no
     longer blocks the animation thread.
 - [x] 2026-08-13 - Add interactive ecliptic-plane insertion for configurable
@@ -165,6 +171,16 @@ introduced.
   App with fullscreen and home-screen support.
 
 ## Completed
+
+- [x] 2026-10-22 - Added browser workflow coverage and CI for direct-file launch,
+  legacy scenario links, mission planning/cockpit, observatory/telescope,
+  editable systems, mobile controls, image failures, and future navigation.
+- [x] 2026-10-22 - Added bounded playback timing and hidden-tab resume behavior,
+  keeping asynchronous and synchronous integration numerically identical.
+- [x] 2026-10-22 - Added JPL trajectories, mission metadata, and timeline events
+  for Webb, Lucy, Psyche, and Europa Clipper without changing legacy datasets.
+- [x] 2026-10-22 - Added lazy, offline reference images for all 39 built-in
+  objects, complete image attribution, and labeled custom/Lagrange schematics.
 
 - [x] 2026-08-26 - Added optional Earth-only Observatory cloud cover using
   hourly Open-Meteo forecast or ECMWF ERA5 historical low, mid, and high cloud
