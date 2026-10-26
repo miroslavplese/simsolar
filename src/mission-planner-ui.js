@@ -2,10 +2,13 @@
   const planner=typeof module==='object' && module.exports
     ? require('./mission-planner.js')
     : root.MissionPlanner;
-  const api=factory(planner);
+  const bodySelect=typeof module==='object' && module.exports
+    ? require('./body-select.js')
+    : root.BodySelect;
+  const api=factory(planner,bodySelect);
   if(typeof module==='object' && module.exports) module.exports=api;
   root.MissionPlannerUI=api;
-})(typeof globalThis!=='undefined' ? globalThis : this,function(planner){
+})(typeof globalThis!=='undefined' ? globalThis : this,function(planner,bodySelect){
   'use strict';
 
   const DAY_MS=86400000;
@@ -72,23 +75,16 @@
       return options.catalog();
     }
 
-    function bodyOption(entry){
-      const option=document.createElement('option');
-      option.value=entry.name;
-      option.textContent=entry.name;
-      return option;
-    }
-
     function populateTargets(){
-      const available=catalog().filter(item=>item.target!==false);
+      const all=catalog();
+      const available=all.filter(item=>item.target!==false);
       for(const [id,waypoint] of [
         ['plannerDeparture',plan.waypoints[0]],
         ['plannerTarget',plan.waypoints.at(-1)]
       ]){
         const select=element(id);
         const previous=select.value||waypoint.body;
-        select.innerHTML='';
-        for(const entry of available) select.appendChild(bodyOption(entry));
+        bodySelect.populate(select,available,{catalog:all});
         if([...select.options].some(option=>option.value===previous)){
           select.value=previous;
         }
@@ -97,6 +93,7 @@
 
     function catalogChanged(){
       populateTargets();
+      renderAssists();
       const available=new Set(catalog().map(item=>item.name));
       const valid=plan.waypoints.every(waypoint=>available.has(waypoint.body));
       clearSolution();
@@ -129,13 +126,14 @@
         list.appendChild(empty);
         return;
       }
-      const assistCatalog=catalog().filter(entry=>entry.assist);
+      const all=catalog();
+      const assistCatalog=all.filter(entry=>entry.assist);
       assists.forEach((assist,index)=>{
         const row=document.createElement('div');
         row.className='plannerAssist';
         const select=document.createElement('select');
         select.setAttribute('aria-label','Gravity-assist body');
-        for(const entry of assistCatalog) select.appendChild(bodyOption(entry));
+        bodySelect.populate(select,assistCatalog,{catalog:all});
         select.value=assist.body;
         const earliest=document.createElement('input');
         earliest.type='date';

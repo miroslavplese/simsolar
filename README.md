@@ -25,6 +25,11 @@ mission paths, future Newtonian N-body integration, surface observation, and
 mission planning in a dependency-free web app. Explore the real Solar System or
 replace it with an editable system of stars, black holes, planets, and comets.
 
+The built-in Solar System overview includes a schematic main asteroid belt
+between Mars and Jupiter. Its exaggerated particles illustrate the belt's
+distribution, not measured asteroid positions or simulated gravitational bodies.
+The belt is absent from custom/editable systems.
+
 ## Explore SimSolar
 
 <table>
@@ -187,6 +192,7 @@ web server is required.
 | `src/mission-timeline.js` | Shared mission navigation helpers |
 | `src/mission-planner.js` | Lambert solver, patched-conic route scoring, window search, and plan persistence |
 | `src/mission-planner-ui.js` | Mission-planner workflow, route comparison, maneuvers, saves, and previews |
+| `src/body-select.js` | Shared hierarchical body dropdowns with planet/moon families and custom-system relationships |
 | `src/spacecraft-view.js` | Planned-flight camera frame, projection, leg selection, and telemetry |
 | `src/frame-profiler.js` | Rolling frame-time statistics for view presets |
 | `src/view-transform.js` | Camera rotation and view-space transformation helpers |

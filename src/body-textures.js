@@ -1,8 +1,9 @@
 (function(root,factory){
-  const api=factory();
+  const api=factory(typeof module==='object' && module.exports
+    ? require('./ring-system.js') : root.RingSystem);
   if(typeof module==='object' && module.exports) module.exports=api;
   root.BodyTextures=api;
-})(typeof globalThis!=='undefined' ? globalThis : this,function(){
+})(typeof globalThis!=='undefined' ? globalThis : this,function(ringSystem){
   const TWO_PI=Math.PI*2;
   const MIN_RADIUS_PX=7;
   const MAX_SAMPLE_RADIUS=256;
@@ -67,6 +68,8 @@
   function poleVector(name){
     const definition=DEFINITIONS[name];
     if(!definition) return null;
+    const ring=ringSystem.PLANETARY_RINGS[name];
+    if(ring) return ringSystem.normalVector(ring);
     const tilt=(definition.tiltDeg||0)*Math.PI/180;
     return {x:0,y:Math.sin(tilt),z:Math.cos(tilt)};
   }
@@ -116,19 +119,22 @@
     const definition=DEFINITIONS[name];
     if(!definition || !basis) return null;
     const pole=poleVector(name);
-    const equatorX={x:1,y:0,z:0};
-    const equatorY={x:0,y:pole.z,z:-pole.y};
+    const ring=ringSystem.PLANETARY_RINGS[name];
+    const equatorX=ring
+      ? ringSystem.relativePoint(ring,ringSystem.AU_KM,0)
+      : {x:1,y:0,z:0};
+    const equatorY=cross(pole,equatorX);
     const phase=(definition.phaseDeg||0)*Math.PI/180+
       rotationTurns(name,tDays)*TWO_PI;
     const prime={
-      x:Math.cos(phase),
-      y:equatorY.y*Math.sin(phase),
-      z:equatorY.z*Math.sin(phase)
+      x:equatorX.x*Math.cos(phase)+equatorY.x*Math.sin(phase),
+      y:equatorX.y*Math.cos(phase)+equatorY.y*Math.sin(phase),
+      z:equatorX.z*Math.cos(phase)+equatorY.z*Math.sin(phase)
     };
     const east={
-      x:-Math.sin(phase),
-      y:equatorY.y*Math.cos(phase),
-      z:equatorY.z*Math.cos(phase)
+      x:-equatorX.x*Math.sin(phase)+equatorY.x*Math.cos(phase),
+      y:-equatorX.y*Math.sin(phase)+equatorY.y*Math.cos(phase),
+      z:-equatorX.z*Math.sin(phase)+equatorY.z*Math.cos(phase)
     };
     const columns=[basis.right,basis.up,basis.towardObserver];
     const values=[];
@@ -177,11 +183,18 @@
       'const float PI=3.141592653589793;\n'+
       'void main(){\n'+
       '  vec2 screenPoint=vec2(vUv.x*2.0-1.0,vUv.y*2.0-1.0);\n'+
-      '  vec2 point=vec2(screenPoint.x,screenPoint.y/uPolarScale);\n'+
-      '  float radialSq=dot(point,point);\n'+
-      '  if(radialSq>=1.0) discard;\n'+
-      '  float z=sqrt(1.0-radialSq);\n'+
-      '  vec3 bodyNormal=normalize(uOrientation*vec3(point,z));\n'+
+      // Intersect the view ray with a spheroid about the same pole as the texture.
+      '  vec3 pole=vec3(uOrientation[0].z,uOrientation[1].z,uOrientation[2].z);\n'+
+      '  float flattening=1.0/(uPolarScale*uPolarScale)-1.0;\n'+
+      '  float alongPole=dot(screenPoint,pole.xy);\n'+
+      '  float a=1.0+flattening*pole.z*pole.z;\n'+
+      '  float b=flattening*alongPole*pole.z;\n'+
+      '  float c=dot(screenPoint,screenPoint)+flattening*alongPole*alongPole-1.0;\n'+
+      '  float discriminant=b*b-a*c;\n'+
+      '  if(discriminant<=0.0) discard;\n'+
+      '  float z=(-b+sqrt(discriminant))/a;\n'+
+      '  vec3 surfacePoint=vec3(screenPoint,z);\n'+
+      '  vec3 bodyNormal=normalize((uOrientation*surfacePoint)/vec3(1.0,1.0,uPolarScale));\n'+
       '  float longitude=atan(bodyNormal.y,bodyNormal.x)/(2.0*PI);\n'+
       '  float latitude=asin(clamp(bodyNormal.z,-1.0,1.0))/PI;\n'+
       '  vec2 textureUv=vec2(\n'+
@@ -194,8 +207,8 @@
       '  ).rgb;\n'+
       '  float cloud=uCloudMix*max(cloudSample.r,max(cloudSample.g,cloudSample.b));\n'+
       '  surface.rgb=mix(surface.rgb,vec3(0.95,0.98,1.0),cloud*0.82);\n'+
-      '  vec3 normal=normalize(vec3(screenPoint.x,screenPoint.y,z));\n'+
-      '  vec3 toLight=uLightPosition-vec3(screenPoint.x,screenPoint.y,z);\n'+
+      '  vec3 normal=normalize(surfacePoint+flattening*dot(surfacePoint,pole)*pole);\n'+
+      '  vec3 toLight=uLightPosition-surfacePoint;\n'+
       '  float lightDistance=length(toLight);\n'+
       '  vec3 lightDirection=toLight/lightDistance;\n'+
       '  float diffuse=max(0.0,dot(normal,lightDirection));\n'+
@@ -204,7 +217,7 @@
       '  for(int index=0;index<8;index++){\n'+
       '    if(float(index)>=uOccluderCount) continue;\n'+
       '    vec4 occluder=uOccluders[index];\n'+
-      '    vec3 toOccluder=occluder.xyz-vec3(screenPoint.x,screenPoint.y,z);\n'+
+      '    vec3 toOccluder=occluder.xyz-surfacePoint;\n'+
       '    float along=dot(toOccluder,lightDirection);\n'+
       '    if(along<=0.0 || along>=lightDistance) continue;\n'+
       '    float separation=length(toOccluder-lightDirection*along);\n'+
@@ -218,7 +231,7 @@
       '    shadow=max(shadow,overlap*maximum);\n'+
       '  }\n'+
       '  brightness=max(uAmbient,brightness*(1.0-shadow*0.98));\n'+
-      '  float alpha=smoothstep(0.0,uEdge,1.0-radialSq);\n'+
+      '  float alpha=smoothstep(0.0,uEdge,discriminant/a);\n'+
       '  gl_FragColor=vec4(surface.rgb*brightness,surface.a*alpha);\n'+
       '}'
     );
@@ -347,7 +360,7 @@
       const sampleRadius=Math.max(
         8,Math.min(
           MAX_SAMPLE_RADIUS,
-          Math.ceil(radius*(definition.polarScale||1))
+          Math.ceil(radius)
         )
       );
       const size=sampleRadius*2+2;
@@ -401,12 +414,11 @@
       gl.uniform1f(uniforms.ambient,definition.emissive?1:0.08);
       gl.uniform1f(uniforms.edge,Math.max(0.002,2/sampleRadius));
       gl.drawArrays(gl.TRIANGLES,0,6);
-      const polarScale=definition.polarScale||1;
       targetContext.drawImage(
         canvas,
         0,FRAMEBUFFER_SIZE-size,size,size,
-        x-radius-1,y-radius*polarScale-1,
-        radius*2+2,radius*polarScale*2+2
+        x-radius-1,y-radius-1,
+        radius*2+2,radius*2+2
       );
       return true;
     }
