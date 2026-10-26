@@ -107,7 +107,7 @@
   #cardMedia{ margin:10px 0; }
   #cardImage{
     display:block; width:100%; height:130px; object-fit:contain;
-    background:#080e1b; border-radius:6px;
+    background:#000; border-radius:6px;
   }
   #cardImageLink{ display:block; border-radius:6px; }
   #cardImageCaption{

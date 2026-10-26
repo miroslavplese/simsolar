@@ -250,6 +250,192 @@ test('future date preparation yields and keeps controls responsive',async({page}
   expect(await page.evaluate(()=>window.__heartbeats)).toBeGreaterThan(1);
   await page.evaluate(()=>clearInterval(window.__heartbeatTimer));
 });
+test('asteroid belt is visible only in the built-in Solar System',async({page})=>{
+  async function measureBelt(){
+    return page.evaluate(async()=>{
+      const original=AsteroidBelt.draw;
+      let count=0;
+      AsteroidBelt.draw=(...args)=>{
+        const result=original(...args);
+        count+=result;
+        return result;
+      };
+      window.dispatchEvent(new Event('resize'));
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      AsteroidBelt.draw=original;
+      return count;
+    });
+  }
+  await open(page,scenario({view:{zoom:2,panX:0,panY:0,yaw:0,tilt:0.4}}));
+  expect(await measureBelt()).toBe(5000);
+  const original=await page.locator('#orbits').evaluate(canvas=>canvas.toDataURL());
+  await page.evaluate(async()=>{
+    const draw=AsteroidBelt.draw;
+    AsteroidBelt.draw=()=>0;
+    window.dispatchEvent(new Event('resize'));
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    AsteroidBelt.draw=draw;
+  });
+  expect(await page.locator('#orbits').evaluate(canvas=>canvas.toDataURL())).not.toBe(original);
+  await page.getByRole('button',{name:'Delete Earth',exact:true}).click();
+  await expect(page.locator('#modelOut')).toContainText('EDITABLE');
+  expect(await measureBelt()).toBe(0);
+  await open(page,scenario({system:{mode:'editable',epoch:5672,bodies:[]}}));
+  expect(await measureBelt()).toBe(0);
+  await page.getByRole('button',{name:'RESTORE SOLAR',exact:true}).click();
+  expect(await measureBelt()).toBeGreaterThan(0);
+  const file=pathToFileURL(path.resolve(__dirname,'../../solar-system.html')).href;
+  await open(page,scenario(),file);
+  expect(await measureBelt()).toBeGreaterThan(0);
+  await open(page,scenario({view:{zoom:60,panX:0,panY:0,yaw:1,tilt:0.8}}));
+  expect(await measureBelt()).toBe(0);
+});
+test('planetary cloud equators and oblateness follow the ring axis',async({page})=>{
+  await open(page);
+  const texture=await page.evaluate(()=>{
+    const canvas=document.createElement('canvas');
+    canvas.width=512;
+    canvas.height=256;
+    const context=canvas.getContext('2d');
+    context.fillStyle='#0000ff';
+    context.fillRect(0,0,512,256);
+    context.fillStyle='#00ff00';
+    context.fillRect(0,125,512,6);
+    return canvas.toDataURL().split(',')[1];
+  });
+  await page.route('**/assets/textures/{saturn,jupiter}.webp',route=>
+    route.fulfill({contentType:'image/png',body:Buffer.from(texture,'base64')}));
+  const results=await page.evaluate(async()=>{
+    const canvas=document.createElement('canvas');
+    canvas.width=canvas.height=202;
+    const context=canvas.getContext('2d');
+    let ready;
+    const renderer=BodyTextures.createRenderer({onReady:()=>ready()});
+    if(!renderer) throw new Error('WebGL texture renderer unavailable');
+    const results=[];
+    for(const name of ['Saturn','Jupiter']){
+      await new Promise(resolve=>{
+        ready=resolve;
+        renderer.draw(name,context,101,101,90,{});
+      });
+      const ring=RingSystem.PLANETARY_RINGS[name];
+      const pole=RingSystem.normalVector(ring);
+      const equatorX=RingSystem.relativePoint(ring,RingSystem.AU_KM,0);
+      const equatorY=RingSystem.relativePoint(ring,RingSystem.AU_KM,Math.PI/2);
+      for(const roll of [0,0.65,1.4]){
+        const right={
+          x:equatorY.x*Math.cos(roll)+pole.x*Math.sin(roll),
+          y:equatorY.y*Math.cos(roll)+pole.y*Math.sin(roll),
+          z:equatorY.z*Math.cos(roll)+pole.z*Math.sin(roll)
+        };
+        const basis=BodyTextures.viewBasis(equatorX,right,pole);
+        context.clearRect(0,0,202,202);
+        renderer.draw(name,context,101,101,90,{
+          orientation:BodyTextures.orientationMatrix(name,5672,basis),
+          light:{x:0,y:0,z:1}
+        });
+        const sample=(x,y)=>Array.from(context.getImageData(
+          Math.round(101+x),Math.round(101-y),1,1
+        ).data);
+        results.push({
+          name,roll,
+          equator:sample(40*Math.cos(roll),-40*Math.sin(roll)),
+          latitude:sample(40*Math.sin(roll),40*Math.cos(roll)),
+          equatorialLimb:sample(87*Math.cos(roll),-87*Math.sin(roll)),
+          polarLimb:sample(87*Math.sin(roll),87*Math.cos(roll))
+        });
+      }
+      context.clearRect(0,0,202,202);
+      renderer.draw(name,context,101,101,90,{
+        orientation:BodyTextures.orientationMatrix(
+          name,0,BodyTextures.viewBasis(pole,equatorX,equatorY)
+        ),
+        light:{x:0,y:0,z:1}
+      });
+      results.push({
+        name,poleOn:true,
+        horizontal:context.getImageData(188,101,1,1).data[3],
+        vertical:context.getImageData(101,188,1,1).data[3]
+      });
+    }
+    return results;
+  });
+  for(const result of results){
+    if(result.poleOn){
+      expect(result.horizontal).toBeGreaterThan(200);
+      expect(result.vertical).toBeGreaterThan(200);
+    } else {
+      expect(result.equator[1],JSON.stringify(result)).toBeGreaterThan(result.equator[2]*3);
+      expect(result.latitude[2],JSON.stringify(result)).toBeGreaterThan(result.latitude[1]*3);
+      expect(result.equatorialLimb[3],JSON.stringify(result)).toBeGreaterThan(200);
+      expect(result.polarLimb[3],JSON.stringify(result)).toBe(0);
+    }
+  }
+});
+test('all body dropdowns group families and preserve eligible selections',async({page})=>{
+  await open(page);
+  for(const id of [
+    'observatoryBody','observatoryTelescopeTarget','occultationObserver',
+    'plannerDeparture','plannerTarget'
+  ]){
+    const select=page.locator('#'+id);
+    await expect(select.locator('optgroup[label="Jupiter system"] option[value="Io"]'))
+      .toContainText('↳');
+    await expect(select.locator('optgroup[label="Pluto system"] option[value="Charon"]'))
+      .toContainText('↳');
+    const values=await select.locator('option').evaluateAll(options=>options.map(option=>option.value));
+    expect(new Set(values).size).toBe(values.length);
+  }
+  await expect(page.locator('#observatoryTelescopeTarget option[value="Earth"]')).toHaveCount(0);
+  await expect(page.locator('#observatoryTelescopeTarget optgroup[label="Earth system"] option[value="Moon"]'))
+    .toHaveCount(1);
+  await expect(page.locator('#observatoryTelescopeTarget > option[value=""]'))
+    .toHaveText('NO TRACKED TARGET');
+  await expect(page.locator('#missionSelect optgroup[label="Spacecraft"] option')).toHaveCount(10);
+  await expect(page.locator('#plannerTarget optgroup[label="Spacecraft"]')).toHaveCount(1);
+  await expect(page.locator('#plannerTarget optgroup[label="Spacecraft"] option')).toHaveCount(10);
+  await expect(page.locator('#plannerDeparture')).toHaveValue('Earth');
+  await expect(page.locator('#plannerTarget')).toHaveValue('Mars');
+
+  await page.locator('#plannerBtn').click();
+  await page.locator('#plannerTarget').selectOption('Europa');
+  await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
+  await page.locator('#plannerAddAssistBtn').click();
+  const assist=page.getByRole('combobox',{name:'Gravity-assist body'});
+  await expect(assist.locator('optgroup[label="Jupiter system"] option[value="Jupiter"]')).toHaveCount(1);
+  await expect(assist.locator('option[value="Sun"]')).toHaveCount(0);
+  await assist.selectOption('Saturn');
+  await page.getByRole('button',{name:'Delete Jupiter',exact:true}).click();
+  await expect(assist).toHaveValue('Saturn');
+  for(const id of ['plannerDeparture','plannerTarget','observatoryBody','occultationObserver']){
+    await expect(page.locator('#'+id+' option[value="Jupiter"]')).toHaveCount(0);
+    await expect(page.locator('#'+id+' option[value="Io"]')).toHaveCount(0);
+  }
+  await expect(assist.locator('option[value="Jupiter"]')).toHaveCount(0);
+  await expect(page.locator('#observatoryBody')).toHaveValue('Earth');
+  await page.getByRole('button',{name:'RESTORE SOLAR',exact:true}).click();
+  await expect(page.locator('#plannerTarget optgroup[label="Jupiter system"] option[value="Europa"]'))
+    .toHaveCount(1);
+});
+test('custom body dropdowns preserve parent context without making stars targets',async({page})=>{
+  const bodies=[
+    {id:'star',name:'Custom star',kind:'custom',appearance:'star',radius:10000,massKg:1e25,mu:1e-6,
+      state:{x:0,y:0,z:0,vx:0,vy:0,vz:0}},
+    {id:'world',name:'Custom world',kind:'custom',appearance:'planet',parentId:'star',
+      radius:1000,massKg:1e20,mu:1e-9,state:{x:1,y:0,z:0,vx:0,vy:0.01,vz:0}},
+    {id:'moon',name:'Custom moon',kind:'custom',appearance:'planet',parentId:'world',
+      radius:100,massKg:1e18,mu:1e-11,state:{x:1.01,y:0,z:0,vx:0,vy:0.011,vz:0}}
+  ];
+  await open(page,scenario({t:100,system:{mode:'editable',epoch:100,bodies}}));
+  for(const id of ['plannerDeparture','plannerTarget','observatoryBody']){
+    const group=page.locator('#'+id+' optgroup[label="Custom star system"]');
+    await expect(group.locator('option')).toHaveCount(2);
+    expect(await group.locator('option').evaluateAll(options=>options.map(option=>option.value)))
+      .toEqual(['Custom world','Custom moon']);
+    await expect(group.locator('option[value="Custom moon"]')).toHaveText('\u00a0\u00a0\u00a0\u00a0↳ Custom moon',{ignoreCase:true});
+  }
+  await expect(page.locator('#plannerTarget option[value="Custom star"]')).toHaveCount(0);
+});
 test('mobile viewport and tutorial remain usable',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await open(page);

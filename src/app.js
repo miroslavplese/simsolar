@@ -5,6 +5,7 @@
   const skyCtx = sky.getContext('2d');
   const orbitCtx = orbits.getContext('2d');
   const ctx = scene.getContext('2d');
+  const asteroidBeltPoints=AsteroidBelt.createPoints();
   const starBackdrop=document.createElement('canvas');
   const starBackdropCtx=starBackdrop.getContext('2d');
   PanelDrag.installMovablePanels([
@@ -2036,6 +2037,11 @@
 
   function drawOrbitLayer(){
     orbitCtx.clearRect(0,0,W,H);
+    if(!editableSystem){
+      AsteroidBelt.draw(
+        orbitCtx,asteroidBeltPoints,project,W,H,AU_PX*zoom
+      );
+    }
     if(rotatingReferenceFrame){
       orbitLayerDirty=false;
       return;
@@ -4457,39 +4463,15 @@
   function refreshMissionTimelineCatalog(){
     const select=document.getElementById('missionSelect');
     if(!select) return;
-    const previous=select.value;
-    select.innerHTML='';
-    for(const craft of activeBodiesOf(spacecraft)){
-      const option=document.createElement('option');
-      option.value=craft.name;
-      option.textContent=craft.name;
-      select.appendChild(option);
-    }
-    if([...select.options].some(option=>option.value===previous)){
-      select.value=previous;
-    }
+    BodySelect.populate(select,activeBodiesOf(spacecraft));
   }
 
   function refreshOccultationCatalog(){
     const select=document.getElementById('occultationObserver');
     if(!select) return;
-    const previous=select.value;
-    select.innerHTML='';
-    const planetGroup=document.createElement('optgroup');
-    planetGroup.label='Planets';
-    const moonGroup=document.createElement('optgroup');
-    moonGroup.label='Moons';
-    for(const observer of activeOccultationObservers()){
-      const option=document.createElement('option');
-      option.value=observer.name;
-      option.textContent=observer.name;
-      (observer.kind==='moon'||observer===charon
-        ? moonGroup : planetGroup).appendChild(option);
-    }
-    select.append(planetGroup,moonGroup);
-    if([...select.options].some(option=>option.value===previous)){
-      select.value=previous;
-    }
+    BodySelect.populate(select,activeOccultationObservers(),{
+      catalog:activeSystemBodies()
+    });
     document.getElementById('occultationBtn').disabled=
       !select.options.length || !dominantLightBody(activeSystemBodies());
   }
@@ -4499,13 +4481,9 @@
     if(!select) return;
     const observers=observatoryObserverBodies();
     const previous=observatoryObserver;
-    select.innerHTML='';
-    for(const body of observers){
-      const option=document.createElement('option');
-      option.value=body.name;
-      option.textContent=body.name.toUpperCase();
-      select.appendChild(option);
-    }
+    BodySelect.populate(select,observers,{
+      catalog:activeSystemBodies(),uppercase:true
+    });
     if(previous && observers.includes(previous)){
       select.value=previous.name;
     } else {
@@ -5696,17 +5674,9 @@
     if(!select) return;
     const targets=observatoryTelescopeTargets();
     const previous=observatoryTelescopeTarget;
-    select.innerHTML='';
-    const manual=document.createElement('option');
-    manual.value='';
-    manual.textContent='NO TRACKED TARGET';
-    select.appendChild(manual);
-    for(const body of targets){
-      const option=document.createElement('option');
-      option.value=body.name;
-      option.textContent=body.name.toUpperCase();
-      select.appendChild(option);
-    }
+    BodySelect.populate(select,targets,{
+      catalog:activeSystemBodies(),uppercase:true,placeholder:'NO TRACKED TARGET'
+    });
     if(previous && targets.includes(previous)){
       select.value=previous.name;
       return;

@@ -74,6 +74,13 @@ and attribution manifest, without a caption or separate credits section.
 
 ### Editable systems
 
+Body dropdowns share `src/body-select.js`: native option groups identify
+planetary families, indented entries show moons and deeper custom relationships,
+and spacecraft/comets remain separate categories. The full active catalog
+supplies parent context even when a panel excludes that parent from selection.
+Each panel retains its own eligibility rules, option values, and current
+selection across catalog refreshes.
+
 The built-in Solar System is an immutable preset. The first body insertion or
 deletion samples its current physical state into an editable system with stable
 runtime body IDs. Subsequent edits rebuild the N-body simulator at the current
@@ -482,14 +489,40 @@ limb and terminator respond to both orbital position and camera rotation. Wide
 view markers remain unshaded. Ring shadows use parallel solar rays; the Sun's
 finite angular size and resulting narrow penumbra are not modeled.
 
+Ringed planets use `RingSystem`'s plane normal for their texture spin axis,
+so cloud bands and rings share an equator as the camera rotates. Moon orbits
+retain their individual inclinations. The texture shader intersects an oblate
+spheroid oriented around that same axis, rather than compressing the image
+vertically in screen space; lighting uses the corresponding surface normal.
+Ring axes use mean J2000 pole right ascension and declination from
+[JPL NAIF pck00011](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc),
+rotated from equatorial J2000 into the ecliptic J2000 frame of the Horizons
+trajectories. They no longer treat obliquity to the planet's orbit as an
+ecliptic inclination or use the planet's orbital node as its equatorial node.
+The visualization holds these mean poles fixed: secular precession and periodic
+nutation (including Neptune's) are not modeled. Regression tests compare the
+planes against the actual bundled moon position/velocity states, preserving
+real moon inclinations rather than forcing every moon into the ring plane.
+
 `src/star-field.js` generates deterministic directions on a celestial sphere.
 The separate sky canvas uses a 90-degree perspective projection and redraws only
 when camera yaw, tilt, or viewport dimensions change. Stars therefore remain
 fixed in inertial space while moving correctly under pointer rotation and
 co-rotating reference frames; zoom and pan do not alter the distant background.
 
-Full orbit paths use a second cached canvas, while the dynamic scene is redrawn
-with `requestAnimationFrame`. At moon-system zoom levels, heliocentric orbit
+Full orbit paths use a second cached canvas. `src/asteroid-belt.js` adds a deterministic,
+static density illustration of the main belt to that cached canvas, behind
+orbit paths and body markers. Its 5,000 exaggerated points span 2.1 to 3.3 AU
+with a small vertical thickness, sharing the scene's pan, zoom, and 3D camera
+projection. Points are viewport-culled and fade out at close-up scales.
+At wide scales their opacity decreases with projected area, preventing
+overlapping screen-sized dots from turning into a bright solid ring.
+They are not ephemerides, selectable objects, or inputs to the integrator.
+The illustration appears only in the built-in Solar System overview, including
+its rotating reference frame; any editable/custom system suppresses it, and
+restoring the Solar System restores it.
+
+The dynamic scene is redrawn with `requestAnimationFrame`. At moon-system zoom levels, heliocentric orbit
 paths and traveled spacecraft/comet/custom-body trails are suppressed because
 they are far outside the viewport and rebuilding their extreme projected
 geometry while following a planet causes unnecessary frame-time spikes.

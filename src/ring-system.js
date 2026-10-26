@@ -5,17 +5,20 @@
 })(typeof globalThis!=='undefined' ? globalThis : this,function(){
   const AU_KM=1.495978707e8;
   const DEG=Math.PI/180;
+  const J2000_OBLIQUITY=23.439291111*DEG;
 
+  // Mean J2000 equatorial poles from NAIF pck00011.tpc (degrees).
+  // https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc
   const PLANETARY_RINGS={
     Jupiter:{
-      i:3.13,Omega:100.5,
+      poleRA:268.056595,poleDec:64.495303,
       bands:[
         {innerKm:92000,outerKm:122500,color:'#c7b99a',alpha:0.07},
         {innerKm:122500,outerKm:129000,color:'#d8c7a5',alpha:0.14}
       ]
     },
     Saturn:{
-      i:26.73,Omega:113.7,
+      poleRA:40.589,poleDec:83.537,
       bands:[
         {innerKm:74658,outerKm:91975,color:'#a79a82',alpha:0.18},
         {innerKm:92000,outerKm:117580,color:'#e0cfaa',alpha:0.48},
@@ -24,7 +27,7 @@
       ]
     },
     Uranus:{
-      i:97.77,Omega:74.0,
+      poleRA:257.311,poleDec:-15.175,
       bands:[
         {innerKm:38000,outerKm:41800,color:'#9eb7bb',alpha:0.12},
         {innerKm:42200,outerKm:48300,color:'#a8c1c5',alpha:0.16},
@@ -32,7 +35,7 @@
       ]
     },
     Neptune:{
-      i:28.32,Omega:131.8,
+      poleRA:299.36,poleDec:43.46,
       bands:[
         {innerKm:41900,outerKm:42900,color:'#8291b5',alpha:0.1},
         {innerKm:53000,outerKm:57300,color:'#98a5c4',alpha:0.12},
@@ -45,14 +48,20 @@
     const radius=radiusKm/AU_KM;
     const xOrb=radius*Math.cos(angle);
     const yOrb=radius*Math.sin(angle);
-    const inclination=ring.i*DEG;
-    const ascendingNode=ring.Omega*DEG;
-    const cosI=Math.cos(inclination), sinI=Math.sin(inclination);
-    const cosO=Math.cos(ascendingNode), sinO=Math.sin(ascendingNode);
+    const normal=normalVector(ring);
+    const length=Math.hypot(normal.x,normal.y);
+    const equatorX=length>1e-12
+      ? {x:-normal.y/length,y:normal.x/length,z:0}
+      : {x:1,y:0,z:0};
+    const equatorY={
+      x:-normal.z*equatorX.y,
+      y:normal.z*equatorX.x,
+      z:normal.x*equatorX.y-normal.y*equatorX.x
+    };
     return {
-      x:xOrb*cosO-yOrb*cosI*sinO,
-      y:xOrb*sinO+yOrb*cosI*cosO,
-      z:yOrb*sinI
+      x:xOrb*equatorX.x+yOrb*equatorY.x,
+      y:xOrb*equatorX.y+yOrb*equatorY.y,
+      z:yOrb*equatorY.z
     };
   }
 
@@ -61,6 +70,17 @@
   }
 
   function normalVector(ring){
+    if(Number.isFinite(ring.poleRA) && Number.isFinite(ring.poleDec)){
+      const ra=ring.poleRA*DEG,dec=ring.poleDec*DEG;
+      const x=Math.cos(dec)*Math.cos(ra);
+      const y=Math.cos(dec)*Math.sin(ra);
+      const z=Math.sin(dec);
+      return {
+        x,
+        y:y*Math.cos(J2000_OBLIQUITY)+z*Math.sin(J2000_OBLIQUITY),
+        z:-y*Math.sin(J2000_OBLIQUITY)+z*Math.cos(J2000_OBLIQUITY)
+      };
+    }
     const inclination=ring.i*DEG;
     const ascendingNode=ring.Omega*DEG;
     return {

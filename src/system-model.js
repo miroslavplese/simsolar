@@ -64,6 +64,9 @@
     return bodies.map(body=>({
       id:body.id,
       name:body.name,
+      kind:body.kind,
+      parentId:body.parentId,
+      parentName:body.parentName,
       assist:body.assist===true,
       target:body.target!==false && !isLuminous(body)
     }));

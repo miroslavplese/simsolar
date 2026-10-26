@@ -17,6 +17,9 @@ assert.equal(dominantLightBody(bodies).id,'other');
 assert.equal(dominantLightBody([{id:'x',name:'X'}]),null);
 assert.equal(catalogEntries(bodies).find(item=>item.id==='star').target,false);
 assert.equal(catalogEntries(bodies).find(item=>item.id==='planet').target,true);
+assert.equal(catalogEntries(bodies).find(item=>item.id==='planet').parentId,'star');
+assert.equal(catalogEntries(bodies).find(item=>item.id==='moon').parentName,'B');
+assert.equal(catalogEntries(bodies).find(item=>item.id==='moon').kind,'moon');
 
 const state={x:0,y:0,z:0,vx:0,vy:0,vz:0};
 const system={
