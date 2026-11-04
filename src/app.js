@@ -6499,6 +6499,36 @@
     );
     if(!visible) resetBodyInsertion();
   });
+  document.getElementById('curatedBtn').addEventListener('click',()=>{
+    CuratedSystemsUI.toggle(!document.getElementById('curatedSystemsPanel')?.classList.contains('panel-hidden'));
+    document.getElementById('curatedBtn').classList.toggle(
+      'active',CuratedSystemsUI.visible
+    );
+    document.getElementById('curatedBtn').setAttribute(
+      'aria-expanded',String(CuratedSystemsUI.visible)
+    );
+  });
+  CuratedSystemsUI.setOnLoad((sysDef)=>{
+    if(!root.CuratedSystems) return;
+    const system=CuratedSystems.buildEditableSystem(sysDef,editableSystem?editableSystem.epoch:2461088.5);
+    if(!system || !system.bodies || system.bodies.length<2) return;
+    restoreEditableSystem(system);
+    // Reset view: zoom out to see the system
+    zoom=0.8;
+    panX=0; panY=0;
+    viewYaw=0; viewTilt=DEFAULT_TILT;
+    selected=null; followTarget=null;
+    invalidateProjection();
+    updateLegend();
+    // Update gravity model label immediately
+    const modelOut=document.getElementById('modelOut');
+    if(modelOut) modelOut.textContent='EDITABLE BARYCENTRIC N-BODY';
+    // Hide solar-system-specific panels
+    document.getElementById('missionPanel').classList.add('panel-hidden');
+    document.getElementById('missionBtn').classList.remove('active');
+    document.getElementById('missionBtn').setAttribute('aria-expanded','false');
+    showScenarioStatus('Loaded: '+sysDef.name+'. '+system.bodies.length+' bodies. Space to play.');
+  });
   playBtn.addEventListener('click', ()=>{
     if(activeImpact){
       ignoredImpactKey=activeImpact.key;
