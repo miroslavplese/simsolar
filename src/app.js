@@ -6500,7 +6500,9 @@
     if(!visible) resetBodyInsertion();
   });
   document.getElementById('curatedBtn').addEventListener('click',()=>{
-    CuratedSystemsUI.toggle(!document.getElementById('curatedSystemsPanel')?.classList.contains('panel-hidden'));
+    const panel=document.getElementById('curatedSystemsPanel');
+    const isHidden=!panel||panel.classList.contains('panel-hidden');
+    CuratedSystemsUI.toggle(isHidden);
     document.getElementById('curatedBtn').classList.toggle(
       'active',CuratedSystemsUI.visible
     );
