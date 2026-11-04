@@ -1,4 +1,4 @@
-// Curated systems regression tests — runs in Node.
+// Curated systems regression tests - runs in Node.
 (function(){
   'use strict';
 

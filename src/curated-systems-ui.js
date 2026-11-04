@@ -1,4 +1,4 @@
-// CuratedSystemsUI — browsable panel for pre-built custom systems.
+// CuratedSystemsUI - browsable panel for pre-built custom systems.
 // Creates a panel overlay with cards; clicking a card loads it.
 (function(root){
   'use strict';

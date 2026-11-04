@@ -4,7 +4,7 @@
 (function(root){
   'use strict';
 
-  // ── orbital mechanics helpers ────────────────────────────────
+  // -- orbital mechanics helpers -----------------------------------
   var GM_SUN = 39.47841760435743; // AU^3/yr^2
   var DEG2RAD = Math.PI / 180;
   var DAYS_PER_YR = 365.25;
@@ -55,7 +55,7 @@
     return bodies;
   }
 
-  // ── curated system definitions ───────────────────────────────
+  // -- curated system definitions ----------------------------------
   var SYSTEMS = [
 
     // 1. Our Solar System
@@ -123,7 +123,7 @@
     // 5. Kepler-16 (real circumbinary planet)
     {
       id:'kepler-16',name:'Kepler-16',
-      description:'The real-life Tatooine. A circumbinary planet orbits both stars — the first confirmed planet around a binary star.',
+      description:'The real-life Tatooine. A circumbinary planet orbits both stars - the first confirmed planet around a binary star.',
       preview:'#d4a574',
       bodies:[
         {id:'kepler-16-a',name:'Kepler-16 A',kind:'star',appearance:'star',solarMass:0.698,color:'#ffe0a0',radius:630000},
@@ -180,7 +180,7 @@
     }
   ];
 
-  // ── system builder: converts definitions to editable system ──
+  // -- system builder: converts definitions to editable system ----
   function buildEditableSystem(systemDef, epoch){
     // Deep clone
     var bodies = JSON.parse(JSON.stringify(systemDef.bodies));
@@ -260,7 +260,7 @@
     };
   }
 
-  // ── API ──────────────────────────────────────────────────────
+  // -- API --------------------------------------------------------
   root.CuratedSystems = {
     SYSTEMS: SYSTEMS,
     buildEditableSystem: buildEditableSystem,
