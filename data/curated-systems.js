@@ -209,6 +209,7 @@
       if(b2.kind === 'star'){
         b2.x = 0; b2.y = 0; b2.z = 0;
         b2.vx = 0; b2.vy = 0; b2.vz = 0;
+        b2.state = {x:0,y:0,z:0,vx:0,vy:0,vz:0};
         continue;
       }
       var state = circularOrbitState(b2.a, b2.i || 0);
@@ -216,6 +217,7 @@
       b2.vx = state.vx / DAYS_PER_YR;
       b2.vy = state.vy / DAYS_PER_YR;
       b2.vz = state.vz / DAYS_PER_YR;
+      b2.state = {x: b2.x, y: b2.y, z: b2.z, vx: b2.vx, vy: b2.vy, vz: b2.vz};
     }
 
     // Place moons relative to parents
@@ -235,6 +237,7 @@
         m.vy = parent.vy + moonState.vy;
         m.vz = parent.vz + moonState.vz;
         m.mu = 0; // moons are particles in N-body
+        m.state = {x: m.x, y: m.y, z: m.z, vx: m.vx, vy: m.vy, vz: m.vz};
       }
     }
 
