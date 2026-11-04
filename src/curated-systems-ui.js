@@ -8,9 +8,9 @@
   let onLoad = null; // callback: (systemDef) => void
 
   function buildPanel(){
-    const document = typeof document !== 'undefined' ? document : null;
-    if(!document) return;
-    panel = document.createElement('div');
+    const doc = typeof document !== 'undefined' ? document : null;
+    if(!doc) return;
+    panel = doc.createElement('div');
     panel.id = 'curatedSystemsPanel';
     panel.className = 'panel-hidden';
     panel.innerHTML = `
@@ -23,18 +23,18 @@
       </p>
       <div id="curatedList"></div>
     `;
-    document.getElementById('stage').appendChild(panel);
+    doc.getElementById('stage').appendChild(panel);
 
     // Close button
-    document.getElementById('curatedClose').addEventListener('click', ()=>{
+    doc.getElementById('curatedClose').addEventListener('click', ()=>{
       toggle(false);
     });
 
     // Populate cards
-    const list = document.getElementById('curatedList');
+    const list = doc.getElementById('curatedList');
     const systems = root.CuratedSystems ? root.CuratedSystems.SYSTEMS : [];
     for(const sys of systems){
-      const card = document.createElement('button');
+      const card = doc.createElement('button');
       card.className = 'curated-card';
       card.setAttribute('data-id', sys.id);
       card.innerHTML = `
