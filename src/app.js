@@ -3991,60 +3991,80 @@
     const lightBody=dominantLightBody(activeSystemBodies());
     const lightPosition=lightBody &&
       positionForBody(lightBody,simDaysSinceJ2000);
-    const sunPosition=isBodyActive(sunReference) &&
-      positionForBody(sunReference,simDaysSinceJ2000);
-    const sunP=sunPosition ? project(
-      sunPosition.x,sunPosition.y,sunPosition.z
-    ) : null;
-    let sunR=0, sunDiskVisible=false;
-    if(sunP){
-      const sunRadiusRendering=bodyRadiusRendering(null,true);
-      sunR=sunRadiusRendering.radius;
-      const sunGlowR=sunR*(sunRadiusRendering.scaleAccurate?3.2:2);
-      const sunGlowVisible=sunP.x+sunGlowR>=0 && sunP.x-sunGlowR<=W &&
-        sunP.y+sunGlowR>=0 && sunP.y-sunGlowR<=H;
-      sunDiskVisible=sunP.x+sunR>=0 && sunP.x-sunR<=W &&
-        sunP.y+sunR>=0 && sunP.y-sunR<=H;
-      if(sunGlowVisible){
+    // Every luminous body in the scene is drawn with the Sun's
+    // glow-and-disk path: sol gets the Sun, curated systems get
+    // their stars (dominant first).
+    const sceneLuminous=isBodyActive(sunReference)
+      ? [sunReference]
+      : (lightBody?[lightBody]:[])
+        .concat(activeSystemBodies().filter(
+          body=>isLuminous(body) && body!==lightBody
+        ));
+    let sunP=null, sunR=0, sunDiskVisible=false;
+    for(const lum of sceneLuminous){
+      const lumPosition=positionForBody(lum,simDaysSinceJ2000);
+      const lumP=lumPosition?project(
+        lumPosition.x,lumPosition.y,lumPosition.z
+      ):null;
+      if(!lumP){ delete lum._screen; continue; }
+      const lumRadiusRendering=bodyRadiusRendering(
+        lum===sunReference?null:lum, lum===sunReference
+      );
+      const lumR=lumRadiusRendering.radius;
+      const lumGlowR=lumR*(lumRadiusRendering.scaleAccurate?3.2:2);
+      const lumGlowVisible=lumP.x+lumGlowR>=0 && lumP.x-lumGlowR<=W &&
+        lumP.y+lumGlowR>=0 && lumP.y-lumGlowR<=H;
+      const lumDiskVisible=lumP.x+lumR>=0 && lumP.x-lumR<=W &&
+        lumP.y+lumR>=0 && lumP.y-lumR<=H;
+      if(lumGlowVisible){
         const grad=ctx.createRadialGradient(
-          sunP.x,sunP.y,0,sunP.x,sunP.y,sunGlowR
+          lumP.x,lumP.y,0,lumP.x,lumP.y,lumGlowR
         );
-        grad.addColorStop(0,'rgba(255,225,140,1)');
-        grad.addColorStop(0.35,'rgba(242,181,68,0.9)');
-        grad.addColorStop(1,'rgba(242,181,68,0)');
+        grad.addColorStop(0,lum===sunReference
+          ? 'rgba(255,225,140,1)' : hexToRgba(lum.color,1));
+        grad.addColorStop(0.35,lum===sunReference
+          ? 'rgba(242,181,68,0.9)' : hexToRgba(lum.color,0.9));
+        grad.addColorStop(1,lum===sunReference
+          ? 'rgba(242,181,68,0)' : hexToRgba(lum.color,0));
         ctx.fillStyle=grad;
         ctx.beginPath();
-        ctx.arc(sunP.x,sunP.y,sunGlowR,0,Math.PI*2);
+        ctx.arc(lumP.x,lumP.y,lumGlowR,0,Math.PI*2);
         ctx.fill();
-        if(sunDiskVisible){
-          if(!drawBodyTexture(
-            sunReference,sunP.x,sunP.y,sunR,ctx,
+        if(lumDiskVisible){
+          const textured=lum===sunReference && drawBodyTexture(
+            sunReference,lumP.x,lumP.y,lumR,ctx,
             {x:0,y:0,z:1},systemTextureViewBasis()
-          )){
+          );
+          if(!textured){
             ctx.fillStyle='#fff3d6';
             ctx.beginPath();
-            ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2);
+            ctx.arc(lumP.x,lumP.y,lumR,0,Math.PI*2);
             ctx.fill();
           }
         }
       }
-      sunReference._screen={
-        x:sunP.x,y:sunP.y,r:Math.max(sunR,6),occulted:false
+      lum._screen={
+        x:lumP.x,y:lumP.y,r:Math.max(lumR,6),occulted:false
       };
-      if(sunDiskVisible &&
-        (sunReference===selected || sunReference===hovered)){
+      if(lumDiskVisible &&
+        (lum===selected || lum===hovered)){
         ctx.strokeStyle='rgba(242,181,68,0.9)';
         ctx.lineWidth=1.5;
         ctx.beginPath();
-        ctx.arc(sunP.x,sunP.y,sunR+5,0,Math.PI*2);
+        ctx.arc(lumP.x,lumP.y,lumR+5,0,Math.PI*2);
         ctx.stroke();
         ctx.font='10px "SF Mono", Consolas, monospace';
-        ctx.fillStyle=sunReference===selected
+        ctx.fillStyle=lum===selected
           ? '#f2b544'
           : 'rgba(232,236,247,0.72)';
-        ctx.fillText('Sun',sunP.x+sunR+6,sunP.y+3);
+        ctx.fillText(lum.name,lumP.x+lumR+6,lumP.y+3);
       }
-    } else {
+      // Occultation clipping uses the dominant star's disc.
+      if(lum===sceneLuminous[0]){
+        sunP=lumP; sunR=lumR; sunDiskVisible=lumDiskVisible;
+      }
+    }
+    if(!sceneLuminous.includes(sunReference)){
       delete sunReference._screen;
     }
     const lightScreen=lightPosition
@@ -4053,6 +4073,7 @@
     // bodies, depth sorted (far first)
     for(const {b,pos,scr} of withPos){
       const px=scr.x, py=scr.y;
+      if(b.kind==='star') continue; // drawn via the sun path above
       const behindSun=!!sunP && scr.depth<sunP.depth;
       const clipForSun=behindSun&&sunDiskVisible;
       if(clipForSun){
@@ -4619,14 +4640,20 @@
       if(expanded){
         for(const child of bodies){
           if(child.parentId===body.id || child.parentName===body.name){
+            // A luminous parented body is a binary companion star,
+            // listed at top level already - never shown as a child.
+            if(isLuminous(child)) continue;
             appendLegendRow(container,child,{moon:true});
           }
         }
       }
     };
     for(const body of bodies){
-      const hasListedParent=
-        bodyIds.has(body.parentId) || bodyNames.has(body.parentName);
+      // Companion stars (parentId pointing at another star) are
+      // listed at top level, never collapsed under their parent.
+      const hasListedParent=!isLuminous(body) && (
+        bodyIds.has(body.parentId) || bodyNames.has(body.parentName)
+      );
       if(!hasListedParent) appendFamily(body);
     }
   }
@@ -6520,12 +6547,13 @@
     const panel=document.getElementById('curatedSystemsPanel');
     const isHidden=!panel||panel.classList.contains('panel-hidden');
     CuratedSystemsUI.toggle(isHidden);
-    document.getElementById('curatedBtn').classList.toggle(
-      'active',CuratedSystemsUI.visible
-    );
-    document.getElementById('curatedBtn').setAttribute(
-      'aria-expanded',String(CuratedSystemsUI.visible)
-    );
+  });
+  // Keep the toolbar button in sync no matter how the panel is
+  // opened/closed (button click, ✕ close, card selection).
+  CuratedSystemsUI.setVisibleListener((vis)=>{
+    const btn=document.getElementById('curatedBtn');
+    btn.classList.toggle('active',vis);
+    btn.setAttribute('aria-expanded',String(vis));
   });
   CuratedSystemsUI.setOnLoad((sysDef)=>{
     if(!window.CuratedSystems) return;
@@ -6535,8 +6563,15 @@
     // Sync the simulation clock to the system epoch so the snapshot
     // resolver has a valid time (t < epoch returns no positions).
     simDaysSinceJ2000=system.epoch;
-    // Reset view: zoom out to see the system
-    zoom=0.8;
+    // Reset view: fit the system extent so its orbits are visible.
+    // Small systems (TRAPPIST-1, HD 189733, ...) get zoomed in;
+    // large systems keep the familiar 0.8 overview zoom.
+    let fitZoom=0.8;
+    if(system.extentAU>0){
+      const targetPx=Math.min(W||900,H||700)*0.4;
+      fitZoom=targetPx/(system.extentAU*AU_PX);
+    }
+    zoom=Math.max(ZOOM_MIN,Math.min(20000,Math.max(0.8,fitZoom)));
     panX=0; panY=0;
     viewYaw=0; viewTilt=DEFAULT_TILT;
     selected=null; followTarget=null;

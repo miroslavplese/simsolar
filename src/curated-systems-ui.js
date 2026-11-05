@@ -6,6 +6,7 @@
   let panel = null;
   let visible = false;
   let onLoad = null; // callback: (systemDef) => void
+  let onVisibleChange = null;
 
   function buildPanel(){
     const doc = typeof document !== 'undefined' ? document : null;
@@ -54,12 +55,15 @@
   function toggle(show){
     if(!panel) buildPanel();
     if(!panel) return;
-    visible = !!show;
-    if(show){
+    const next = !!show;
+    if(next === visible) return;
+    visible = next;
+    if(visible){
       panel.classList.remove('panel-hidden');
     } else {
       panel.classList.add('panel-hidden');
     }
+    if(onVisibleChange) onVisibleChange(visible);
   }
 
   function show(){ toggle(true); }
@@ -69,5 +73,9 @@
     onLoad = fn;
   }
 
-  root.CuratedSystemsUI = { buildPanel, toggle, show, hide, setOnLoad, get visible(){ return visible; } };
+  function setVisibleListener(fn){
+    onVisibleChange = fn;
+  }
+
+  root.CuratedSystemsUI = { buildPanel, toggle, show, hide, setOnLoad, setVisibleListener, get visible(){ return visible; } };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
