@@ -6512,7 +6512,7 @@
   });
   CuratedSystemsUI.setOnLoad((sysDef)=>{
     if(!window.CuratedSystems) return;
-    const system=CuratedSystems.buildEditableSystem(sysDef,editableSystem?editableSystem.epoch:2461088.5);
+    const system=CuratedSystems.buildEditableSystem(sysDef,editableSystem?editableSystem.epoch:daysSinceJ2000(Date.now()));
     if(!system || !system.bodies || system.bodies.length<2) return;
     restoreEditableSystem(system);
     // Sync the simulation clock to the system epoch so the snapshot
