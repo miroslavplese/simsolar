@@ -6511,7 +6511,7 @@
     );
   });
   CuratedSystemsUI.setOnLoad((sysDef)=>{
-    if(!root.CuratedSystems) return;
+    if(!window.CuratedSystems) return;
     const system=CuratedSystems.buildEditableSystem(sysDef,editableSystem?editableSystem.epoch:2461088.5);
     if(!system || !system.bodies || system.bodies.length<2) return;
     restoreEditableSystem(system);
