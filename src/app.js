@@ -6515,6 +6515,9 @@
     const system=CuratedSystems.buildEditableSystem(sysDef,editableSystem?editableSystem.epoch:2461088.5);
     if(!system || !system.bodies || system.bodies.length<2) return;
     restoreEditableSystem(system);
+    // Sync the simulation clock to the system epoch so the snapshot
+    // resolver has a valid time (t < epoch returns no positions).
+    simDaysSinceJ2000=system.epoch;
     // Reset view: zoom out to see the system
     zoom=0.8;
     panX=0; panY=0;
