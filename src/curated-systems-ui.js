@@ -45,8 +45,13 @@
       `;
       card.addEventListener('click', ()=>{
         toggle(false);
-        console.log('[CuratedSystemsUI] Card click, onLoad type:', typeof onLoad, 'onLoad:', onLoad ? 'set' : 'null');
-        if(onLoad) onLoad(sys);
+        window._onLoadCallbackStatus = typeof onLoad;
+        if(onLoad) {
+          window._onLoadCallbackStatus = 'calling';
+          try { onLoad(sys); window._onLoadCallbackStatus = 'called'; } catch(e) { window._onLoadCallbackStatus = 'error:' + e.message; }
+        } else {
+          window._onLoadCallbackStatus = 'null';
+        }
       });
       list.appendChild(card);
     }
