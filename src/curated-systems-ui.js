@@ -66,7 +66,10 @@
   function show(){ toggle(true); }
   function hide(){ toggle(false); }
 
-  function setOnLoad(fn){ onLoad = fn; }
+  function setOnLoad(fn){
+    onLoad = fn;
+    window._curatedOnLoadSet = !!fn;
+  }
 
   root.CuratedSystemsUI = { buildPanel, toggle, show, hide, setOnLoad, get visible(){ return visible; } };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
