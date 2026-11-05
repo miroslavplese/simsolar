@@ -45,13 +45,7 @@
       `;
       card.addEventListener('click', ()=>{
         toggle(false);
-        window._onLoadCallbackStatus = typeof onLoad;
-        if(onLoad) {
-          window._onLoadCallbackStatus = 'calling';
-          try { onLoad(sys); window._onLoadCallbackStatus = 'called'; } catch(e) { window._onLoadCallbackStatus = 'error:' + e.message; }
-        } else {
-          window._onLoadCallbackStatus = 'null';
-        }
+        if(onLoad) onLoad(sys);
       });
       list.appendChild(card);
     }
@@ -73,7 +67,6 @@
 
   function setOnLoad(fn){
     onLoad = fn;
-    window._curatedOnLoadSet = !!fn;
   }
 
   root.CuratedSystemsUI = { buildPanel, toggle, show, hide, setOnLoad, get visible(){ return visible; } };
