@@ -2059,9 +2059,11 @@
       const isHi = b===hovered || b===selected;
       let pts;
       if(editableSnapshot){
+        const hasParentStar = b.parentId || b.parentName;
         if(
           b.kind==='moon' || b===charon ||
-          b.kind==='spacecraft' || b.kind==='comet' || isLuminous(b)
+          b.kind==='spacecraft' || b.kind==='comet' ||
+          (isLuminous(b) && !hasParentStar)
         ) continue;
         const configuredPrimary=activeSystemBodies().find(candidate=>
           candidate.id===b.parentId || candidate.name===b.parentName
