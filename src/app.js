@@ -2066,29 +2066,42 @@
         const configuredPrimary=activeSystemBodies().find(candidate=>
           candidate.id===b.parentId || candidate.name===b.parentName
         );
-        const primary=configuredPrimary || (
+        const luminousBodies=activeSystemBodies().filter(c=>isLuminous(c));
+        // A planet with no parent in a multi-star system is circumbinary:
+        // its orbit is bound to the barycenter, not to either star, so
+        // osculate about the barycenter with the total stellar mass.
+        const circumbinary=!configuredPrimary && luminousBodies.length>1;
+        const primary=circumbinary ? null : (configuredPrimary || (
           b.kind!=='custom' && sunReference!==b
             ? (isBodyActive(sunReference) ? sunReference
               : dominantLightBody(activeSystemBodies()))
             : null
-        );
+        ));
         const bodyPosition=bodyState(editableSnapshot,b.id);
-        const primaryPosition=primary &&
-          bodyState(editableSnapshot,primary.id);
-        const primaryMu=primary && (
-          primary.mu||GM_BY_BODY[primary.name]||
-          MOON_GM_BY_BODY[primary.name]||
-          (primary.massKg ? massKgToMu(primary.massKg) : 0)
-        );
+        const primaryPosition=circumbinary
+          ? {x:0,y:0,z:0,vx:0,vy:0,vz:0}
+          : (primary && bodyState(editableSnapshot,primary.id));
+        const primaryMu=circumbinary
+          ? luminousBodies.reduce((sum,c)=>sum+(c.mu||0),0)
+          : (primary && (
+            primary.mu||GM_BY_BODY[primary.name]||
+            MOON_GM_BY_BODY[primary.name]||
+            (primary.massKg ? massKgToMu(primary.massKg) : 0)
+          ));
         if(!bodyPosition || !primaryPosition || !(primaryMu>0)) continue;
-        const relative={
-          x:bodyPosition.x-primaryPosition.x,
-          y:bodyPosition.y-primaryPosition.y,
-          z:bodyPosition.z-primaryPosition.z,
-          vx:bodyPosition.vx-primaryPosition.vx,
-          vy:bodyPosition.vy-primaryPosition.vy,
-          vz:bodyPosition.vz-primaryPosition.vz
-        };
+        const relative=circumbinary
+          ? {
+              x:bodyPosition.x,y:bodyPosition.y,z:bodyPosition.z,
+              vx:bodyPosition.vx,vy:bodyPosition.vy,vz:bodyPosition.vz
+            }
+          : {
+              x:bodyPosition.x-primaryPosition.x,
+              y:bodyPosition.y-primaryPosition.y,
+              z:bodyPosition.z-primaryPosition.z,
+              vx:bodyPosition.vx-primaryPosition.vx,
+              vy:bodyPosition.vy-primaryPosition.vy,
+              vz:bodyPosition.vz-primaryPosition.vz
+            };
         const bodyMu=b.mu||GM_BY_BODY[b.name]||
           MOON_GM_BY_BODY[b.name]||
           (b.massKg ? massKgToMu(b.massKg) : 0);
