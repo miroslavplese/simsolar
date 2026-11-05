@@ -2067,8 +2067,10 @@
           candidate.id===b.parentId || candidate.name===b.parentName
         );
         const primary=configuredPrimary || (
-          b.kind!=='custom' && sunReference!==b &&
-          isBodyActive(sunReference) ? sunReference : null
+          b.kind!=='custom' && sunReference!==b
+            ? (isBodyActive(sunReference) ? sunReference
+              : dominantLightBody(activeSystemBodies()))
+            : null
         );
         const bodyPosition=bodyState(editableSnapshot,b.id);
         const primaryPosition=primary &&
