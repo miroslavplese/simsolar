@@ -6521,7 +6521,7 @@
     viewYaw=0; viewTilt=DEFAULT_TILT;
     selected=null; followTarget=null;
     invalidateProjection();
-    updateLegend();
+    buildLegend();
     // Update gravity model label immediately
     const modelOut=document.getElementById('modelOut');
     if(modelOut) modelOut.textContent='EDITABLE BARYCENTRIC N-BODY';
