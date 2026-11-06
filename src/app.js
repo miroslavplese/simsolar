@@ -6590,19 +6590,22 @@
     // Update gravity model label immediately
     const modelOut=document.getElementById('modelOut');
     if(modelOut) modelOut.textContent='EDITABLE BARYCENTRIC N-BODY';
-    // Close every open feature panel except the body list: a curated
-    // system is a different world, so Sol-era panel state is stale.
+    // Close every open feature panel except the body list and dock: a curated
+    // system is a different world, so Sol-era panel state is stale, but keep
+    // time/view controls accessible.
     if(observatoryActive) setObservatoryMode(false);
     if(spacecraftViewActive) setSpacecraftView(false);
     for(const id of [
       'aboutPanel','missionPanel','plannerPanel',
-      'occultationPanel','impactPanel','dock'
+      'occultationPanel','impactPanel'
     ]){
       const panel=document.getElementById(id);
       if(panel && !panel.classList.contains('panel-hidden')){
         setPanelVisible(id,false);
       }
     }
+    // Clear body selection so the info card doesn't show stale Sol data.
+    setSelectedBody(null, false);
     const bodyInsertion=document.getElementById('bodyPanel');
     if(bodyInsertion.classList.contains('show')){
       bodyInsertion.classList.remove('show');
