@@ -6590,10 +6590,28 @@
     // Update gravity model label immediately
     const modelOut=document.getElementById('modelOut');
     if(modelOut) modelOut.textContent='EDITABLE BARYCENTRIC N-BODY';
-    // Hide solar-system-specific panels
-    document.getElementById('missionPanel').classList.add('panel-hidden');
-    document.getElementById('missionBtn').classList.remove('active');
-    document.getElementById('missionBtn').setAttribute('aria-expanded','false');
+    // Close every open feature panel except the body list: a curated
+    // system is a different world, so Sol-era panel state is stale.
+    if(observatoryActive) setObservatoryMode(false);
+    if(spacecraftViewActive) setSpacecraftView(false);
+    for(const id of [
+      'aboutPanel','missionPanel','plannerPanel',
+      'occultationPanel','impactPanel','dock'
+    ]){
+      const panel=document.getElementById(id);
+      if(panel && !panel.classList.contains('panel-hidden')){
+        setPanelVisible(id,false);
+      }
+    }
+    const bodyInsertion=document.getElementById('bodyPanel');
+    if(bodyInsertion.classList.contains('show')){
+      bodyInsertion.classList.remove('show');
+      const addBtn=document.getElementById('addBodyBtn');
+      addBtn.classList.remove('active');
+      addBtn.setAttribute('aria-expanded','false');
+      resetBodyInsertion();
+    }
+    document.getElementById('perfPanel').classList.add('panel-hidden');
     showScenarioStatus('Loaded: '+sysDef.name+'. '+system.bodies.length+' bodies. Space to play.');
   });
   playBtn.addEventListener('click', ()=>{

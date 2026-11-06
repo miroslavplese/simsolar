@@ -106,7 +106,7 @@
       preview:'#e8a040',
       bodies:[
         {id:'tatoo1',name:'Tatoo I',kind:'star',appearance:'star',solarMass:0.9,color:'#ffd36a',radius:627000},
-        {id:'tatoo2',name:'Tatoo II',kind:'star',appearance:'star',solarMass:0.7,a:0.3,parentId:'tatoo1',color:'#ffe8a0',radius:560000},
+        {id:'tatoo2',name:'Tatoo II',kind:'star',appearance:'star',solarMass:0.7,a:0.12,parentId:'tatoo1',color:'#ffe8a0',radius:560000},
         {id:'tatooine-planet',name:'Tatooine',kind:'planet',appearance:'planet',a:1.2,e:0.05,i:2.0,color:'#c49238',radius:6400}
       ]
     },
