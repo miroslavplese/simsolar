@@ -20,19 +20,21 @@
   var GM_SUN = GM_SUN_YR / (DAYS_PER_YR * DAYS_PER_YR); // AU^3/day^2
   var EARTH_MU = 8.89e-10; // AU^3/day^2
 
-  // Circular orbit state at t=0 (perihelion on +x axis).
+  // Circular orbit state at t=0 (perihelion on +x axis, rotated by
+  // phaseDeg in the orbital plane).
   // mu in AU^3/day^2; velocity returned in AU/day.
-  function circularOrbitState(semiMajorAU, inclinationDeg, mu){
+  function circularOrbitState(semiMajorAU, inclinationDeg, mu, phaseDeg){
     var iRad = (inclinationDeg || 0) * DEG2RAD;
+    var pRad = (phaseDeg || 0) * DEG2RAD;
     var cosI = Math.cos(iRad);
     var sinI = Math.sin(iRad);
     var m = (mu !== undefined && mu > 0) ? mu : GM_SUN;
-    var x = semiMajorAU;
-    var y = 0;
-    var z = 0;
     var v = Math.sqrt(m / semiMajorAU); // AU/day
-    var vx = 0;
-    var vy = v;
+    var x = semiMajorAU * Math.cos(pRad);
+    var y = semiMajorAU * Math.sin(pRad);
+    var z = 0;
+    var vx = -v * Math.sin(pRad);
+    var vy = v * Math.cos(pRad);
     var vz = 0;
     return {
       x: x,
@@ -277,13 +279,20 @@
     // --- Planet placement ---------------------------------------------
     // Planets orbit the barycenter; enclosed mass is the total stellar mass.
     // A planet with a star parent orbits that star directly.
+    var planetCount = 0;
     for(var j = 0; j < bodies.length; j++){
       var b2 = bodies[j];
       if(b2.kind !== 'planet') continue;
+      // Distinct initial orbital phase per planet (explicit `phase` in
+      // degrees, otherwise golden-angle spread) so planets never all
+      // start on one radius vector and appear as a straight line.
+      var phase = (b2.phase !== undefined && b2.phase !== null)
+        ? b2.phase : (planetCount * 137.508) % 360;
+      planetCount++;
       var parent = b2.parentId ? byId[b2.parentId] : null;
       if(parent && parent.kind === 'star'){
         b2.parentName = parent.name;
-        var pState = circularOrbitState(b2.a, b2.i || 0, parent.mu);
+        var pState = circularOrbitState(b2.a, b2.i || 0, parent.mu, phase);
         b2.x = parent.x + pState.x;
         b2.y = parent.y + pState.y;
         b2.z = parent.z + pState.z;
@@ -291,7 +300,7 @@
         b2.vy = parent.vy + pState.vy;
         b2.vz = parent.vz + pState.vz;
       } else {
-        var state = circularOrbitState(b2.a, b2.i || 0, starMuTotal);
+        var state = circularOrbitState(b2.a, b2.i || 0, starMuTotal, phase);
         b2.x = state.x; b2.y = state.y; b2.z = state.z;
         b2.vx = state.vx; b2.vy = state.vy; b2.vz = state.vz;
       }

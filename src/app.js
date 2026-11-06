@@ -2051,11 +2051,13 @@
       ? editableSnapshotAt(simDaysSinceJ2000)
       : null;
     for(const b of drawList){
-      if(
-        b.hideOrbit || (!editableSnapshot && b.kind==='custom') ||
+      if(b.hideOrbit || (!editableSnapshot && b.kind==='custom') ||
         b.kind==='lagrange'
       ) continue;
-      if(b.kind==='planet' && zoom>20) continue;
+      // Deep-zoom orbit culling only applies to the precomputed sol
+      // orbits: in an editable system the fitted view can be deeply
+      // zoomed (small systems) while the orbits are still on screen.
+      if(b.kind==='planet' && zoom>20 && !editableSnapshot) continue;
       const isHi = b===hovered || b===selected;
       let pts;
       if(editableSnapshot){
