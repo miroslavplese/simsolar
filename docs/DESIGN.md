@@ -98,6 +98,67 @@ planning select their runtime light or gravitational source from the active
 catalog. Scenario format v3 serializes the editable epoch, definitions, and
 initial state while continuing to decode v1 and v2 Solar scenarios.
 
+### Curated systems
+
+The library contains Our Solar System, Tatooine, Alpha Centauri, TRAPPIST-1,
+Kepler-16, HD 189733, Binary Duet, Kepler-442, and Compact Four.
+`data/curated-systems.js` is a classic-script/Node module loaded after trajectory
+math, system-model validation, and the N-body integrator. It reuses those modules
+instead of maintaining separate gravity units or barycentric corrections.
+The Solar entry restores the existing immutable preset with its complete
+catalog and historical/future behavior; it never synthesizes Earth-mass copies
+of the Solar planets.
+
+Other entries create a paused editable system at the current simulation date,
+in days since J2000. Elliptical elements are converted to position and velocity
+using the shared Kepler solver; eccentricity is not discarded. Synthetic mean
+anomalies are spread by the golden angle unless an explicit phase is supplied.
+Stars are initialized as nested two-body groups: each outer star orbits the
+inner group's barycenter and imparts recoil to the entire inner group.
+Planetary initial states use either their named stellar parent or the stellar
+barycenter. All non-built-in restored bodies use the existing deterministic
+adaptive factor of 48, including after sharing or deletion/rebuilding. The
+coarse 0.25-day checkpoint stepping alone cannot resolve the compact examples.
+
+These are educational models, not fitted ephemerides or demonstrations that
+observed resonances and long-term stability have been reproduced. Masses,
+radii, and semimajor axes are rounded; orbital phases, inclinations relative to
+the display plane, colors, and observing surfaces are schematic. Reference
+sources and additional limitations:
+
+| Example | Parameter context and limitations |
+| --- | --- |
+| TRAPPIST-1 | Rounded stellar/planet masses, radii, and orbital sizes based on [Agol et al. (2021)](https://ntrs.nasa.gov/api/citations/20210000129/downloads/Agol_2021_Planet._Sci._J._2_1_Refining.Trappist1.pdf). The resonant orbital phases and fitted eccentricity vectors are not reproduced. |
+| Kepler-16 | Approximate stellar binary and planet parameters summarized in [Kepler-16b](https://en.wikipedia.org/wiki/Kepler-16b), including the roughly 106-Earth-mass planet and its low eccentricity. Display-plane orientation is synthetic. |
+| HD 189733 | Rounded values from [TEPCat](https://www.astro.keele.ac.uk/jkt/tepcat/planets/HD_189733.html): stellar mass 0.719 solar masses, planet mass 329 Earth masses, and semimajor axis 0.02984 AU. The distant stellar companion, atmosphere, and weather are omitted. |
+| Kepler-442 | K-star and planet parameters summarized in [TEPCat](https://www.astro.keele.ac.uk/jkt/tepcat/planets/Kepler-442b.html) and [Kepler-442b](https://en.wikipedia.org/wiki/Kepler-442b). The model's 0.3864 AU semimajor axis is derived from the measured 112.3053-day period and adopted 0.61-solar-mass star, within the quoted semimajor-axis uncertainty. The 2.36-Earth-mass planet value is an estimate, not a dynamical mass measurement; habitability is not established. |
+| Alpha Centauri | Deliberately compressed stellar separations of 0.23 and 2.6 AU, circular stellar orbits, and a schematic Proxima d. Its radius and orientation are illustrative; the model is not the measured triple system and does not place Proxima d in a claimed habitable zone. |
+| Tatooine, Binary Duet, Compact Four | Fictional or idealized experiments with explicitly chosen masses and orbits. Compact Four is not an observed resonant system. |
+
+`SystemModel.orbitReference` supplies the same parent/group reference to orbit
+guides, Observatory paths, and instantaneous orbital-element cards. Binary
+stellar conics are scaled from the relative orbit to each star's barycentric
+orbit. Hierarchical triples show local, instantaneous conics, not full predicted
+three-body tracks. References use the actual moving stellar barycenter rather
+than assuming it is at the coordinate origin.
+
+Scenario v3 permits optional validated `orbitPrimaryIds` and `genericSurface`
+body fields. The former preserves stellar group references through sharing and
+is pruned after deletions. The latter explicitly opts curated planets into the
+generic 24-hour, airless observing surface, including gas giants as schematic
+viewpoints. It does not make built-in Solar gas giants solid-world observers.
+Small systems can be shared with these fields; the existing 4096-character
+limit still applies to larger systems.
+
+Loading cancels pending date, mission, and event work; exits observation and
+cockpit modes; clears old selections, routes, impacts, and rotating frames; and
+refreshes all catalogs through the shared system-change cleanup. Feature panels
+close through their existing visibility helpers, preserving the user's body-list
+and time/view-dock visibility. The view is fitted and playback is paused.
+Regression coverage checks all library entries, bounded energy drift and compact
+orbits over 100 days, both binary guides, shared references/surfaces, Solar
+restoration, stale-work cancellation, body cards, and repeated panel/profiler use.
+
 ## Coordinate and time model
 
 - Distances are represented in astronomical units (AU).

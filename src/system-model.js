@@ -72,6 +72,45 @@
     }));
   }
 
+  function orbitReference(body,bodies,stateAt,muForBody=body=>body.mu||0){
+    const current=stateAt(body);
+    if(!current) return null;
+    const stars=bodies.filter(isLuminous);
+    const parent=bodies.find(candidate=>
+      candidate.id===body.parentId || candidate.name===body.parentName
+    );
+    let primaries;
+    if(isLuminous(body)){
+      primaries=body.orbitPrimaryIds?.length
+        ? bodies.filter(candidate=>body.orbitPrimaryIds.includes(candidate.id))
+        : stars.length===2 ? stars.filter(candidate=>candidate!==body)
+          : parent ? [parent] : [];
+    } else {
+      primaries=parent ? [parent] :
+        body.kind==='custom' && stars.length<2 ? [] : stars;
+    }
+    const sources=primaries.filter(primary=>primary!==body).map(primary=>({
+      state:stateAt(primary),mu:muForBody(primary)
+    })).filter(source=>source.state && source.mu>0);
+    const primaryMu=sources.reduce((sum,source)=>sum+source.mu,0);
+    if(!(primaryMu>0)) return null;
+    const origin={},relative={};
+    for(const key of STATE_KEYS){
+      origin[key]=sources.reduce(
+        (sum,source)=>sum+source.state[key]*source.mu/primaryMu,0
+      );
+      relative[key]=current[key]-origin[key];
+    }
+    const mu=primaryMu+muForBody(body);
+    const scale=isLuminous(body) ? primaryMu/mu : 1;
+    if(isLuminous(body)){
+      // Convert the relative two-body conic into this star's own trajectory
+      // about the pair/group barycenter, rather than a moving parent.
+      for(const key of STATE_KEYS) origin[key]=current[key]-relative[key]*scale;
+    }
+    return {origin,relative,mu,scale};
+  }
+
   function finite(value,min,max){
     return typeof value==='number' && Number.isFinite(value) &&
       value>=min && value<=max;
@@ -91,6 +130,14 @@
       !optionalString(body.parentName,80) ||
       !optionalString(body.dynamicClass,20) ||
       !optionalString(body.notes,500) ||
+      (body.genericSurface!==undefined &&
+        typeof body.genericSurface!=='boolean') ||
+      (body.orbitPrimaryIds!==undefined && (
+        !Array.isArray(body.orbitPrimaryIds) ||
+        body.orbitPrimaryIds.length>MAX_BODIES ||
+        !body.orbitPrimaryIds.every(id=>typeof id==='string' && id.length<=100) ||
+        new Set(body.orbitPrimaryIds).size!==body.orbitPrimaryIds.length
+      )) ||
       (body.dynamicClass!==undefined && body.dynamicClass!=='particle') ||
       (body.initialInclination!==undefined &&
         !finite(body.initialInclination,0,180)) ||
@@ -113,12 +160,15 @@
       names.add(body.name);
     }
     return system.bodies.every(body=>
-      !body.parentId || ids.has(body.parentId)
+      (!body.parentId || ids.has(body.parentId)) &&
+      (!body.orbitPrimaryIds || body.orbitPrimaryIds.every(
+        id=>id!==body.id && ids.has(id)
+      ))
     );
   }
 
   return {
     MAX_BODIES,TIME_LIMIT_DAYS,STATE_KEYS,runtimeId,deletionClosure,isLuminous,
-    dominantLightBody,catalogEntries,validateEditableSystem
+    dominantLightBody,catalogEntries,orbitReference,validateEditableSystem
   };
 });

@@ -291,9 +291,8 @@
     return simplified;
   }
 
-  function osculatingOrbitPoints(state,mu,steps){
+  function orbitalElementsFromState(state,mu){
     if(!(mu>0)) throw new RangeError('Orbit gravitational parameter must be positive.');
-    const count=Math.max(32,steps||256);
     const radius=Math.hypot(state.x,state.y,state.z);
     const h={
       x:state.y*state.vz-state.z*state.vy,
@@ -301,7 +300,7 @@
       z:state.x*state.vy-state.y*state.vx
     };
     const hMagnitude=Math.hypot(h.x,h.y,h.z);
-    if(!(radius>0) || !(hMagnitude>0)) return [];
+    if(!(radius>0) || !(hMagnitude>0)) return null;
     const velocityCrossH={
       x:state.vy*h.z-state.vz*h.y,
       y:state.vz*h.x-state.vx*h.z,
@@ -315,6 +314,24 @@
     const eccentricity=Math.hypot(
       eccentricityVector.x,eccentricityVector.y,eccentricityVector.z
     );
+    const semilatusRectum=hMagnitude*hMagnitude/mu;
+    const semimajorAxis=semilatusRectum/(1-eccentricity**2);
+    return {
+      eccentricity,eccentricityVector,h,hMagnitude,radius,semilatusRectum,
+      semimajorAxis,
+      inclination:Math.acos(Math.max(-1,Math.min(1,h.z/hMagnitude)))/DEG,
+      period:eccentricity<1
+        ? 2*Math.PI*Math.sqrt(semimajorAxis**3/mu) : null
+    };
+  }
+
+  function osculatingOrbitPoints(state,mu,steps){
+    const elements=orbitalElementsFromState(state,mu);
+    if(!elements) return [];
+    const {
+      eccentricity,eccentricityVector,h,hMagnitude,radius,semilatusRectum
+    }=elements;
+    const count=Math.max(32,steps||256);
     if(eccentricity>=1) return [];
     const pAxis=eccentricity>1e-10
       ? {
@@ -333,7 +350,6 @@
       state.x*qAxis.x+state.y*qAxis.y+state.z*qAxis.z,
       state.x*pAxis.x+state.y*pAxis.y+state.z*pAxis.z
     );
-    const semilatusRectum=hMagnitude*hMagnitude/mu;
     const points=[];
     for(let index=0;index<=count;index++){
       if(index===count/2 && count%2===0){
@@ -421,6 +437,6 @@
     interpolateTrajectory,sampledStateAt,adaptiveTrajectoryPoints,
     appendIncrementalTrajectoryPoint,
     simplifyProjectedPath,
-    osculatingOrbitPoints,propagateState
+    orbitalElementsFromState,osculatingOrbitPoints,propagateState
   };
 });

@@ -135,6 +135,11 @@ The belt is absent from custom/editable systems.
 - Editable star systems with blank-system creation, direct camera navigation,
   per-body and cascading deletion, barycentric evolution, and Solar preset
   restoration
+- A curated library of nine systems: Our Solar System, Tatooine, Alpha Centauri,
+  TRAPPIST-1, Kepler-16, HD 189733, Binary Duet, Kepler-442, and Compact Four.
+  Loading pauses playback, fits the view, and clears system-specific tools.
+  The Solar entry restores the original preset; the other entries are editable,
+  explicitly illustrative N-body models with barycentric stellar orbit guides.
 - Physical-scale custom-body rendering in both system and Observatory views,
   including custom planets as observer worlds
 - Swept-contact detection, predicted-impact warnings, deterministic
@@ -200,6 +205,7 @@ web server is required.
 | `src/observatory-mode.js` | Surface frames, horizontal coordinates, sky projection, and daylight calculations |
 | `src/scenario-state.js` | Validated versioned encoding for shareable URL scenarios |
 | `src/system-model.js` | Editable-system identity, deletion, lighting, catalog, and validation helpers |
+| `data/curated-systems.js`, `src/curated-systems-ui.js` | Curated examples, orbital-state initialization, and library panel |
 | `src/guided-tutorial.js` | First-run persistence and responsive guided walkthrough UI |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
@@ -220,6 +226,7 @@ web server is required.
 | `tests/observatory-mode-tests.js` | Surface-frame and horizontal sky-projection tests |
 | `tests/scenario-state-tests.js` | Shareable scenario encoding, URL, and validation tests |
 | `tests/system-model-tests.js` | Editable-system deletion, lighting, catalog, and validation tests |
+| `tests/curated-systems-tests.js` | Curated catalog validation, orbital elements, binary geometry, and 100-day conservation tests |
 | `tests/guided-tutorial-tests.js` | Tutorial completion cookie and fallback persistence tests |
 | `tests/panel-drag-tests.js` | Movable-panel interaction and clamping tests |
 | `tests/body-rendering-tests.js` | Physical radius scaling and transition tests |
@@ -275,6 +282,14 @@ web server is required.
   they can be shared by URL.
 - Custom planets use a generic airless, zero-tilt surface with a 24-hour
   rotation and generic coordinate presets.
+- Non-Solar curated systems are not observed ephemerides. Their rounded
+  parameters, synthetic phases and inclinations, compressed Alpha Centauri
+  separations, and fictional examples are described in
+  [Design: curated systems](docs/DESIGN.md#curated-systems).
+  Their explicitly enabled observing surfaces are schematic, including for gas
+  giants; built-in Solar gas giants remain ineligible as surface observers.
+  Current orbital elements and guides are instantaneous two-body estimates,
+  not predictions of an unchanging orbit in a perturbed multi-body system.
 - Optional Earth cloud cover uses hourly Open-Meteo forecasts or ECMWF ERA5
   historical reanalysis from 1940 onward and requires an internet connection.
 - Illumination, comet tails, and occultation tools use the most massive active

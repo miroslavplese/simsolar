@@ -33,6 +33,18 @@ assert.ok(SURFACES.Venus.rotationHours>0 && SURFACES.Venus.tiltDeg>90);
 assert.ok(SURFACES.Pluto.rotationHours>0 && SURFACES.Pluto.tiltDeg>90);
 assert.ok(SURFACES.Triton.rotationHours>0 && SURFACES.Triton.tiltDeg>90);
 assert.equal(surfaceDefinitionForBody(null),null);
+for(const name of ['Jupiter','Saturn','Uranus','Neptune']){
+  assert.equal(surfaceDefinitionForBody({name,kind:'planet',radius:50000}),null);
+}
+assert.equal(surfaceDefinitionForBody({
+  name:'Unknown planet',kind:'planet',radius:6000
+}),null);
+assert.ok(surfaceDefinitionForBody({
+  name:'Curated planet',kind:'planet',radius:6000,genericSurface:true
+}));
+assert.equal(surfaceDefinitionForBody({
+  name:'Curated star',kind:'star',radius:6000,genericSurface:true
+}),null);
 assert.equal(surfaceDefinitionForBody({
   name:'Second Earth',kind:'custom',appearance:'star',radius:1000
 }),null);

@@ -95,7 +95,7 @@
   const {
     AU_KM,interpolateTrajectory,sampledStateAt,propagateState,
     appendIncrementalTrajectoryPoint,simplifyProjectedPath,
-    osculatingOrbitPoints,
+    orbitalElementsFromState,osculatingOrbitPoints,
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS
   }=window.TrajectoryMath;
   const {zoomForTarget,zoomForDistance,findRelativeEvent}=window.MissionTimeline;
@@ -405,9 +405,13 @@
     return editableSnapshotCache.state;
   }
 
+  function gravitationalParameterForBody(body){
+    return body.mu??(GM_BY_BODY[body.name]||MOON_GM_BY_BODY[body.name]||
+      (body.massKg ? massKgToMu(body.massKg) : 0));
+  }
+
   function stateDefinitionForBody(body,state){
-    const mu=body.mu||GM_BY_BODY[body.name]||MOON_GM_BY_BODY[body.name]||
-      (body.massKg ? massKgToMu(body.massKg) : 0);
+    const mu=gravitationalParameterForBody(body);
     return {
       id:body.id,name:body.name,mu,
       adaptiveFactor:body.adaptiveFactor,state
@@ -457,6 +461,26 @@
       speedKmS:Math.hypot(state.vx,state.vy,state.vz)*AU_KM/86400,
       nbody:true,barycentric:true
     };
+  }
+
+  function editableOrbitReference(body){
+    const snapshot=editableSnapshotAt(simDaysSinceJ2000);
+    if(!snapshot) return null;
+    return SystemModel.orbitReference(
+      body,activeSystemBodies(),candidate=>bodyState(snapshot,candidate.id),
+      gravitationalParameterForBody
+    );
+  }
+
+  function editableOrbitPoints(body,steps=220){
+    const reference=editableOrbitReference(body);
+    if(!reference) return [];
+    const {relative,origin,mu,scale}=reference;
+    return osculatingOrbitPoints(relative,mu,steps).map(point=>({
+      x:origin.x+point.x*scale,
+      y:origin.y+point.y*scale,
+      z:origin.z+point.z*scale
+    }));
   }
 
   function hybridBranchAt(tDays){
@@ -2061,62 +2085,14 @@
       const isHi = b===hovered || b===selected;
       let pts;
       if(editableSnapshot){
-        const hasParentStar = b.parentId || b.parentName;
         if(
           b.kind==='moon' || b===charon ||
-          b.kind==='spacecraft' || b.kind==='comet' ||
-          (isLuminous(b) && !hasParentStar)
+          b.kind==='spacecraft' || b.kind==='comet'
         ) continue;
-        const configuredPrimary=activeSystemBodies().find(candidate=>
-          candidate.id===b.parentId || candidate.name===b.parentName
-        );
-        const luminousBodies=activeSystemBodies().filter(c=>isLuminous(c));
-        // A planet with no parent in a multi-star system is circumbinary:
-        // its orbit is bound to the barycenter, not to either star, so
-        // osculate about the barycenter with the total stellar mass.
-        const circumbinary=!configuredPrimary && luminousBodies.length>1;
-        const primary=circumbinary ? null : (configuredPrimary || (
-          b.kind!=='custom' && sunReference!==b
-            ? (isBodyActive(sunReference) ? sunReference
-              : dominantLightBody(activeSystemBodies()))
-            : null
-        ));
-        const bodyPosition=bodyState(editableSnapshot,b.id);
-        const primaryPosition=circumbinary
-          ? {x:0,y:0,z:0,vx:0,vy:0,vz:0}
-          : (primary && bodyState(editableSnapshot,primary.id));
-        const primaryMu=circumbinary
-          ? luminousBodies.reduce((sum,c)=>sum+(c.mu||0),0)
-          : (primary && (
-            primary.mu||GM_BY_BODY[primary.name]||
-            MOON_GM_BY_BODY[primary.name]||
-            (primary.massKg ? massKgToMu(primary.massKg) : 0)
-          ));
-        if(!bodyPosition || !primaryPosition || !(primaryMu>0)) continue;
-        const relative=circumbinary
-          ? {
-              x:bodyPosition.x,y:bodyPosition.y,z:bodyPosition.z,
-              vx:bodyPosition.vx,vy:bodyPosition.vy,vz:bodyPosition.vz
-            }
-          : {
-              x:bodyPosition.x-primaryPosition.x,
-              y:bodyPosition.y-primaryPosition.y,
-              z:bodyPosition.z-primaryPosition.z,
-              vx:bodyPosition.vx-primaryPosition.vx,
-              vy:bodyPosition.vy-primaryPosition.vy,
-              vz:bodyPosition.vz-primaryPosition.vz
-            };
-        const bodyMu=b.mu||GM_BY_BODY[b.name]||
-          MOON_GM_BY_BODY[b.name]||
-          (b.massKg ? massKgToMu(b.massKg) : 0);
-        const orbitPoints=osculatingOrbitPoints(
-          relative,primaryMu+(bodyMu||0),220
-        );
+        const orbitPoints=editableOrbitPoints(b);
         if(orbitPoints.length<2) continue;
         pts=orbitPoints.map(point=>project(
-          point.x+primaryPosition.x,
-          point.y+primaryPosition.y,
-          point.z+primaryPosition.z
+          point.x,point.y,point.z
         ));
       } else {
         pts=getProjectedOrbitPoints(b);
@@ -3366,22 +3342,18 @@
     if(cached?.bucket===bucket) return cached.points;
     const current=positionForBody(body,simDaysSinceJ2000);
     let points=[];
-    if(current && body.kind==='moon'){
+    if(current && editableSystem &&
+      ['planet','moon','star'].includes(body.kind)){
+      points=editableOrbitPoints(body,192);
+    } else if(current && body.kind==='moon'){
       const parent=positionForBody(body.parent,simDaysSinceJ2000);
-      const origin=editableSystem ? {
-        x:current.x-parent.x,y:current.y-parent.y,z:current.z-parent.z,
-        vx:current.vx-parent.vx,vy:current.vy-parent.vy,
-        vz:current.vz-parent.vz,
-        mu:MOON_GM_BY_BODY[body.name]||0
-      } : integratedMoonRelativeStateAt(body,simDaysSinceJ2000);
+      const origin=integratedMoonRelativeStateAt(body,simDaysSinceJ2000);
       const system=moonInitial.state.systems.find(
         item=>item.parentName===body.parentName
       );
       points=observatoryLocalOrbitPoints(
         body,parent,origin,
-        (editableSystem
-          ? body.parent.mu||GM_BY_BODY[body.parent.name]||0
-          : system.parentMu)+origin.mu
+        system.parentMu+origin.mu
       );
     } else if(current && body===charon){
       const pluto=planets.find(candidate=>candidate.name==='Pluto');
@@ -4280,7 +4252,10 @@
     if(modelOut.textContent!==model) modelOut.textContent=model;
   }
 
-  function fmtPeriod(days){ return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years'; }
+  function fmtPeriod(days){
+    if(!Number.isFinite(days) || !(days>0)) return 'Not specified';
+    return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years';
+  }
   function fmtMass(body){
     if(body.kind==='lagrange') return '0 kg (equilibrium point)';
     const mass=body.massKg||MASS_KG[body.name];
@@ -4294,7 +4269,8 @@
   }
   function propertyRadiusKm(body){
     if(body===sunReference) return SUN_RADIUS_KM;
-    if(body.kind==='planet' || body.kind==='moon' || body.kind==='custom'){
+    if(body.kind==='planet' || body.kind==='moon' || body.kind==='custom' ||
+      body.kind==='star'){
       return body.radius;
     }
     return null;
@@ -4343,6 +4319,8 @@
     const rowDist=document.getElementById('rowDist');
     const rowSpeed=document.getElementById('rowSpeed');
     rowDist.style.display='';
+    rowDist.firstElementChild.textContent=editableSystem
+      ? 'Distance from barycenter' : 'Distance from Sun';
     rowSpeed.style.display='';
     const radiusKm=propertyRadiusKm(selected);
     rowRadius.style.display=Number.isFinite(radiusKm) && radiusKm>0 ? '' : 'none';
@@ -4354,6 +4332,30 @@
     const custom=selected.kind==='custom';
     const lagrange=selected.kind==='lagrange';
     const sun=selected.kind==='sun';
+    if(editableSystem && !builtInBodies.includes(selected) &&
+      ['star','planet','moon'].includes(selected.kind) && pos){
+      const reference=editableOrbitReference(selected);
+      const elements=reference && orbitalElementsFromState(
+        reference.relative,reference.mu
+      );
+      document.getElementById('cardDist').textContent=pos.r.toFixed(3)+' AU';
+      document.getElementById('cardSpeed').textContent=pos.speedKmS.toFixed(2)+' km/s';
+      rowEcc.style.display=elements?'':'none';
+      rowIncl.style.display=elements?'':'none';
+      rowPeriod.style.display=elements?'':'none';
+      if(elements){
+        document.getElementById('cardEcc').textContent=elements.eccentricity.toFixed(3);
+        document.getElementById('cardIncl').textContent=elements.inclination.toFixed(2)+'°';
+        document.getElementById('cardPeriod').textContent=elements.period===null
+          ? 'Unbound' : fmtPeriod(elements.period);
+      }
+      const note=document.getElementById('cardNote');
+      note.style.display='';
+      note.textContent=selected.notes+
+        ' Orbital elements are instantaneous two-body estimates.'+
+        (selected.genericSurface ? ' The observing surface is schematic.' : '');
+      return;
+    }
     if(sun){
       rowDist.style.display='none';
       rowSpeed.style.display='none';
@@ -4542,6 +4544,12 @@
   }
 
   function cleanAfterSystemChange(removed=new Set()){
+    const activeIds=new Set(activeSystemBodies().map(body=>body.id));
+    for(const body of activeSystemBodies()){
+      if(body.orbitPrimaryIds){
+        body.orbitPrimaryIds=body.orbitPrimaryIds.filter(id=>activeIds.has(id));
+      }
+    }
     if(removed.has(selected?.id)) setSelectedBody(null,false);
     if(removed.has(followTarget?.id)) setFollowTarget(null);
     if(removed.has(hovered?.id)) hovered=null;
@@ -6180,6 +6188,8 @@
           massKg:body.massKg||MASS_KG[body.name]||0,
           mu:body.mu||GM_BY_BODY[body.name]||MOON_GM_BY_BODY[body.name]||0,
           parentId:body.parentId,parentName:body.parentName,
+          orbitPrimaryIds:body.orbitPrimaryIds,
+          genericSurface:body.genericSurface,
           dynamicClass:body.dynamicClass,
           initialInclination:body.initialInclination,
           notes:body.notes,
@@ -6199,8 +6209,10 @@
         color:definition.color||'#70b7ff',radius:definition.radius,
         massKg:definition.massKg,mu:definition.mu,
         parentId:definition.parentId,parentName:definition.parentName,
+        orbitPrimaryIds:definition.orbitPrimaryIds,
+        genericSurface:definition.genericSurface,
         dynamicClass:definition.dynamicClass,
-        adaptiveFactor:definition.kind==='custom' ? 48 : undefined,
+        adaptiveFactor:48,
         initialInclination:definition.initialInclination,
         notes:definition.notes||'Restored custom system body.'
       };
@@ -6561,40 +6573,46 @@
     btn.setAttribute('aria-expanded',String(vis));
   });
   CuratedSystemsUI.setOnLoad((sysDef)=>{
-    if(!window.CuratedSystems) return;
-    const system=CuratedSystems.buildEditableSystem(sysDef,editableSystem?editableSystem.epoch:daysSinceJ2000(Date.now()));
-    if(!system || !system.bodies || system.bodies.length<2) return;
-    restoreEditableSystem(system);
-    // Sync the simulation clock to the system epoch so the snapshot
-    // resolver has a valid time (t < epoch returns no positions).
-    simDaysSinceJ2000=system.epoch;
-    // Reset view: fit the system extent so its orbits are visible.
-    // Small systems (TRAPPIST-1, HD 189733, ...) get zoomed in;
-    // large systems keep the familiar 0.8 overview zoom.
-    let fitZoom=0.8;
-    if(system.extentAU>0){
-      const targetPx=Math.min(W||900,H||700)*0.4;
-      fitZoom=targetPx/(system.extentAU*AU_PX);
+    let system;
+    try{
+      system=sysDef.mode==='solar' ? null :
+        CuratedSystems.buildEditableSystem(sysDef,simDaysSinceJ2000);
+    } catch(error){
+      console.error(error);
+      showScenarioStatus('Unable to load system: '+error.message,true);
+      return;
     }
-    zoom=Math.max(ZOOM_MIN,Math.min(20000,Math.max(0.8,fitZoom)));
+    const removed=new Set(activeSystemBodies().map(body=>body.id));
+    cancelDateNavigation();
+    missionPlannerController?.cancelSearch();
+    setOccultationPanelVisible(false);
+    if(spacecraftViewActive) setSpacecraftView(false);
+    if(observatoryActive) setObservatoryMode(false);
+    setLagrangeVisibility(false);
+    setRotatingReferenceFrame(false);
+    setSelectedBody(null,false);
+    setFollowTarget(null);
+    hovered=null;
+    if(system){
+      restoreEditableSystem(system);
+      cleanAfterSystemChange(removed);
+    } else {
+      restoreSolarSystem();
+    }
+    playing=false;
+    direction=1;
+    playBtn.textContent='▶';
+    playbackClock.reset();
+    updateSpeedLabel();
+    const extent=system?.extentAU||sysDef.extentAU;
+    zoom=Math.max(ZOOM_MIN,Math.min(
+      BASE_ZOOM_MAX,Math.min(W,H)*0.4/(extent*AU_PX)
+    ));
     panX=0; panY=0;
     viewYaw=0; viewTilt=DEFAULT_TILT;
-    selected=null; followTarget=null;
+    selectViewPreset('Current');
     invalidateProjection();
-    buildLegend();
-    // Rebuild the observatory catalog for the new system: the old
-    // observer (e.g. Earth) no longer exists here, and the button must
-    // reflect the new observer list or observation mode self-disables
-    // on its first frame.
-    refreshObservatoryCatalog();
-    // Update gravity model label immediately
-    const modelOut=document.getElementById('modelOut');
-    if(modelOut) modelOut.textContent='EDITABLE BARYCENTRIC N-BODY';
-    // Close every open feature panel except the body list and dock: a curated
-    // system is a different world, so Sol-era panel state is stale, but keep
-    // time/view controls accessible.
-    if(observatoryActive) setObservatoryMode(false);
-    if(spacecraftViewActive) setSpacecraftView(false);
+    updateDateUI();
     for(const id of [
       'aboutPanel','missionPanel','plannerPanel',
       'occultationPanel','impactPanel'
@@ -6604,8 +6622,6 @@
         setPanelVisible(id,false);
       }
     }
-    // Clear body selection so the info card doesn't show stale Sol data.
-    setSelectedBody(null, false);
     const bodyInsertion=document.getElementById('bodyPanel');
     if(bodyInsertion.classList.contains('show')){
       bodyInsertion.classList.remove('show');
@@ -6614,8 +6630,9 @@
       addBtn.setAttribute('aria-expanded','false');
       resetBodyInsertion();
     }
-    document.getElementById('perfPanel').classList.add('panel-hidden');
-    showScenarioStatus('Loaded: '+sysDef.name+'. '+system.bodies.length+' bodies. Space to play.');
+    setProfilerVisible(false);
+    showScenarioStatus('Loaded: '+sysDef.name+'. '+
+      activeSystemBodies().length+' bodies. Space to play.');
   });
   playBtn.addEventListener('click', ()=>{
     if(activeImpact){

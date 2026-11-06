@@ -172,6 +172,15 @@ introduced.
 
 ## Completed
 
+- [x] 2026-11-06 - Added a curated library of nine systems with real Solar-preset
+  restoration and eight explicitly illustrative editable examples.
+- [x] 2026-11-06 - Added eccentric orbital initialization, hierarchical stellar
+  recoil, adaptive compact-system integration, and barycentric stellar guides
+  shared with instantaneous orbital-element cards.
+- [x] 2026-11-06 - Added curated-system lifecycle cleanup, explicit schematic
+  observing surfaces, scenario metadata persistence, and numerical/browser
+  regression coverage for switching, sharing, stability, and panel reuse.
+
 - [x] 2026-10-22 - Added browser workflow coverage and CI for direct-file launch,
   legacy scenario links, mission planning/cockpit, observatory/telescope,
   editable systems, mobile controls, image failures, and future navigation.

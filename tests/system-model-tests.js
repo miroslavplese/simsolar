@@ -42,5 +42,19 @@ assert.equal(validateEditableSystem({
   ...system,bodies:[{...system.bodies[1],parentId:'missing'}]
 }),false);
 assert.equal(validateEditableSystem({...system,bodies:[]}),true);
+const withMetadata={
+  ...system,bodies:system.bodies.map((body,index)=>({
+    ...body,genericSurface:index===1,orbitPrimaryIds:[index===0?'b':'a']
+  }))
+};
+assert.equal(validateEditableSystem(withMetadata),true);
+for(const invalid of [
+  {genericSurface:'yes'}, {orbitPrimaryIds:['missing']},
+  {orbitPrimaryIds:['a']}, {orbitPrimaryIds:['b','b']}
+]){
+  assert.equal(validateEditableSystem({
+    ...system,bodies:[{...system.bodies[0],...invalid},system.bodies[1]]
+  }),false);
+}
 
 console.log('System model tests passed.');

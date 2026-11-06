@@ -9,6 +9,7 @@
   let onVisibleChange = null;
 
   function buildPanel(){
+    if(panel) return;
     const doc = typeof document !== 'undefined' ? document : null;
     if(!doc) return;
     panel = doc.createElement('div');
@@ -19,8 +20,9 @@
         title="Close curated systems" aria-label="Close curated systems">✕</button>
       <div class="heading">Curated Systems</div>
       <p class="curated-desc">
-        Pre-built gravitational systems to explore. Loading replaces the current
-        simulation with an editable N-body mode.
+        Loading replaces the current system and pauses playback. Non-Solar
+        examples are editable, illustrative N-body models, not observed ephemerides.
+        Their observing surfaces are schematic, including those on gas giants.
       </p>
       <div id="curatedList"></div>
     `;
@@ -36,12 +38,13 @@
     const systems = root.CuratedSystems ? root.CuratedSystems.SYSTEMS : [];
     for(const sys of systems){
       const card = doc.createElement('button');
+      card.type = 'button';
       card.className = 'curated-card';
       card.setAttribute('data-id', sys.id);
       card.innerHTML = `
         <span class="curated-preview" style="background:${sys.preview || '#555'}"></span>
         <span class="curated-name">${sys.name}</span>
-        <span class="curated-body-count">${sys.bodies.length} bodies</span>
+        <span class="curated-body-count">${sys.mode==='solar' ? 'Solar preset' : sys.bodies.length+' bodies'}</span>
         <span class="curated-desc">${sys.description}</span>
       `;
       card.addEventListener('click', ()=>{

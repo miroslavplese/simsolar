@@ -446,4 +446,161 @@ test('mobile viewport and tutorial remain usable',async({page})=>{
   await page.locator('#missionBtn').click();
   await expect(page.locator('#missionPanel')).toBeVisible();
 });
+
+async function loadCurated(page,id){
+  await page.locator('#curatedBtn').click();
+  await page.locator(`.curated-card[data-id="${id}"]`).click();
+  await expect(page.locator('#curatedBtn')).toHaveAttribute('aria-expanded','false');
+}
+
+test('curated library loads all examples with valid cards and resets the real Solar preset',async({page})=>{
+  await open(page,scenario({selected:'Earth',follow:'Earth'}));
+  const date=await page.locator('#dateInput').inputValue();
+  const definitions=await page.evaluate(()=>CuratedSystems.SYSTEMS
+    .filter(system=>system.mode!=='solar')
+    .map(system=>({id:system.id,count:system.bodies.length,
+      planet:system.bodies.find(body=>body.kind==='planet')})));
+  for(const definition of definitions){
+    await loadCurated(page,definition.id);
+    await expect(page.locator('#legend .system-status')).toContainText(`${definition.count} BODIES`);
+    await expect(page.locator('#dateInput')).toHaveValue(date);
+    await expect(page.locator('#playBtn')).toHaveText('▶');
+    await expect(page.locator('#card')).toBeHidden();
+    await expect(page.locator('#dock')).toBeVisible();
+    await expect(page.locator('#modelOut')).toContainText('EDITABLE');
+    if(definition.planet){
+      if(definition.planet.parentId){
+        const parent=await page.evaluate(id=>CuratedSystems.SYSTEMS
+          .flatMap(system=>system.bodies||[]).find(body=>body.id===id).name,
+        definition.planet.parentId);
+        await page.locator('#legend').getByRole('button',{name:parent,exact:true}).click();
+      }
+      await page.locator('#legend')
+        .getByRole('button',{name:definition.planet.name,exact:true}).click();
+      await expect(page.locator('#cardPeriod')).not.toContainText('NaN');
+      await expect(page.locator('#cardPeriod')).toContainText(/days|years/);
+      await expect(page.locator('#cardIncl')).not.toContainText('Not specified');
+      await expect(page.locator('#cardEcc')).not.toContainText('Not specified');
+      await expect(page.locator('#rowDist')).toContainText('barycenter');
+      await expect(page.locator('#cardNote')).toContainText('Illustrative');
+      await expect(page.locator('#observatoryBtn')).toBeEnabled();
+    } else {
+      await expect(page.locator('#observatoryBtn')).toBeDisabled();
+    }
+  }
+  await loadCurated(page,'solar-system');
+  await expect(page.locator('#modelOut')).toHaveText('JPL EPHEMERIS');
+  await expect(page.locator('#legend .system-status')).toHaveCount(0);
+  await expect(page.locator('#missionSelect option')).toHaveCount(10);
+  await expect(page.locator('#observatoryBody option[value="Saturn"]')).toHaveCount(0);
+  await page.locator('#legend').getByRole('button',{name:'Jupiter',exact:true}).click();
+  await expect(page.locator('#cardMass')).toContainText('1.898e27');
+  await expect(page.locator('#rowDist')).toContainText('Sun');
+});
+
+test('curated switch invalidates solved missions and refreshes all catalogs',async({page})=>{
+  await open(page);
+  await page.locator('#plannerBtn').click();
+  await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
+  await page.locator('#plannerSearchBtn').click();
+  await expect(page.locator('#plannerCockpitBtn')).toBeEnabled();
+  await loadCurated(page,'tatooine');
+  await expect(page.locator('#spacecraftViewBtn')).toBeDisabled();
+  await expect(page.locator('#plannerCockpitBtn')).toBeDisabled();
+  await expect(page.locator('#plannerPanel')).toBeHidden();
+  await expect(page.locator('#missionSelect option')).toHaveCount(0);
+  for(const id of ['plannerDeparture','plannerTarget','occultationObserver','observatoryBody']){
+    await expect(page.locator(`#${id} option[value="Earth"]`)).toHaveCount(0);
+    await expect(page.locator(`#${id} option[value="Tatooine"]`)).toHaveCount(1);
+  }
+  await page.keyboard.press('v');
+  await expect(page.locator('#stage')).not.toHaveClass(/spacecraft-view-active/);
+});
+
+test('curated switch cancels in-flight date navigation and rotating frames',async({page})=>{
+  await open(page,scenario({selected:'Earth'}));
+  await page.locator('#lagrangeBtn').click();
+  await page.locator('#rotatingFrameBtn').click();
+  await page.locator('#missionBtn').click();
+  await page.locator('#dateInput').fill('2090-01-01');
+  await page.locator('#dateInput').dispatchEvent('change');
+  await expect(page.locator('#dateInput')).toBeDisabled();
+  await loadCurated(page,'binary-duet');
+  await expect(page.locator('#dateInput')).toBeEnabled();
+  await expect(page.locator('#dateInput')).not.toHaveValue('2090-01-01');
+  await expect(page.locator('#rotatingFrameBtn')).not.toHaveClass(/active/);
+  await expect(page.locator('#lagrangeBtn')).not.toHaveClass(/active/);
+  await expect(page.locator('#playBtn')).toHaveText('▶');
+  await page.locator('#shareScenarioBtn').click();
+  const state=Scenario.scenarioFromUrl(page.url());
+  expect(state.t).toBe(state.system.epoch);
+  expect(state.layers.rotating).toBe(false);
+  expect(state.layers.lagrange).toBe(false);
+});
+
+test('compact curated planets remain bound through actual application integration',async({page})=>{
+  await open(page);
+  await loadCurated(page,'compact-four');
+  await page.locator('#legend').getByRole('button',{name:'Planet 1',exact:true}).click();
+  await page.locator('#missionBtn').click();
+  const initialDate=await page.locator('#dateInput').inputValue();
+  const future=new Date(Date.parse(initialDate+'T00:00:00Z')+100*86400000)
+    .toISOString().slice(0,10);
+  await page.locator('#dateInput').fill(future);
+  await page.locator('#dateInput').dispatchEvent('change');
+  await expect(page.locator('#dateInput')).toBeEnabled();
+  await expect(page.locator('#eventDetail')).toContainText('Showing '+future);
+  await expect(page.locator('#cardDist')).toHaveText('0.020 AU');
+  await expect(page.locator('#cardPeriod')).not.toContainText('NaN');
+});
+
+test('curated observatory, binary references, and body metadata survive sharing',async({page})=>{
+  await open(page);
+  await loadCurated(page,'tatooine');
+  await page.locator('#legend').getByRole('button',{name:'Tatooine',exact:true}).click();
+  const period=await page.locator('#cardPeriod').textContent();
+  await page.locator('#shareScenarioBtn').click();
+  let state=Scenario.scenarioFromUrl(page.url());
+  expect(state.system.bodies.find(body=>body.name==='Tatooine').genericSurface).toBe(true);
+  expect(state.system.bodies.find(body=>body.name==='Tatoo I').orbitPrimaryIds)
+    .toEqual(['tatoo2']);
+  await page.reload();
+  await expect(page.locator('#cardPeriod')).toHaveText(period);
+  await page.locator('#observatoryBtn').click();
+  await expect(page.locator('#observatoryBody')).toHaveValue('Tatooine');
+  await page.locator('#observatoryTelescopeBtn').click();
+  await page.locator('#observatoryTelescopeTarget').selectOption('Tatoo II');
+  await page.locator('#shareScenarioBtn').click();
+  state=Scenario.scenarioFromUrl(page.url());
+  expect(state.observatory.telescope.target).toBe('Tatoo II');
+  await page.reload();
+  await expect(page.locator('#stage')).toHaveClass(/observatory-active/);
+  await expect(page.locator('#observatoryTelescopeTarget')).toHaveValue('Tatoo II');
+  await page.locator('#observatoryClose').click();
+  await loadCurated(page,'binary-duet');
+  await page.getByRole('button',{name:'Delete Star B',exact:true}).click();
+  await page.locator('#shareScenarioBtn').click();
+  state=Scenario.scenarioFromUrl(page.url());
+  expect(state.system.bodies).toHaveLength(1);
+  expect(state.system.bodies[0].orbitPrimaryIds).toEqual([]);
+});
+
+test('curated panel and profiler can be repeatedly reopened on mobile',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await open(page);
+  await page.keyboard.press('p');
+  await expect(page.locator('#perfPanel')).toBeVisible();
+  await loadCurated(page,'trappist-1');
+  await expect(page.locator('#perfPanel')).toBeHidden();
+  await page.keyboard.press('p');
+  await expect(page.locator('#perfPanel')).toBeVisible();
+  await page.keyboard.press('p');
+  await page.locator('#curatedBtn').click();
+  await expect(page.locator('#curatedSystemsPanel')).toBeVisible();
+  const bounds=await page.locator('#curatedSystemsPanel').boundingBox();
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x+bounds.width).toBeLessThanOrEqual(390);
+  await page.locator('#curatedClose').click();
+  await expect(page.locator('#curatedBtn')).toHaveAttribute('aria-expanded','false');
+});
 module.exports={scenario};

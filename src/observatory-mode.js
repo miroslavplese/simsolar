@@ -134,10 +134,8 @@
     }
     const named=surfaceDefinition(body.name);
     if(named) return named;
-    // Planets and moons without a named surface entry (for example the
-    // bodies of curated systems) still get a simple rotatable surface so
-    // observation and telescope mode can operate from their skies.
-    if((body.kind==='planet'||body.kind==='moon') && body.radius>0){
+    if(body.genericSurface===true && body.radius>0 &&
+      (body.kind==='planet'||body.kind==='moon')){
       return genericSurfaceDefinition(body);
     }
     return null;
