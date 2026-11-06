@@ -2235,7 +2235,10 @@
   }
 
   function markerRadiusForBody(body,isSun){
-    if(isSun) return 6;
+    // Luminous bodies (the Sun, curated/custom stars) use the same
+    // modest fixed marker; sqrt(radius) planet sizing would make
+    // binary companions look like touching balls.
+    if(isSun || body?.kind==='star') return 6;
     if(body.kind==='custom') return customMarkerRadiusPixels(body.appearance);
     if(body.kind==='moon'){
       return Math.max(2.2,Math.min(6,Math.sqrt(body.radius)*0.1));
