@@ -117,18 +117,30 @@
     return SURFACES[name]||null;
   }
 
+  function genericSurfaceDefinition(body){
+    return {
+      rotationHours:24,
+      tiltDeg:0,
+      phaseDeg:0,
+      ground:body.color||'#38465a'
+    };
+  }
+
   function surfaceDefinitionForBody(body){
     if(!body) return null;
     if(body.kind==='custom'){
       if(body.appearance!=='planet' || !(body.radius>0)) return null;
-      return {
-        rotationHours:24,
-        tiltDeg:0,
-        phaseDeg:0,
-        ground:body.color||'#38465a'
-      };
+      return genericSurfaceDefinition(body);
     }
-    return surfaceDefinition(body.name);
+    const named=surfaceDefinition(body.name);
+    if(named) return named;
+    // Planets and moons without a named surface entry (for example the
+    // bodies of curated systems) still get a simple rotatable surface so
+    // observation and telescope mode can operate from their skies.
+    if((body.kind==='planet'||body.kind==='moon') && body.radius>0){
+      return genericSurfaceDefinition(body);
+    }
+    return null;
   }
 
   function locationPresets(name){

@@ -6582,6 +6582,11 @@
     selected=null; followTarget=null;
     invalidateProjection();
     buildLegend();
+    // Rebuild the observatory catalog for the new system: the old
+    // observer (e.g. Earth) no longer exists here, and the button must
+    // reflect the new observer list or observation mode self-disables
+    // on its first frame.
+    refreshObservatoryCatalog();
     // Update gravity model label immediately
     const modelOut=document.getElementById('modelOut');
     if(modelOut) modelOut.textContent='EDITABLE BARYCENTRIC N-BODY';
