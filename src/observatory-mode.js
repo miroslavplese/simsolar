@@ -117,18 +117,28 @@
     return SURFACES[name]||null;
   }
 
+  function genericSurfaceDefinition(body){
+    return {
+      rotationHours:24,
+      tiltDeg:0,
+      phaseDeg:0,
+      ground:body.color||'#38465a'
+    };
+  }
+
   function surfaceDefinitionForBody(body){
     if(!body) return null;
     if(body.kind==='custom'){
       if(body.appearance!=='planet' || !(body.radius>0)) return null;
-      return {
-        rotationHours:24,
-        tiltDeg:0,
-        phaseDeg:0,
-        ground:body.color||'#38465a'
-      };
+      return genericSurfaceDefinition(body);
     }
-    return surfaceDefinition(body.name);
+    const named=surfaceDefinition(body.name);
+    if(named) return named;
+    if(body.genericSurface===true && body.radius>0 &&
+      (body.kind==='planet'||body.kind==='moon')){
+      return genericSurfaceDefinition(body);
+    }
+    return null;
   }
 
   function locationPresets(name){

@@ -174,6 +174,24 @@ assert.equal(ScenarioState.validate({
 assert.equal(ScenarioState.validate({
   ...noPlanState,view:{...noPlanState.view,zoom:2000001}
 }),false);
+const focusedState={
+  ...editableState,
+  view:{...editableState.view,zoom:35570.145887,panX:-1865294.95,panY:420000}
+};
+assert.deepEqual(
+  ScenarioState.decode(ScenarioState.encode(focusedState)),focusedState
+);
+for(const axis of ['panX','panY']){
+  const withPan=(zoom,value)=>({
+    ...editableState,view:{...editableState.view,zoom,[axis]:value}
+  });
+  assert.equal(ScenarioState.validate(withPan(0.28,100000)),true);
+  assert.equal(ScenarioState.validate(withPan(0.28,100001)),false);
+  assert.equal(ScenarioState.validate(withPan(2,200000)),true);
+  assert.equal(ScenarioState.validate(withPan(2,-200001)),false);
+  assert.equal(ScenarioState.validate(withPan(2,Infinity)),false);
+  assert.equal(ScenarioState.validate(withPan(2,NaN)),false);
+}
 assert.equal(ScenarioState.validate({
   ...noPlanState,
   observatory:{...noPlanState.observatory,latitude:91}

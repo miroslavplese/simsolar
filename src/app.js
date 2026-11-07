@@ -95,7 +95,7 @@
   const {
     AU_KM,interpolateTrajectory,sampledStateAt,propagateState,
     appendIncrementalTrajectoryPoint,simplifyProjectedPath,
-    osculatingOrbitPoints,
+    orbitalElementsFromState,osculatingOrbitPoints,
     orbitalToEcliptic,bodyPosition,orbitalSpeedKmS
   }=window.TrajectoryMath;
   const {zoomForTarget,zoomForDistance,findRelativeEvent}=window.MissionTimeline;
@@ -387,6 +387,13 @@
       const input=document.getElementById(id);
       if(editableSystem) input.removeAttribute('max');
       else input.max='2100-01-01';
+      if(id!=='dateInput'){
+        if(editableSystem){
+          input.min=MissionPlannerUI.isoFromDays(Math.ceil(editableSystem.epoch),J2000);
+        } else {
+          input.removeAttribute('min');
+        }
+      }
     }
   }
 
@@ -405,9 +412,13 @@
     return editableSnapshotCache.state;
   }
 
+  function gravitationalParameterForBody(body){
+    return body.mu??(GM_BY_BODY[body.name]||MOON_GM_BY_BODY[body.name]||
+      (body.massKg ? massKgToMu(body.massKg) : 0));
+  }
+
   function stateDefinitionForBody(body,state){
-    const mu=body.mu||GM_BY_BODY[body.name]||MOON_GM_BY_BODY[body.name]||
-      (body.massKg ? massKgToMu(body.massKg) : 0);
+    const mu=gravitationalParameterForBody(body);
     return {
       id:body.id,name:body.name,mu,
       adaptiveFactor:body.adaptiveFactor,state
@@ -457,6 +468,26 @@
       speedKmS:Math.hypot(state.vx,state.vy,state.vz)*AU_KM/86400,
       nbody:true,barycentric:true
     };
+  }
+
+  function editableOrbitReference(body){
+    const snapshot=editableSnapshotAt(simDaysSinceJ2000);
+    if(!snapshot) return null;
+    return SystemModel.orbitReference(
+      body,activeSystemBodies(),candidate=>bodyState(snapshot,candidate.id),
+      gravitationalParameterForBody
+    );
+  }
+
+  function editableOrbitPoints(body,steps=220){
+    const reference=editableOrbitReference(body);
+    if(!reference) return [];
+    const {relative,origin,mu,scale}=reference;
+    return osculatingOrbitPoints(relative,mu,steps).map(point=>({
+      x:origin.x+point.x*scale,
+      y:origin.y+point.y*scale,
+      z:origin.z+point.z*scale
+    }));
   }
 
   function hybridBranchAt(tDays){
@@ -790,12 +821,26 @@
   }
 
   function plannerCatalog(){
-    return catalogEntries(activeSystemBodies()).map(entry=>({
-      ...entry,
-      assist:entry.target!==false && (entry.assist || !!GM_BY_BODY[entry.name] &&
-        entry.name!=='Charon'
-      )
-    }));
+    const bodies=activeSystemBodies();
+    return catalogEntries(bodies).map(entry=>{
+      const body=bodies.find(candidate=>candidate.id===entry.id);
+      const reference=editableSystem && entry.target!==false
+        ? SystemModel.orbitReference(
+          body,bodies,
+          body=>bodyState(editableSystem.initialState,body.id),
+          gravitationalParameterForBody
+        ) : null;
+      return {
+        ...entry,
+        periodDays:reference
+          ? orbitalElementsFromState(reference.relative,reference.mu)?.period : null,
+        assist:entry.target!==false && (entry.assist ||
+          !!GM_BY_BODY[entry.name] && entry.name!=='Charon' ||
+          !!editableSystem && ['planet','moon','custom'].includes(body.kind) &&
+            gravitationalParameterForBody(body)>0
+        )
+      };
+    });
   }
 
   async function prepareMissionEphemerides(tDays,onProgress,cancelled){
@@ -908,6 +953,7 @@
     missionPlannerController=MissionPlannerUI.create({
       document,window,j2000:J2000,
       nowDays:()=>simDaysSinceJ2000,
+      earliestDays:()=>editableSystem?.epoch??-Infinity,
       catalog:plannerCatalog,
       stateAt:plannerStateAt,
       bodyInfo:plannerBodyInfo,
@@ -2051,53 +2097,24 @@
       ? editableSnapshotAt(simDaysSinceJ2000)
       : null;
     for(const b of drawList){
-      if(
-        b.hideOrbit || (!editableSnapshot && b.kind==='custom') ||
+      if(b.hideOrbit || (!editableSnapshot && b.kind==='custom') ||
         b.kind==='lagrange'
       ) continue;
-      if(b.kind==='planet' && zoom>20) continue;
+      // Deep-zoom orbit culling only applies to the precomputed sol
+      // orbits: in an editable system the fitted view can be deeply
+      // zoomed (small systems) while the orbits are still on screen.
+      if(b.kind==='planet' && zoom>20 && !editableSnapshot) continue;
       const isHi = b===hovered || b===selected;
       let pts;
       if(editableSnapshot){
         if(
           b.kind==='moon' || b===charon ||
-          b.kind==='spacecraft' || b.kind==='comet' || isLuminous(b)
+          b.kind==='spacecraft' || b.kind==='comet'
         ) continue;
-        const configuredPrimary=activeSystemBodies().find(candidate=>
-          candidate.id===b.parentId || candidate.name===b.parentName
-        );
-        const primary=configuredPrimary || (
-          b.kind!=='custom' && sunReference!==b &&
-          isBodyActive(sunReference) ? sunReference : null
-        );
-        const bodyPosition=bodyState(editableSnapshot,b.id);
-        const primaryPosition=primary &&
-          bodyState(editableSnapshot,primary.id);
-        const primaryMu=primary && (
-          primary.mu||GM_BY_BODY[primary.name]||
-          MOON_GM_BY_BODY[primary.name]||
-          (primary.massKg ? massKgToMu(primary.massKg) : 0)
-        );
-        if(!bodyPosition || !primaryPosition || !(primaryMu>0)) continue;
-        const relative={
-          x:bodyPosition.x-primaryPosition.x,
-          y:bodyPosition.y-primaryPosition.y,
-          z:bodyPosition.z-primaryPosition.z,
-          vx:bodyPosition.vx-primaryPosition.vx,
-          vy:bodyPosition.vy-primaryPosition.vy,
-          vz:bodyPosition.vz-primaryPosition.vz
-        };
-        const bodyMu=b.mu||GM_BY_BODY[b.name]||
-          MOON_GM_BY_BODY[b.name]||
-          (b.massKg ? massKgToMu(b.massKg) : 0);
-        const orbitPoints=osculatingOrbitPoints(
-          relative,primaryMu+(bodyMu||0),220
-        );
+        const orbitPoints=editableOrbitPoints(b);
         if(orbitPoints.length<2) continue;
         pts=orbitPoints.map(point=>project(
-          point.x+primaryPosition.x,
-          point.y+primaryPosition.y,
-          point.z+primaryPosition.z
+          point.x,point.y,point.z
         ));
       } else {
         pts=getProjectedOrbitPoints(b);
@@ -2218,7 +2235,10 @@
   }
 
   function markerRadiusForBody(body,isSun){
-    if(isSun) return 6;
+    // Luminous bodies (the Sun, curated/custom stars) use the same
+    // modest fixed marker; sqrt(radius) planet sizing would make
+    // binary companions look like touching balls.
+    if(isSun || body?.kind==='star') return 6;
     if(body.kind==='custom') return customMarkerRadiusPixels(body.appearance);
     if(body.kind==='moon'){
       return Math.max(2.2,Math.min(6,Math.sqrt(body.radius)*0.1));
@@ -3344,22 +3364,18 @@
     if(cached?.bucket===bucket) return cached.points;
     const current=positionForBody(body,simDaysSinceJ2000);
     let points=[];
-    if(current && body.kind==='moon'){
+    if(current && editableSystem &&
+      ['planet','moon','star'].includes(body.kind)){
+      points=editableOrbitPoints(body,192);
+    } else if(current && body.kind==='moon'){
       const parent=positionForBody(body.parent,simDaysSinceJ2000);
-      const origin=editableSystem ? {
-        x:current.x-parent.x,y:current.y-parent.y,z:current.z-parent.z,
-        vx:current.vx-parent.vx,vy:current.vy-parent.vy,
-        vz:current.vz-parent.vz,
-        mu:MOON_GM_BY_BODY[body.name]||0
-      } : integratedMoonRelativeStateAt(body,simDaysSinceJ2000);
+      const origin=integratedMoonRelativeStateAt(body,simDaysSinceJ2000);
       const system=moonInitial.state.systems.find(
         item=>item.parentName===body.parentName
       );
       points=observatoryLocalOrbitPoints(
         body,parent,origin,
-        (editableSystem
-          ? body.parent.mu||GM_BY_BODY[body.parent.name]||0
-          : system.parentMu)+origin.mu
+        system.parentMu+origin.mu
       );
     } else if(current && body===charon){
       const pluto=planets.find(candidate=>candidate.name==='Pluto');
@@ -3974,60 +3990,80 @@
     const lightBody=dominantLightBody(activeSystemBodies());
     const lightPosition=lightBody &&
       positionForBody(lightBody,simDaysSinceJ2000);
-    const sunPosition=isBodyActive(sunReference) &&
-      positionForBody(sunReference,simDaysSinceJ2000);
-    const sunP=sunPosition ? project(
-      sunPosition.x,sunPosition.y,sunPosition.z
-    ) : null;
-    let sunR=0, sunDiskVisible=false;
-    if(sunP){
-      const sunRadiusRendering=bodyRadiusRendering(null,true);
-      sunR=sunRadiusRendering.radius;
-      const sunGlowR=sunR*(sunRadiusRendering.scaleAccurate?3.2:2);
-      const sunGlowVisible=sunP.x+sunGlowR>=0 && sunP.x-sunGlowR<=W &&
-        sunP.y+sunGlowR>=0 && sunP.y-sunGlowR<=H;
-      sunDiskVisible=sunP.x+sunR>=0 && sunP.x-sunR<=W &&
-        sunP.y+sunR>=0 && sunP.y-sunR<=H;
-      if(sunGlowVisible){
+    // Every luminous body in the scene is drawn with the Sun's
+    // glow-and-disk path: sol gets the Sun, curated systems get
+    // their stars (dominant first).
+    const sceneLuminous=isBodyActive(sunReference)
+      ? [sunReference]
+      : (lightBody?[lightBody]:[])
+        .concat(activeSystemBodies().filter(
+          body=>isLuminous(body) && body!==lightBody
+        ));
+    let sunP=null, sunR=0, sunDiskVisible=false;
+    for(const lum of sceneLuminous){
+      const lumPosition=positionForBody(lum,simDaysSinceJ2000);
+      const lumP=lumPosition?project(
+        lumPosition.x,lumPosition.y,lumPosition.z
+      ):null;
+      if(!lumP){ delete lum._screen; continue; }
+      const lumRadiusRendering=bodyRadiusRendering(
+        lum===sunReference?null:lum, lum===sunReference
+      );
+      const lumR=lumRadiusRendering.radius;
+      const lumGlowR=lumR*(lumRadiusRendering.scaleAccurate?3.2:2);
+      const lumGlowVisible=lumP.x+lumGlowR>=0 && lumP.x-lumGlowR<=W &&
+        lumP.y+lumGlowR>=0 && lumP.y-lumGlowR<=H;
+      const lumDiskVisible=lumP.x+lumR>=0 && lumP.x-lumR<=W &&
+        lumP.y+lumR>=0 && lumP.y-lumR<=H;
+      if(lumGlowVisible){
         const grad=ctx.createRadialGradient(
-          sunP.x,sunP.y,0,sunP.x,sunP.y,sunGlowR
+          lumP.x,lumP.y,0,lumP.x,lumP.y,lumGlowR
         );
-        grad.addColorStop(0,'rgba(255,225,140,1)');
-        grad.addColorStop(0.35,'rgba(242,181,68,0.9)');
-        grad.addColorStop(1,'rgba(242,181,68,0)');
+        grad.addColorStop(0,lum===sunReference
+          ? 'rgba(255,225,140,1)' : hexToRgba(lum.color,1));
+        grad.addColorStop(0.35,lum===sunReference
+          ? 'rgba(242,181,68,0.9)' : hexToRgba(lum.color,0.9));
+        grad.addColorStop(1,lum===sunReference
+          ? 'rgba(242,181,68,0)' : hexToRgba(lum.color,0));
         ctx.fillStyle=grad;
         ctx.beginPath();
-        ctx.arc(sunP.x,sunP.y,sunGlowR,0,Math.PI*2);
+        ctx.arc(lumP.x,lumP.y,lumGlowR,0,Math.PI*2);
         ctx.fill();
-        if(sunDiskVisible){
-          if(!drawBodyTexture(
-            sunReference,sunP.x,sunP.y,sunR,ctx,
+        if(lumDiskVisible){
+          const textured=lum===sunReference && drawBodyTexture(
+            sunReference,lumP.x,lumP.y,lumR,ctx,
             {x:0,y:0,z:1},systemTextureViewBasis()
-          )){
+          );
+          if(!textured){
             ctx.fillStyle='#fff3d6';
             ctx.beginPath();
-            ctx.arc(sunP.x,sunP.y,sunR,0,Math.PI*2);
+            ctx.arc(lumP.x,lumP.y,lumR,0,Math.PI*2);
             ctx.fill();
           }
         }
       }
-      sunReference._screen={
-        x:sunP.x,y:sunP.y,r:Math.max(sunR,6),occulted:false
+      lum._screen={
+        x:lumP.x,y:lumP.y,r:Math.max(lumR,6),occulted:false
       };
-      if(sunDiskVisible &&
-        (sunReference===selected || sunReference===hovered)){
+      if(lumDiskVisible &&
+        (lum===selected || lum===hovered)){
         ctx.strokeStyle='rgba(242,181,68,0.9)';
         ctx.lineWidth=1.5;
         ctx.beginPath();
-        ctx.arc(sunP.x,sunP.y,sunR+5,0,Math.PI*2);
+        ctx.arc(lumP.x,lumP.y,lumR+5,0,Math.PI*2);
         ctx.stroke();
         ctx.font='10px "SF Mono", Consolas, monospace';
-        ctx.fillStyle=sunReference===selected
+        ctx.fillStyle=lum===selected
           ? '#f2b544'
           : 'rgba(232,236,247,0.72)';
-        ctx.fillText('Sun',sunP.x+sunR+6,sunP.y+3);
+        ctx.fillText(lum.name,lumP.x+lumR+6,lumP.y+3);
       }
-    } else {
+      // Occultation clipping uses the dominant star's disc.
+      if(lum===sceneLuminous[0]){
+        sunP=lumP; sunR=lumR; sunDiskVisible=lumDiskVisible;
+      }
+    }
+    if(!sceneLuminous.includes(sunReference)){
       delete sunReference._screen;
     }
     const lightScreen=lightPosition
@@ -4036,6 +4072,7 @@
     // bodies, depth sorted (far first)
     for(const {b,pos,scr} of withPos){
       const px=scr.x, py=scr.y;
+      if(b.kind==='star') continue; // drawn via the sun path above
       const behindSun=!!sunP && scr.depth<sunP.depth;
       const clipForSun=behindSun&&sunDiskVisible;
       if(clipForSun){
@@ -4237,7 +4274,10 @@
     if(modelOut.textContent!==model) modelOut.textContent=model;
   }
 
-  function fmtPeriod(days){ return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years'; }
+  function fmtPeriod(days){
+    if(!Number.isFinite(days) || !(days>0)) return 'Not specified';
+    return days<400 ? days.toFixed(1)+' days' : (days/365.25).toFixed(2)+' years';
+  }
   function fmtMass(body){
     if(body.kind==='lagrange') return '0 kg (equilibrium point)';
     const mass=body.massKg||MASS_KG[body.name];
@@ -4251,7 +4291,8 @@
   }
   function propertyRadiusKm(body){
     if(body===sunReference) return SUN_RADIUS_KM;
-    if(body.kind==='planet' || body.kind==='moon' || body.kind==='custom'){
+    if(body.kind==='planet' || body.kind==='moon' || body.kind==='custom' ||
+      body.kind==='star'){
       return body.radius;
     }
     return null;
@@ -4300,6 +4341,8 @@
     const rowDist=document.getElementById('rowDist');
     const rowSpeed=document.getElementById('rowSpeed');
     rowDist.style.display='';
+    rowDist.firstElementChild.textContent=editableSystem
+      ? 'Distance from barycenter' : 'Distance from Sun';
     rowSpeed.style.display='';
     const radiusKm=propertyRadiusKm(selected);
     rowRadius.style.display=Number.isFinite(radiusKm) && radiusKm>0 ? '' : 'none';
@@ -4311,6 +4354,30 @@
     const custom=selected.kind==='custom';
     const lagrange=selected.kind==='lagrange';
     const sun=selected.kind==='sun';
+    if(editableSystem && !builtInBodies.includes(selected) &&
+      ['star','planet','moon'].includes(selected.kind) && pos){
+      const reference=editableOrbitReference(selected);
+      const elements=reference && orbitalElementsFromState(
+        reference.relative,reference.mu
+      );
+      document.getElementById('cardDist').textContent=pos.r.toFixed(3)+' AU';
+      document.getElementById('cardSpeed').textContent=pos.speedKmS.toFixed(2)+' km/s';
+      rowEcc.style.display=elements?'':'none';
+      rowIncl.style.display=elements?'':'none';
+      rowPeriod.style.display=elements?'':'none';
+      if(elements){
+        document.getElementById('cardEcc').textContent=elements.eccentricity.toFixed(3);
+        document.getElementById('cardIncl').textContent=elements.inclination.toFixed(2)+'°';
+        document.getElementById('cardPeriod').textContent=elements.period===null
+          ? 'Unbound' : fmtPeriod(elements.period);
+      }
+      const note=document.getElementById('cardNote');
+      note.style.display='';
+      note.textContent=selected.notes+
+        ' Orbital elements are instantaneous two-body estimates.'+
+        (selected.genericSurface ? ' The observing surface is schematic.' : '');
+      return;
+    }
     if(sun){
       rowDist.style.display='none';
       rowSpeed.style.display='none';
@@ -4472,8 +4539,16 @@
     BodySelect.populate(select,activeOccultationObservers(),{
       catalog:activeSystemBodies()
     });
-    document.getElementById('occultationBtn').disabled=
-      !select.options.length || !dominantLightBody(activeSystemBodies());
+    const unavailable=!select.options.length ||
+      !dominantLightBody(activeSystemBodies());
+    document.getElementById('occultationBtn').disabled=unavailable;
+    select.disabled=unavailable;
+    document.getElementById('occultationType').disabled=unavailable;
+    document.getElementById('previousOccultationBtn').disabled=unavailable;
+    document.getElementById('nextOccultationBtn').disabled=unavailable;
+    document.getElementById('occultationStatus').textContent=unavailable
+      ? 'Sky-event searches require a built-in Solar planet or moon and an active star.'
+      : 'Choose an observer and event type, then search.';
   }
 
   function refreshObservatoryCatalog(){
@@ -4499,6 +4574,12 @@
   }
 
   function cleanAfterSystemChange(removed=new Set()){
+    const activeIds=new Set(activeSystemBodies().map(body=>body.id));
+    for(const body of activeSystemBodies()){
+      if(body.orbitPrimaryIds){
+        body.orbitPrimaryIds=body.orbitPrimaryIds.filter(id=>activeIds.has(id));
+      }
+    }
     if(removed.has(selected?.id)) setSelectedBody(null,false);
     if(removed.has(followTarget?.id)) setFollowTarget(null);
     if(removed.has(hovered?.id)) hovered=null;
@@ -4602,14 +4683,20 @@
       if(expanded){
         for(const child of bodies){
           if(child.parentId===body.id || child.parentName===body.name){
+            // A luminous parented body is a binary companion star,
+            // listed at top level already - never shown as a child.
+            if(isLuminous(child)) continue;
             appendLegendRow(container,child,{moon:true});
           }
         }
       }
     };
     for(const body of bodies){
-      const hasListedParent=
-        bodyIds.has(body.parentId) || bodyNames.has(body.parentName);
+      // Companion stars (parentId pointing at another star) are
+      // listed at top level, never collapsed under their parent.
+      const hasListedParent=!isLuminous(body) && (
+        bodyIds.has(body.parentId) || bodyNames.has(body.parentName)
+      );
       if(!hasListedParent) appendFamily(body);
     }
   }
@@ -5013,8 +5100,9 @@
     if(!visible){
       occultationSearchRevision++;
       activeOccultationEvent=null;
-      document.getElementById('previousOccultationBtn').disabled=false;
-      document.getElementById('nextOccultationBtn').disabled=false;
+      const unavailable=document.getElementById('occultationBtn').disabled;
+      document.getElementById('previousOccultationBtn').disabled=unavailable;
+      document.getElementById('nextOccultationBtn').disabled=unavailable;
     }
     setPanelVisible('occultationPanel',visible);
     document.getElementById('occultationBtn').classList.toggle('active',visible);
@@ -6131,6 +6219,8 @@
           massKg:body.massKg||MASS_KG[body.name]||0,
           mu:body.mu||GM_BY_BODY[body.name]||MOON_GM_BY_BODY[body.name]||0,
           parentId:body.parentId,parentName:body.parentName,
+          orbitPrimaryIds:body.orbitPrimaryIds,
+          genericSurface:body.genericSurface,
           dynamicClass:body.dynamicClass,
           initialInclination:body.initialInclination,
           notes:body.notes,
@@ -6150,8 +6240,10 @@
         color:definition.color||'#70b7ff',radius:definition.radius,
         massKg:definition.massKg,mu:definition.mu,
         parentId:definition.parentId,parentName:definition.parentName,
+        orbitPrimaryIds:definition.orbitPrimaryIds,
+        genericSurface:definition.genericSurface,
         dynamicClass:definition.dynamicClass,
-        adaptiveFactor:definition.kind==='custom' ? 48 : undefined,
+        adaptiveFactor:48,
         initialInclination:definition.initialInclination,
         notes:definition.notes||'Restored custom system body.'
       };
@@ -6498,6 +6590,80 @@
       'aria-expanded',String(visible)
     );
     if(!visible) resetBodyInsertion();
+  });
+  document.getElementById('curatedBtn').addEventListener('click',()=>{
+    const panel=document.getElementById('curatedSystemsPanel');
+    const isHidden=!panel||panel.classList.contains('panel-hidden');
+    CuratedSystemsUI.toggle(isHidden);
+  });
+  // Keep the toolbar button in sync no matter how the panel is
+  // opened/closed (button click, ✕ close, card selection).
+  CuratedSystemsUI.setVisibleListener((vis)=>{
+    const btn=document.getElementById('curatedBtn');
+    btn.classList.toggle('active',vis);
+    btn.setAttribute('aria-expanded',String(vis));
+  });
+  CuratedSystemsUI.setOnLoad((sysDef)=>{
+    let system;
+    try{
+      system=sysDef.mode==='solar' ? null :
+        CuratedSystems.buildEditableSystem(sysDef,simDaysSinceJ2000);
+    } catch(error){
+      console.error(error);
+      showScenarioStatus('Unable to load system: '+error.message,true);
+      return;
+    }
+    const removed=new Set(activeSystemBodies().map(body=>body.id));
+    cancelDateNavigation();
+    missionPlannerController?.cancelSearch();
+    setOccultationPanelVisible(false);
+    if(spacecraftViewActive) setSpacecraftView(false);
+    if(observatoryActive) setObservatoryMode(false);
+    setLagrangeVisibility(false);
+    setRotatingReferenceFrame(false);
+    setSelectedBody(null,false);
+    setFollowTarget(null);
+    hovered=null;
+    if(system){
+      restoreEditableSystem(system);
+      cleanAfterSystemChange(removed);
+    } else {
+      restoreSolarSystem();
+    }
+    playing=false;
+    direction=1;
+    playBtn.textContent='▶';
+    playbackClock.reset();
+    updateSpeedLabel();
+    const extent=system?.extentAU||sysDef.extentAU;
+    zoom=Math.max(ZOOM_MIN,Math.min(
+      BASE_ZOOM_MAX,Math.min(W,H)*0.4/(extent*AU_PX)
+    ));
+    panX=0; panY=0;
+    viewYaw=0; viewTilt=DEFAULT_TILT;
+    selectViewPreset('Current');
+    invalidateProjection();
+    updateDateUI();
+    for(const id of [
+      'aboutPanel','missionPanel','plannerPanel',
+      'occultationPanel','impactPanel'
+    ]){
+      const panel=document.getElementById(id);
+      if(panel && !panel.classList.contains('panel-hidden')){
+        setPanelVisible(id,false);
+      }
+    }
+    const bodyInsertion=document.getElementById('bodyPanel');
+    if(bodyInsertion.classList.contains('show')){
+      bodyInsertion.classList.remove('show');
+      const addBtn=document.getElementById('addBodyBtn');
+      addBtn.classList.remove('active');
+      addBtn.setAttribute('aria-expanded','false');
+      resetBodyInsertion();
+    }
+    setProfilerVisible(false);
+    showScenarioStatus('Loaded: '+sysDef.name+'. '+
+      activeSystemBodies().length+' bodies. Space to play.');
   });
   playBtn.addEventListener('click', ()=>{
     if(activeImpact){
