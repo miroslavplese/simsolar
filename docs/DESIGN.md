@@ -313,9 +313,11 @@ samples. Encounter entries jump the main simulation clock to their waypoint.
 
 New plans select distinct targets from the active catalog. Solar Earth-to-Mars
 defaults retain their original windows; other systems derive day-scale windows
-from their planets' initial orbital periods. A system change replaces plans
-whose bodies or date windows are no longer valid, clears solved-route controls,
-and refreshes gravity-assist choices. Searches reject dates before an editable
+from their planets' initial orbital periods. Switching to a different catalog or
+an incompatible epoch replaces the plan. Deleting individual bodies preserves
+eligible waypoints, removes unavailable assists, and leaves a deleted departure
+or target empty for explicit replacement. Any system change clears solved-route
+controls and refreshes gravity-assist choices. Searches reject dates before an editable
 system's epoch and repeated consecutive bodies before preparing ephemerides.
 Systems with fewer than two mission targets report that limitation explicitly.
 The central-mass patched-conic approximation is not a full N-body spacecraft
@@ -454,6 +456,11 @@ trails are suppressed in this mode because continuously reprojecting them is
 expensive and their inertial geometry is misleading in a rotating frame.
 
 ## Eclipses and transits
+
+Event searches currently support built-in Solar planets and moons, including
+those retained in an edited Solar preset. Non-Solar curated and custom bodies
+are not event-search observers; their event controls are disabled with an
+explicit explanation rather than retaining stale Solar selections.
 
 `src/occultation-system.js` compares the apparent angular disks of the Sun and
 an intervening body from a selected planet or moon center. Exact circle-overlap

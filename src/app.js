@@ -4539,8 +4539,16 @@
     BodySelect.populate(select,activeOccultationObservers(),{
       catalog:activeSystemBodies()
     });
-    document.getElementById('occultationBtn').disabled=
-      !select.options.length || !dominantLightBody(activeSystemBodies());
+    const unavailable=!select.options.length ||
+      !dominantLightBody(activeSystemBodies());
+    document.getElementById('occultationBtn').disabled=unavailable;
+    select.disabled=unavailable;
+    document.getElementById('occultationType').disabled=unavailable;
+    document.getElementById('previousOccultationBtn').disabled=unavailable;
+    document.getElementById('nextOccultationBtn').disabled=unavailable;
+    document.getElementById('occultationStatus').textContent=unavailable
+      ? 'Sky-event searches require a built-in Solar planet or moon and an active star.'
+      : 'Choose an observer and event type, then search.';
   }
 
   function refreshObservatoryCatalog(){
@@ -5092,8 +5100,9 @@
     if(!visible){
       occultationSearchRevision++;
       activeOccultationEvent=null;
-      document.getElementById('previousOccultationBtn').disabled=false;
-      document.getElementById('nextOccultationBtn').disabled=false;
+      const unavailable=document.getElementById('occultationBtn').disabled;
+      document.getElementById('previousOccultationBtn').disabled=unavailable;
+      document.getElementById('nextOccultationBtn').disabled=unavailable;
     }
     setPanelVisible('occultationPanel',visible);
     document.getElementById('occultationBtn').classList.toggle('active',visible);

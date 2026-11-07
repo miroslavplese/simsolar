@@ -267,6 +267,8 @@ web server is required.
   into each parent system's gravitational parameter.
 - Eclipse, transit, and conjunction searches use the configured surface
   observer. Atmospheric refraction and formal contact times are not yet modeled.
+  Event-search observers are limited to built-in Solar planets and moons;
+  non-Solar curated systems disable these controls.
 - Planet metadata remains in the application coordinator; spacecraft metadata
   is in a separate catalog.
 - Star positions are Hipparcos ICRS catalog directions at epoch J1991.25;

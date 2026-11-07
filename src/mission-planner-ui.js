@@ -114,19 +114,33 @@
       const all=catalog();
       const available=new Set(all.filter(item=>item.target!==false)
         .map(item=>item.name));
+      const assists=new Set(all.filter(item=>item.assist).map(item=>item.name));
+      const datesValid=plan.waypoints.every(waypoint=>
+        waypoint.earliest>=(options.earliestDays?.()??-Infinity));
       const valid=plan.waypoints.every(waypoint=>
         available.has(waypoint.body) &&
-        waypoint.earliest>=(options.earliestDays?.()??-Infinity));
-      if(!valid) plan=defaultPlan(all);
+        (waypoint.role!=='assist' || assists.has(waypoint.body))) && datesValid;
+      if(!valid){
+        if(datesValid && plan.waypoints.some(waypoint=>available.has(waypoint.body))){
+          plan.waypoints=plan.waypoints.filter(waypoint=>
+            waypoint.role!=='assist' || assists.has(waypoint.body));
+          for(const waypoint of plan.waypoints){
+            if(!available.has(waypoint.body)) waypoint.body='';
+          }
+        } else {
+          plan=defaultPlan(all);
+        }
+      }
       syncFormFromPlan();
       clearSolution();
+      const missingTarget=plan.waypoints.some(waypoint=>!waypoint.body);
       showStatus(
-        valid
-          ? 'The active system changed. Search again for updated routes.'
-          : available.size<2
-            ? 'This system needs at least two mission targets.'
-            : 'The active system changed. A new mission is ready for its targets.',
         available.size<2
+          ? 'This system needs at least two mission targets.'
+          : missingTarget
+            ? 'A mission target was removed. Choose its replacement before searching.'
+            : 'The active system changed. Search again for updated routes.',
+        available.size<2 || missingTarget
       );
       return valid;
     }

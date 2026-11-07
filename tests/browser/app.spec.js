@@ -407,12 +407,21 @@ test('all body dropdowns group families and preserve eligible selections',async(
   await assist.selectOption('Saturn');
   await page.getByRole('button',{name:'Delete Jupiter',exact:true}).click();
   await expect(assist).toHaveValue('Saturn');
+  await expect(page.locator('#plannerDeparture')).toHaveValue('Earth');
+  await expect(page.locator('#plannerTarget')).toHaveValue('');
+  await expect(page.locator('#plannerStatus')).toContainText('target was removed');
   for(const id of ['plannerDeparture','plannerTarget','observatoryBody','occultationObserver']){
     await expect(page.locator('#'+id+' option[value="Jupiter"]')).toHaveCount(0);
     await expect(page.locator('#'+id+' option[value="Io"]')).toHaveCount(0);
   }
   await expect(assist.locator('option[value="Jupiter"]')).toHaveCount(0);
   await expect(page.locator('#observatoryBody')).toHaveValue('Earth');
+  await page.locator('.plannerTabs [data-planner-tab="launch"]').click();
+  await page.locator('#plannerTarget').selectOption('Mars');
+  await page.getByRole('button',{name:'Delete Saturn',exact:true}).click();
+  await expect(page.locator('#plannerAssistList select')).toHaveCount(0);
+  await expect(page.locator('#plannerDeparture')).toHaveValue('Earth');
+  await expect(page.locator('#plannerTarget')).toHaveValue('Mars');
   await page.getByRole('button',{name:'RESTORE SOLAR',exact:true}).click();
   await expect(page.locator('#plannerTarget optgroup[label="Jupiter system"] option[value="Europa"]'))
     .toHaveCount(1);
@@ -529,12 +538,23 @@ test('curated switch invalidates solved missions and refreshes all catalogs',asy
   await expect(page.locator('#plannerManeuverList .plannerManeuver')).toHaveCount(0);
   await expect(page.locator('#plannerPanel')).toBeHidden();
   await expect(page.locator('#missionSelect option')).toHaveCount(0);
-  for(const id of ['plannerDeparture','plannerTarget','occultationObserver','observatoryBody']){
+  for(const id of ['plannerDeparture','plannerTarget','observatoryBody']){
     await expect(page.locator(`#${id} option[value="Earth"]`)).toHaveCount(0);
     await expect(page.locator(`#${id} option[value="Tatooine"]`)).toHaveCount(1);
   }
+  await expect(page.locator('#occultationObserver option')).toHaveCount(0);
+  await expect(page.locator('#occultationBtn')).toBeDisabled();
+  await expect(page.locator('#nextOccultationBtn')).toBeDisabled();
+  await expect(page.locator('#occultationStatus')).toContainText('built-in Solar planet or moon');
   await page.keyboard.press('v');
   await expect(page.locator('#stage')).not.toHaveClass(/spacecraft-view-active/);
+  for(let iteration=0;iteration<2;iteration++){
+    await page.keyboard.press('e');
+    await expect(page.locator('#occultationPanel')).toBeVisible();
+    await expect(page.locator('#occultationType')).toBeDisabled();
+    await expect(page.locator('#nextOccultationBtn')).toBeDisabled();
+    await page.locator('#occultationClose').click();
+  }
 });
 
 test('curated switch cancels in-flight date navigation and rotating frames',async({page})=>{
