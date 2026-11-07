@@ -22,13 +22,11 @@
   const SYSTEMS=[
     {
       id:'solar-system',name:'Our Solar System',mode:'solar',extentAU:40,
-      description:'Restore the original Solar preset, including JPL-backed planets, moons, spacecraft, and comets. This is not an editable approximation.',
-      preview:'#f2b544'
+      description:'Restore the original Solar preset, including JPL-backed planets, moons, spacecraft, and comets. This is not an editable approximation.'
     },
     {
       id:'tatooine',name:'Tatooine',
       description:'A fictional Star Wars-inspired model: two close stars and a desert planet orbiting their barycenter. Masses and orbits are invented for exploration.',
-      preview:'#e8a040',
       bodies:[
         {id:'tatoo1',name:'Tatoo I',kind:'star',solarMass:0.9,color:'#ffd36a',radius:627000},
         {id:'tatoo2',name:'Tatoo II',kind:'star',solarMass:0.7,a:0.12,parentId:'tatoo1',color:'#ffe8a0',radius:560000},
@@ -38,7 +36,6 @@
     {
       id:'alpha-centauri',name:'Alpha Centauri',
       description:'An illustrative hierarchical triple with Proxima d orbiting Proxima Centauri. Stellar separations are compressed; this is not the measured Alpha Centauri system.',
-      preview:'#a0c4ff',
       bodies:[
         {id:'alfa-cen-a',name:'Alpha Cen A',kind:'star',solarMass:1.1,color:'#fff4e0',radius:760000},
         {id:'alfa-cen-b',name:'Alpha Cen B',kind:'star',solarMass:0.9,a:0.23,parentId:'alfa-cen-a',color:'#ffe0a0',radius:600000},
@@ -49,7 +46,6 @@
     {
       id:'trappist-1',name:'TRAPPIST-1',
       description:'Seven roughly Earth-sized planets around an ultra-cool dwarf. Rounded masses and orbital sizes illustrate a compact system; the observed resonant phases are not reproduced.',
-      preview:'#ff8866',
       bodies:[
         {id:'trappist-star',name:'TRAPPIST-1',kind:'star',solarMass:0.0898,color:'#ff6633',radius:83000},
         {id:'trappist-b',name:'TRAPPIST-1b',kind:'planet',earthMass:1.374,a:0.01154,e:0.006,i:1.5,color:'#bb8866',radius:7110},
@@ -64,7 +60,6 @@
     {
       id:'kepler-16',name:'Kepler-16',
       description:'An approximate model of the first confirmed transiting circumbinary planet. A Saturn-mass planet orbits a stellar pair; orbital orientation and phase are illustrative.',
-      preview:'#d4a574',
       bodies:[
         {id:'kepler-16-a',name:'Kepler-16 A',kind:'star',solarMass:0.6897,color:'#ffe0a0',radius:452000},
         {id:'kepler-16-b',name:'Kepler-16 B',kind:'star',solarMass:0.20255,a:0.22431,e:0.15944,parentId:'kepler-16-a',color:'#d4a060',radius:157500},
@@ -74,7 +69,6 @@
     {
       id:'hd-189733',name:'HD 189733',
       description:'An approximate hot-Jupiter model with a roughly 2.2-day orbit. The distant stellar companion and atmospheric weather are not simulated.',
-      preview:'#3366cc',
       bodies:[
         {id:'hd-189733-a',name:'HD 189733 A',kind:'star',solarMass:0.719,color:'#fff4e0',radius:531000},
         {id:'hd-189733-b',name:'HD 189733 b',kind:'planet',earthMass:329,a:0.02984,e:0.0041,i:3.5,color:'#3366cc',radius:82400}
@@ -83,7 +77,6 @@
     {
       id:'binary-duet',name:'Binary Duet',
       description:'An idealized circular binary: two equal-mass stars orbit their common barycenter at 5 AU separation.',
-      preview:'#ffcc88',
       bodies:[
         {id:'binary-a',name:'Star A',kind:'star',solarMass:0.5,color:'#ffd36a',radius:650000},
         {id:'binary-b',name:'Star B',kind:'star',solarMass:0.5,a:5,parentId:'binary-a',color:'#ffe8a0',radius:650000}
@@ -92,7 +85,6 @@
     {
       id:'kepler-442',name:'Kepler-442',
       description:'A super-Earth candidate for habitability orbiting a K-type star. The planet mass is estimated; this schematic model does not establish surface conditions or habitability.',
-      preview:'#55bb88',
       bodies:[
         {id:'kepler-442-star',name:'Kepler-442',kind:'star',solarMass:0.61,color:'#ff9944',radius:418000},
         {id:'kepler-442-b',name:'Kepler-442 b',kind:'planet',earthMass:2.36,a:0.3864,e:0.04,i:3,color:'#55bb88',radius:8540}
@@ -101,7 +93,6 @@
     {
       id:'compact-four',name:'Compact Four',
       description:'Four hypothetical Earth-mass planets within 0.1 AU. Explore fast orbits and mutual gravitational perturbations; this is not an observed resonant system.',
-      preview:'#72e6c1',
       bodies:[
         {id:'compact-star',name:'Central Star',kind:'star',solarMass:0.8,color:'#fff8e0',radius:580000},
         {id:'compact-1',name:'Planet 1',kind:'planet',earthMass:1,a:0.02,e:0.02,i:2,color:'#aaccdd',radius:6000},

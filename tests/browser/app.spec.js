@@ -455,6 +455,22 @@ async function loadCurated(page,id){
 
 test('curated library loads all examples with valid cards and resets the real Solar preset',async({page})=>{
   await open(page,scenario({selected:'Earth',follow:'Earth'}));
+  await page.locator('#curatedBtn').click();
+  await expect(page.locator('.curated-card img')).toHaveCount(9);
+  await expect.poll(()=>page.locator('.curated-card img').evaluateAll(images=>
+    images.every(image=>image.complete && image.naturalWidth===640)
+  )).toBe(true);
+  const pictures=await page.locator('.curated-card img').evaluateAll(images=>
+    images.map(image=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=64; canvas.height=36;
+      const context=canvas.getContext('2d');
+      context.drawImage(image,0,0,64,36);
+      return canvas.toDataURL();
+    })
+  );
+  expect(new Set(pictures).size).toBe(9);
+  await page.locator('#curatedClose').click();
   const date=await page.locator('#dateInput').inputValue();
   const definitions=await page.evaluate(()=>CuratedSystems.SYSTEMS
     .filter(system=>system.mode!=='solar')
@@ -507,6 +523,10 @@ test('curated switch invalidates solved missions and refreshes all catalogs',asy
   await loadCurated(page,'tatooine');
   await expect(page.locator('#spacecraftViewBtn')).toBeDisabled();
   await expect(page.locator('#plannerCockpitBtn')).toBeDisabled();
+  await expect(page.locator('#plannerPreviewBtn')).toBeDisabled();
+  await expect(page.locator('#plannerSaveBtn')).toBeDisabled();
+  await expect(page.locator('#plannerMetricDuration')).toHaveText('—');
+  await expect(page.locator('#plannerManeuverList .plannerManeuver')).toHaveCount(0);
   await expect(page.locator('#plannerPanel')).toBeHidden();
   await expect(page.locator('#missionSelect option')).toHaveCount(0);
   for(const id of ['plannerDeparture','plannerTarget','occultationObserver','observatoryBody']){
@@ -561,6 +581,8 @@ test('curated observatory, binary references, and body metadata survive sharing'
   const period=await page.locator('#cardPeriod').textContent();
   await page.locator('#shareScenarioBtn').click();
   let state=Scenario.scenarioFromUrl(page.url());
+  expect(state.system).not.toBeNull();
+  expect(Math.abs(state.view.panX)).toBeGreaterThan(100000);
   expect(state.system.bodies.find(body=>body.name==='Tatooine').genericSurface).toBe(true);
   expect(state.system.bodies.find(body=>body.name==='Tatoo I').orbitPrimaryIds)
     .toEqual(['tatoo2']);
@@ -602,5 +624,44 @@ test('curated panel and profiler can be repeatedly reopened on mobile',async({pa
   expect(bounds.x+bounds.width).toBeLessThanOrEqual(390);
   await page.locator('#curatedClose').click();
   await expect(page.locator('#curatedBtn')).toHaveAttribute('aria-expanded','false');
+});
+
+test('TRAPPIST-1 mission defaults, date validation, gravity assists, and cockpit work',async({page})=>{
+  await open(page);
+  await loadCurated(page,'trappist-1');
+  await page.locator('#plannerBtn').click();
+  await expect(page.locator('#plannerDeparture')).toHaveValue('TRAPPIST-1b');
+  await expect(page.locator('#plannerTarget')).toHaveValue('TRAPPIST-1c');
+  const firstDate=await page.locator('#plannerDepartureStart').inputValue();
+  const lastDate=await page.locator('#plannerArrivalEnd').inputValue();
+  expect((Date.parse(lastDate)-Date.parse(firstDate))/86400000).toBeLessThan(7);
+  await page.locator('#plannerDepartureStart').fill('2000-01-01');
+  await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
+  await page.locator('#plannerSearchBtn').click();
+  await expect(page.locator('#plannerStatus')).toContainText('cannot precede');
+  await expect(page.locator('#plannerSearchBtn')).toBeEnabled();
+  await page.locator('#plannerNewBtn').click();
+  await page.locator('#plannerTarget').selectOption('TRAPPIST-1b');
+  await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
+  await page.locator('#plannerSearchBtn').click();
+  await expect(page.locator('#plannerStatus')).toContainText('different bodies');
+  await page.locator('#plannerNewBtn').click();
+  await expect(page.locator('#plannerTarget')).toHaveValue('TRAPPIST-1c');
+  await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
+  await page.locator('#plannerSearchBtn').click();
+  await expect(page.locator('#plannerStatus')).toHaveText('8 candidate routes found.');
+  await page.locator('#plannerCockpitBtn').click();
+  await expect(page.locator('#stage')).toHaveClass(/spacecraft-view-active/);
+  await expect(page.locator('#spacecraftHudSpeed')).not.toHaveText('—');
+  await page.locator('#spacecraftViewExit').click();
+  await page.locator('#plannerBtn').click();
+  await page.locator('#plannerNewBtn').click();
+  await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
+  await page.locator('#plannerAddAssistBtn').click();
+  await expect(page.locator('#plannerAssistList select')).toHaveValue('TRAPPIST-1d');
+  await expect(page.locator('#plannerAssistList select option')).toHaveCount(7);
+  await expect(page.locator('#plannerAssistList option[value="Jupiter"]')).toHaveCount(0);
+  await page.locator('#plannerSearchBtn').click();
+  await expect(page.locator('#plannerCockpitBtn')).toBeEnabled();
 });
 module.exports={scenario};

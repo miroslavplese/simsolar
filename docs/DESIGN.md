@@ -102,6 +102,11 @@ initial state while continuing to decode v1 and v2 Solar scenarios.
 
 The library contains Our Solar System, Tatooine, Alpha Centauri, TRAPPIST-1,
 Kepler-16, HD 189733, Binary Duet, Kepler-442, and Compact Four.
+Selector cards use nine named views in `assets/curated-systems.svg`, an original
+locally bundled illustration atlas with no remote assets or scripts. The images
+are decorative beside the system names and explicitly labeled as artistic,
+not-to-scale impressions. Shared vector definitions keep the library lightweight
+and support both GitHub Pages and direct-file use.
 `data/curated-systems.js` is a classic-script/Node module loaded after trajectory
 math, system-model validation, and the N-body integrator. It reuses those modules
 instead of maintaining separate gravity units or barycentric corrections.
@@ -148,7 +153,9 @@ is pruned after deletions. The latter explicitly opts curated planets into the
 generic 24-hour, airless observing surface, including gas giants as schematic
 viewpoints. It does not make built-in Solar gas giants solid-world observers.
 Small systems can be shared with these fields; the existing 4096-character
-limit still applies to larger systems.
+limit still applies to larger systems. Scenario camera-pan bounds scale with
+zoom because the stored offsets are screen pixels, allowing close-up planetary
+views to round-trip without weakening finite-number validation.
 
 Loading cancels pending date, mission, and event work; exits observation and
 cockpit modes; clears old selections, routes, impacts, and rotating frames; and
@@ -304,14 +311,24 @@ Selected Lambert arcs are sampled for the static orbit layer, while preview
 playback interpolates a spacecraft marker along those physically propagated
 samples. Encounter entries jump the main simulation clock to their waypoint.
 
+New plans select distinct targets from the active catalog. Solar Earth-to-Mars
+defaults retain their original windows; other systems derive day-scale windows
+from their planets' initial orbital periods. A system change replaces plans
+whose bodies or date windows are no longer valid, clears solved-route controls,
+and refreshes gravity-assist choices. Searches reject dates before an editable
+system's epoch and repeated consecutive bodies before preparing ephemerides.
+Systems with fewer than two mission targets report that limitation explicitly.
+The central-mass patched-conic approximation is not a full N-body spacecraft
+optimizer, particularly around multiple stars.
+
 Plans use a compact versioned schema. Named plans are stored in local storage;
 only waypoint windows, flyby altitudes, and selected route times/branch mask are
 serialized. Derived route polylines are recomputed after load. Scenario version
 2 optionally embeds the active compact plan, while version-1 links remain
-accepted. The 2100 simulation limit also bounds planner searches.
-Custom-body targets remain local because current scenario links do not serialize
-the custom body's branched N-body history; sharing such a plan is rejected with
-an explicit status rather than producing a link that cannot be restored.
+accepted. Version 3 also stores editable-system definitions and initial states,
+so small custom systems and their plans can be restored within the URL size
+limit. The 2100 simulation limit bounds Solar planner searches; editable-system
+searches instead respect their saved epoch.
 
 Departure delta-v is calculated from the selected circular parking orbit into
 the Lambert leg's hyperbolic excess velocity. Gravity assists compare the

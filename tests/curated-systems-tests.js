@@ -1,9 +1,13 @@
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
 const Curated=require('../data/curated-systems.js');
 const Gravity=require('../src/nbody-simulation.js');
 const Math3D=require('../src/trajectory-math.js');
 const Model=require('../src/system-model.js');
 const Observatory=require('../src/observatory-mode.js');
+const Planner=require('../src/mission-planner.js');
+const PlannerUI=require('../src/mission-planner-ui.js');
 
 function near(actual,expected,tolerance=1e-10){
   assert.ok(Math.abs(actual-expected)<=tolerance,`${actual} != ${expected}`);
@@ -33,6 +37,11 @@ assert.deepEqual(Curated.SYSTEMS.map(system=>system.id),[
   'hd-189733','binary-duet','kepler-442','compact-four'
 ]);
 assert.equal(Curated.findById('missing'),null);
+const artwork=fs.readFileSync(path.join(__dirname,'../assets/curated-systems.svg'),'utf8');
+const views=[...artwork.matchAll(/<view id="([^"]+)" viewBox="([^"]+)"/g)];
+assert.deepEqual(views.map(view=>view[1]),Curated.SYSTEMS.map(system=>system.id));
+assert.equal(new Set(views.map(view=>view[2])).size,Curated.SYSTEMS.length);
+assert.doesNotMatch(artwork,/<script\b|https?:\/\/(?!www\.w3\.org\/2000\/svg)/);
 assert.equal(Curated.findById('solar-system').mode,'solar');
 assert.throws(()=>Curated.buildEditableSystem(
   Curated.findById('solar-system')
@@ -84,6 +93,32 @@ for(const definition of Curated.SYSTEMS.filter(system=>system.mode!=='solar')){
     assert.ok(radius>0.019 && radius<0.021,'Inner planet remains bound.');
   }
   assert.equal(JSON.stringify(definition),original,'Builder does not mutate catalog.');
+  if(['trappist-1','compact-four'].includes(definition.id)){
+    const catalog=Model.catalogEntries(system.bodies).map(entry=>{
+      const body=system.bodies.find(candidate=>candidate.id===entry.id);
+      const orbit=reference(body,system,initial);
+      return {...entry,periodDays:orbit
+        ? Math3D.orbitalElementsFromState(orbit.relative,orbit.mu)?.period : null};
+    });
+    const plan=PlannerUI.createDefaultPlan(0.3,catalog);
+    const routes=Planner.searchRoutes(plan,(name,time)=>{
+      const body=system.bodies.find(candidate=>candidate.name===name);
+      return Gravity.bodyState(simulator.stateAt(time),body.id);
+    },{
+      mu:totalMu,
+      bodyInfo:name=>{
+        const body=system.bodies.find(candidate=>candidate.name===name);
+        return {mu:body.mu,radiusKm:body.radius};
+      },
+      samplesPerWindow:4,maxCombinations:256,maxCandidates:8
+    });
+    assert.equal(routes.length,8,definition.id+' has usable default mission windows');
+    assert.notEqual(plan.waypoints[0].body,plan.waypoints[1].body);
+    for(const route of routes){
+      assert.ok(Number.isFinite(route.totalDeltaVKmS) && route.totalDeltaVKmS>0);
+      assert.ok(route.durationDays>0 && route.durationDays<10);
+    }
+  }
 }
 
 const binary=Curated.buildEditableSystem(Curated.findById('binary-duet'),100);

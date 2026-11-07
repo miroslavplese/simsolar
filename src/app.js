@@ -387,6 +387,13 @@
       const input=document.getElementById(id);
       if(editableSystem) input.removeAttribute('max');
       else input.max='2100-01-01';
+      if(id!=='dateInput'){
+        if(editableSystem){
+          input.min=MissionPlannerUI.isoFromDays(Math.ceil(editableSystem.epoch),J2000);
+        } else {
+          input.removeAttribute('min');
+        }
+      }
     }
   }
 
@@ -814,12 +821,26 @@
   }
 
   function plannerCatalog(){
-    return catalogEntries(activeSystemBodies()).map(entry=>({
-      ...entry,
-      assist:entry.target!==false && (entry.assist || !!GM_BY_BODY[entry.name] &&
-        entry.name!=='Charon'
-      )
-    }));
+    const bodies=activeSystemBodies();
+    return catalogEntries(bodies).map(entry=>{
+      const body=bodies.find(candidate=>candidate.id===entry.id);
+      const reference=editableSystem && entry.target!==false
+        ? SystemModel.orbitReference(
+          body,bodies,
+          body=>bodyState(editableSystem.initialState,body.id),
+          gravitationalParameterForBody
+        ) : null;
+      return {
+        ...entry,
+        periodDays:reference
+          ? orbitalElementsFromState(reference.relative,reference.mu)?.period : null,
+        assist:entry.target!==false && (entry.assist ||
+          !!GM_BY_BODY[entry.name] && entry.name!=='Charon' ||
+          !!editableSystem && ['planet','moon','custom'].includes(body.kind) &&
+            gravitationalParameterForBody(body)>0
+        )
+      };
+    });
   }
 
   async function prepareMissionEphemerides(tDays,onProgress,cancelled){
@@ -932,6 +953,7 @@
     missionPlannerController=MissionPlannerUI.create({
       document,window,j2000:J2000,
       nowDays:()=>simDaysSinceJ2000,
+      earliestDays:()=>editableSystem?.epoch??-Infinity,
       catalog:plannerCatalog,
       stateAt:plannerStateAt,
       bodyInfo:plannerBodyInfo,

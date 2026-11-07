@@ -24,20 +24,33 @@
       : NaN;
   }
 
-  function createDefaultPlan(nowDays){
-    const departure=Math.ceil(nowDays+45);
+  function createDefaultPlan(nowDays,catalog){
+    const targets=catalog?.filter(body=>body.target!==false);
+    const departureBody=targets?.find(body=>body.name==='Earth')||targets?.[0];
+    const targetBody=targets?.find(body=>body.name==='Mars' && body!==departureBody)||
+      targets?.find(body=>body!==departureBody);
+    const solar=catalog===undefined ||
+      departureBody?.name==='Earth' && targetBody?.name==='Mars';
+    const periods=[departureBody?.periodDays,targetBody?.periodDays]
+      .filter(period=>Number.isFinite(period) && period>0);
+    const period=periods.length ? Math.max(...periods) : 365.25;
+    const departure=Math.ceil(nowDays+(solar?45:0));
+    const launchWindow=solar?180:Math.max(1,Math.ceil(period/2));
     return {
       version:planner.PLAN_VERSION,
       id:'mission-'+Date.now().toString(36),
       name:'New interplanetary mission',
       waypoints:[
         {
-          body:'Earth',role:'departure',
-          earliest:departure,latest:departure+180,altitudeKm:300
+          body:catalog===undefined?'Earth':departureBody?.name||'',
+          role:'departure',
+          earliest:departure,latest:departure+launchWindow,altitudeKm:300
         },
         {
-          body:'Mars',role:'target',
-          earliest:departure+220,latest:departure+720,
+          body:catalog===undefined?'Mars':targetBody?.name||'',
+          role:'target',
+          earliest:departure+(solar?220:Math.max(1,Math.ceil(period/4))),
+          latest:departure+(solar?720:launchWindow+Math.max(2,Math.ceil(period))),
           altitudeKm:1000,arrivalMode:'flyby'
         }
       ]
@@ -63,7 +76,7 @@
     const element=id=>document.getElementById(id);
     const panel=element('plannerPanel');
     if(!panel) throw new Error('Mission planner panel is missing.');
-    let plan=createDefaultPlan(options.nowDays());
+    let plan=defaultPlan();
     let routes=[];
     let activeRoute=null;
     let searchRevision=0;
@@ -73,6 +86,12 @@
 
     function catalog(){
       return options.catalog();
+    }
+
+    function defaultPlan(all=catalog()){
+      return createDefaultPlan(
+        Math.max(options.nowDays(),options.earliestDays?.()??-Infinity),all
+      );
     }
 
     function populateTargets(){
@@ -92,16 +111,22 @@
     }
 
     function catalogChanged(){
-      populateTargets();
-      renderAssists();
-      const available=new Set(catalog().map(item=>item.name));
-      const valid=plan.waypoints.every(waypoint=>available.has(waypoint.body));
+      const all=catalog();
+      const available=new Set(all.filter(item=>item.target!==false)
+        .map(item=>item.name));
+      const valid=plan.waypoints.every(waypoint=>
+        available.has(waypoint.body) &&
+        waypoint.earliest>=(options.earliestDays?.()??-Infinity));
+      if(!valid) plan=defaultPlan(all);
+      syncFormFromPlan();
       clearSolution();
       showStatus(
         valid
           ? 'The active system changed. Search again for updated routes.'
-          : 'The active system changed; this route is no longer available.',
-        !valid
+          : available.size<2
+            ? 'This system needs at least two mission targets.'
+            : 'The active system changed. A new mission is ready for its targets.',
+        available.size<2
       );
       return valid;
     }
@@ -138,10 +163,15 @@
         const earliest=document.createElement('input');
         earliest.type='date';
         earliest.value=isoFromDays(assist.earliest,j2000);
+        const firstDay=options.earliestDays?.();
+        if(Number.isFinite(firstDay)){
+          earliest.min=isoFromDays(Math.ceil(firstDay),j2000);
+        }
         earliest.setAttribute('aria-label','Earliest flyby date');
         const latest=document.createElement('input');
         latest.type='date';
         latest.value=isoFromDays(assist.latest,j2000);
+        latest.min=earliest.min;
         latest.setAttribute('aria-label','Latest flyby date');
         const altitude=document.createElement('input');
         altitude.type='number';
@@ -195,12 +225,8 @@
       populateTargets();
       const departureSelect=element('plannerDeparture');
       const targetSelect=element('plannerTarget');
-      if([...departureSelect.options].some(option=>option.value===departure.body)){
-        departureSelect.value=departure.body;
-      }
-      if([...targetSelect.options].some(option=>option.value===target.body)){
-        targetSelect.value=target.body;
-      }
+      departureSelect.value=departure.body;
+      targetSelect.value=target.body;
       element('plannerDepartureAltitude').value=String(
         departure.altitudeKm??300
       );
@@ -264,6 +290,8 @@
       delete plan.selectedTimes;
       delete plan.selectedLongWayMask;
       renderRoutes();
+      renderManeuvers();
+      renderReview();
       options.onRouteChange?.(null,plan);
     }
 
@@ -386,8 +414,25 @@
 
     async function search(){
       syncPlanFromForm();
+      const available=new Set(catalog().filter(item=>item.target!==false)
+        .map(item=>item.name));
+      if(available.size<2 ||
+        plan.waypoints.some(waypoint=>!available.has(waypoint.body))){
+        showStatus('Choose available mission targets; this system needs at least two.',true);
+        return;
+      }
+      if(plan.waypoints.some((waypoint,index)=>
+        index>0 && waypoint.body===plan.waypoints[index-1].body)){
+        showStatus('Consecutive waypoints must use different bodies.',true);
+        return;
+      }
       if(!planner.validatePlan(plan)){
         showStatus('Check that every date window is complete and ordered.',true);
+        return;
+      }
+      if(plan.waypoints.some(waypoint=>
+        waypoint.earliest<(options.earliestDays?.()??-Infinity))){
+        showStatus('Mission dates cannot precede the editable-system epoch.',true);
         return;
       }
       const revision=cancelSearch();
@@ -444,13 +489,24 @@
       }
       const departure=plan.waypoints[0];
       const target=plan.waypoints.at(-1);
+      const previous=plan.waypoints.at(-2);
+      const candidates=catalog().filter(body=>body.assist &&
+        body.name!==previous.body && body.name!==target.body);
+      const body=candidates.find(body=>body.name==='Jupiter')||candidates[0];
+      if(!body){
+        showStatus('No additional gravity-assist body is available in this system.',true);
+        return;
+      }
       const assistIndex=plan.waypoints.length-1;
       const fraction=assistIndex/(assistIndex+1);
       const center=departure.latest+
         (target.earliest-departure.latest)*fraction;
+      const halfWindow=Math.max(1,(target.latest-departure.earliest)/6);
       plan.waypoints.splice(-1,0,{
-        body:'Jupiter',role:'assist',
-        earliest:center-120,latest:center+120,altitudeKm:100000
+        body:body.name,role:'assist',
+        earliest:Math.max(Math.ceil(departure.earliest),Math.floor(center-halfWindow)),
+        latest:Math.ceil(center+halfWindow),
+        altitudeKm:body.name==='Jupiter'?100000:1000
       });
       clearSolution();
       renderAssists();
@@ -458,7 +514,7 @@
 
     function newPlan(){
       cancelSearch();
-      plan=createDefaultPlan(options.nowDays());
+      plan=defaultPlan();
       routes=[];
       activeRoute=null;
       syncFormFromPlan();
@@ -578,7 +634,7 @@
     return {
       refreshTargets:populateTargets,
       catalogChanged,
-      plan:()=>JSON.parse(JSON.stringify(plan)),
+      plan:()=>planner.validatePlan(plan)?JSON.parse(JSON.stringify(plan)):null,
       route:()=>activeRoute,
       restore,
       setTab,

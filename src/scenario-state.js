@@ -89,10 +89,12 @@
     if(!optionalName(state.selected) || !optionalName(state.follow)) return false;
     const view=state.view;
     if(!view || !finite(view.zoom,0.018,2000000) ||
-      !finite(view.panX,-100000,100000) ||
-      !finite(view.panY,-100000,100000) ||
       !finite(view.yaw,-1000,1000) ||
       !finite(view.tilt,0,Math.PI)) return false;
+    // Pan is in screen pixels, so following a zoomed body scales its offset.
+    const panLimit=100000*Math.max(1,view.zoom);
+    if(!finite(view.panX,-panLimit,panLimit) ||
+      !finite(view.panY,-panLimit,panLimit)) return false;
     const layers=state.layers;
     if(!layers || ['spacecraft','comets','lagrange','rotating'].some(
       key=>typeof layers[key]!=='boolean'
