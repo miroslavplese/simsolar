@@ -23,7 +23,7 @@
         Loading replaces the current system and pauses playback. Non-Solar
         examples are editable, illustrative N-body models, not observed ephemerides.
         Their observing surfaces are schematic, including those on gas giants.
-        Artwork is an artistic impression, not to scale.
+        AI-generated artwork is an artistic impression, not to scale.
       </p>
       <div id="curatedList"></div>
     `;
@@ -43,7 +43,7 @@
       card.className = 'curated-card';
       card.setAttribute('data-id', sys.id);
       card.innerHTML = `
-        <img class="curated-preview" src="assets/curated-systems.svg#${sys.id}"
+        <img class="curated-preview" src="assets/curated-systems/${sys.id}.webp"
           alt="" width="640" height="360" decoding="async">
         <span class="curated-name">${sys.name}</span>
         <span class="curated-body-count">${sys.mode==='solar' ? 'Solar preset' : sys.bodies.length+' bodies'}</span>

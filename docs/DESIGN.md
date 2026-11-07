@@ -102,11 +102,22 @@ initial state while continuing to decode v1 and v2 Solar scenarios.
 
 The library contains Our Solar System, Tatooine, Alpha Centauri, TRAPPIST-1,
 Kepler-16, HD 189733, Binary Duet, Kepler-442, and Compact Four.
-Selector cards use nine named views in `assets/curated-systems.svg`, an original
-locally bundled illustration atlas with no remote assets or scripts. The images
-are decorative beside the system names and explicitly labeled as artistic,
-not-to-scale impressions. Shared vector definitions keep the library lightweight
-and support both GitHub Pages and direct-file use.
+Selector cards use nine AI-generated raster illustrations in
+`assets/curated-systems/`, keyed by each system's catalog ID. Generated PNG
+artwork is resized to 640 by 360 pixels and encoded as WebP for lightweight
+cards; these are not rasterized SVG illustrations. The images are decorative
+beside the system names and explicitly labeled as artistic, not-to-scale
+impressions, not observations. All assets are bundled locally, supporting
+both GitHub Pages and direct-file use without remote image dependencies.
+All 29 stars and planets in the eight non-Solar systems also have matching
+AI-generated 1024 by 512 equirectangular WebP surface maps in
+`assets/textures/curated/`. These are artistic materials, not measured surface
+conditions; the Solar preset keeps its existing observation-based textures.
+Texture lookup uses the curated body's stable ID, so editing, renaming, sharing,
+and restoring a system retain the material without adding URLs to scenarios.
+Generated stellar maps are emissive, while planetary maps receive the existing
+scene lighting and shadows. Their spins are illustrative: 609.12 hours for stars
+and 24 hours for planets, with zero axial tilt.
 `data/curated-systems.js` is a classic-script/Node module loaded after trajectory
 math, system-model validation, and the N-body integrator. It reuses those modules
 instead of maintaining separate gravity units or barycentric corrections.
@@ -182,8 +193,8 @@ restoration, stale-work cancellation, body cards, and repeated panel/profiler us
 - Mutable yaw and tilt angles project 3D coordinates onto the 2D canvas.
 - Planet and moon sizes use visibility markers at system scale, then transition
   smoothly to physical radii in sufficiently close views.
-- At seven pixels of rendered radius, known natural bodies begin loading a
-  1024 x 512 WebP map and use a small offscreen WebGL shader to project the
+- At seven pixels of rendered radius, mapped Solar and curated bodies begin
+  loading a 1024 x 512 WebP map and use a small offscreen WebGL shader to project the
   equirectangular map onto a lit sphere. The same renderer is used in system and
   Observatory views. Axial tilt, approximate rotation periods, gas-giant
   flattening, and current simulation time affect the rendered disk. Earth adds
@@ -191,9 +202,9 @@ restoration, stale-work cancellation, body cards, and repeated panel/profiler us
   the shader in physical target-radius units; finite stellar, planet, and moon
   radii produce moving umbra and penumbra shading for solar and lunar eclipses.
 - Texture loading is asynchronous and per-body. Until a map is ready, when
-  WebGL is unavailable, or for bodies without a trustworthy map, the existing
+  WebGL is unavailable, or for bodies without a bundled map, the existing
   lit-color sphere remains the deterministic fallback. Thus texture assets add
-  no work or transfer to the initial system-scale view.
+  no work or transfer to the initial Solar system-scale view.
 
 ## Orbit calculation
 

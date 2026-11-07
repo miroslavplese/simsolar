@@ -1,8 +1,28 @@
 # Planetary texture sources
 
 These 1024 x 512 WebP maps are loaded only when a body is rendered at least
-seven pixels in radius. They add about 1.1 MiB to the repository but do not add
-to the initial page transfer.
+seven pixels in radius. The Solar maps add about 1.1 MiB to the repository;
+the generated curated maps add about 5.6 MiB. Neither adds to the initial
+Solar system-scale page transfer.
+
+## Generated curated-system maps
+
+The 29 maps in `curated/` are AI-generated raster materials for every star and
+planet in the eight non-Solar curated systems. Their palettes and surface
+features follow the generated selector illustrations in `assets/curated-systems/`.
+They are artistic impressions, not photographs, measured geography, or evidence
+of oceans, atmospheres, or habitability. The Solar maps below remain unchanged.
+
+Source PNGs were generated as flat equirectangular maps, individually or in
+two-map vertical atlases, then split and resized to 1024 x 512 WebP. Longitude
+edges were blended and polar rows softened to prevent seams when wrapped onto
+spheres. Stars use emission maps; planets use albedo maps with scene lighting.
+Visible cloud patterns on generated planets are part of the same illustrative
+material, not independently simulated weather.
+
+Filenames match stable curated body IDs (for example `tatoo1.webp`,
+`tatooine-planet.webp`, and `trappist-e.webp`). `BodyTextures.CURATED_DEFINITIONS`
+is the allowlist; scenario data cannot select arbitrary texture URLs.
 
 ## Solar System Scope maps
 

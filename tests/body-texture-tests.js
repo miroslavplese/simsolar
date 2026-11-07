@@ -1,10 +1,15 @@
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {createHash}=require('node:crypto');
 const {
   MIN_RADIUS_PX,MAX_SAMPLE_RADIUS,FRAMEBUFFER_SIZE,
+  CURATED_DEFINITIONS,
   textureDefinition,rotationTurns,shouldUseTexture,poleVector,
   cloudOffsetTurns,viewBasis,orientationMatrix,createRenderer
 }=require('../src/body-textures.js');
 const RingSystem=require('../src/ring-system.js');
+const Curated=require('../data/curated-systems.js');
 
 assert.equal(FRAMEBUFFER_SIZE,MAX_SAMPLE_RADIUS*2+2);
 assert.equal(textureDefinition('Earth').file,'earth.webp');
@@ -38,6 +43,46 @@ const identityBasis={
   up:{x:0,y:1,z:0},
   towardObserver:{x:0,y:0,z:1}
 };
+const curatedBodies=Curated.SYSTEMS.flatMap(system=>system.bodies||[]);
+assert.equal(curatedBodies.length,29);
+assert.deepEqual(Object.keys(CURATED_DEFINITIONS).sort(),
+  curatedBodies.map(body=>body.id).sort());
+const textureDirectory=path.join(__dirname,'../assets/textures/curated');
+assert.deepEqual(fs.readdirSync(textureDirectory).sort(),
+  curatedBodies.map(body=>body.id+'.webp').sort());
+const hashes=new Set();
+for(const body of curatedBodies){
+  const definition=textureDefinition(body);
+  assert.equal(definition.file,`curated/${body.id}.webp`);
+  assert.equal(definition.emissive,body.kind==='star');
+  assert.equal(shouldUseTexture(body,MIN_RADIUS_PX),true);
+  assert.equal(shouldUseTexture(body,MIN_RADIUS_PX-0.01),false);
+  assert.equal(cloudOffsetTurns(body,10),0);
+  assert.deepEqual(textureDefinition(JSON.parse(JSON.stringify(body))),definition);
+  assert.deepEqual(textureDefinition({...body,name:'Renamed body'}),definition);
+  assert.ok(Math.abs(rotationTurns(body,definition.rotationHours/24))<1e-12);
+  for(const time of [0,-5,5672]){
+    const matrix=orientationMatrix(body,time,identityBasis);
+    assert.equal(matrix.length,9);
+    assert.ok(matrix.every(Number.isFinite));
+    for(let row=0;row<3;row++){
+      const length=Math.hypot(matrix[row],matrix[row+3],matrix[row+6]);
+      assert.ok(Math.abs(length-1)<1e-12);
+    }
+  }
+  const bytes=fs.readFileSync(path.join(textureDirectory,body.id+'.webp'));
+  assert.equal(bytes.toString('ascii',0,4),'RIFF',body.id);
+  assert.equal(bytes.toString('ascii',8,12),'WEBP',body.id);
+  assert.equal(bytes.readUInt32LE(4)+8,bytes.length,body.id);
+  hashes.add(createHash('sha256').update(bytes).digest('hex'));
+}
+assert.equal(hashes.size,curatedBodies.length);
+assert.equal(textureDefinition({id:'unregistered',name:'Tatoo I'}),null);
+assert.equal(textureDefinition({id:'unregistered',name:'Planet 1'}),null);
+assert.equal(textureDefinition({id:'unregistered',name:'Earth'}).file,'earth.webp');
+assert.equal(textureDefinition('Sun').file,'sun.webp');
+assert.equal(textureDefinition('constructor'),null);
+assert.equal(textureDefinition(null),null);
 for(const [name,ring] of Object.entries(RingSystem.PLANETARY_RINGS)){
   const pole=poleVector(name);
   assert.deepEqual(pole,RingSystem.normalVector(ring));

@@ -2398,12 +2398,12 @@
     body,x,y,radius,context,light,basis,shadowGeometry=null
   ){
     return !!bodyTextureRenderer && bodyTextureRenderer.draw(
-      body.name,context,x,y,radius,{
+      body,context,x,y,radius,{
         light,
         tDays:simDaysSinceJ2000,
         ...shadowGeometry,
         orientation:bodyTextureOrientationMatrix(
-          body.name,simDaysSinceJ2000,basis
+          body,simDaysSinceJ2000,basis
         )
       }
     );
@@ -3511,25 +3511,27 @@
         ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
         ctx.fill();
       }
-    } else if(body===sunReference){
+    } else if(isLuminous(body)){
       const glow=ctx.createRadialGradient(
         projected.x,projected.y,radius,
         projected.x,projected.y,Math.max(radius*4,14)
       );
-      glow.addColorStop(0,'rgba(255,229,150,0.8)');
-      glow.addColorStop(1,'rgba(255,190,70,0)');
+      glow.addColorStop(0,body===sunReference
+        ? 'rgba(255,229,150,0.8)' : hexToRgba(color,0.8));
+      glow.addColorStop(1,body===sunReference
+        ? 'rgba(255,190,70,0)' : hexToRgba(color,0));
       ctx.fillStyle=glow;
       ctx.beginPath();
       ctx.arc(
         projected.x,projected.y,Math.max(radius*4,14),0,Math.PI*2
       );
       ctx.fill();
-      if(horizon || !drawBodyTexture(
+      if((horizon && body===sunReference) || !drawBodyTexture(
         body,projected.x,projected.y,radius,ctx,
         {x:0,y:0,z:1},
         textureBasis
       )){
-        ctx.fillStyle='#fff1c7';
+        ctx.fillStyle=body===sunReference?'#fff1c7':color;
         ctx.beginPath();
         ctx.arc(projected.x,projected.y,radius,0,Math.PI*2);
         ctx.fill();
@@ -4030,12 +4032,12 @@
         ctx.arc(lumP.x,lumP.y,lumGlowR,0,Math.PI*2);
         ctx.fill();
         if(lumDiskVisible){
-          const textured=lum===sunReference && drawBodyTexture(
-            sunReference,lumP.x,lumP.y,lumR,ctx,
+          const textured=drawBodyTexture(
+            lum,lumP.x,lumP.y,lumR,ctx,
             {x:0,y:0,z:1},systemTextureViewBasis()
           );
           if(!textured){
-            ctx.fillStyle='#fff3d6';
+            ctx.fillStyle=lum===sunReference?'#fff3d6':lum.color;
             ctx.beginPath();
             ctx.arc(lumP.x,lumP.y,lumR,0,Math.PI*2);
             ctx.fill();

@@ -37,21 +37,50 @@
     Oberon:{file:'oberon.webp',rotationHours:323.116,tiltDeg:97.9,phaseDeg:240},
     Triton:{file:'triton.webp',rotationHours:141.04,tiltDeg:129.6,phaseDeg:100}
   };
+  // Spins are illustrative; stable IDs preserve materials in shared/edited systems.
+  const CURATED_DEFINITIONS=Object.fromEntries([
+    ['tatoo1',true],['tatoo2',true],['tatooine-planet',false],
+    ['alfa-cen-a',true],['alfa-cen-b',true],['alfa-cen-c',true],['proxima-d',false],
+    ['trappist-star',true],['trappist-b',false],['trappist-c',false],
+    ['trappist-d',false],['trappist-e',false],['trappist-f',false],
+    ['trappist-g',false],['trappist-h',false],
+    ['kepler-16-a',true],['kepler-16-b',true],['kepler-16-ab',false],
+    ['hd-189733-a',true],['hd-189733-b',false],
+    ['binary-a',true],['binary-b',true],
+    ['kepler-442-star',true],['kepler-442-b',false],
+    ['compact-star',true],['compact-1',false],['compact-2',false],
+    ['compact-3',false],['compact-4',false]
+  ].map(([id,emissive])=>[id,{
+    file:`curated/${id}.webp`,emissive,rotationHours:emissive?609.12:24
+  }]));
 
-  function textureDefinition(name){
-    const definition=DEFINITIONS[name];
+  function textureKey(body){
+    if(body && typeof body==='object'){
+      return Object.hasOwn(CURATED_DEFINITIONS,body.id) ? body.id : body.name;
+    }
+    return body;
+  }
+
+  function definitionFor(body){
+    const key=textureKey(body);
+    if(Object.hasOwn(CURATED_DEFINITIONS,key)) return CURATED_DEFINITIONS[key];
+    return Object.hasOwn(DEFINITIONS,key) ? DEFINITIONS[key] : null;
+  }
+
+  function textureDefinition(body){
+    const definition=definitionFor(body);
     return definition ? {...definition} : null;
   }
 
-  function rotationTurns(name,tDays){
-    const definition=DEFINITIONS[name];
+  function rotationTurns(body,tDays){
+    const definition=definitionFor(body);
     if(!definition || !Number.isFinite(tDays)) return 0;
     const turns=tDays*24/definition.rotationHours;
     return ((turns%1)+1)%1;
   }
 
-  function cloudOffsetTurns(name,tDays){
-    const definition=DEFINITIONS[name];
+  function cloudOffsetTurns(body,tDays){
+    const definition=definitionFor(body);
     if(
       !definition?.cloudRotationHours ||
       !Number.isFinite(tDays)
@@ -60,15 +89,15 @@
       tDays*24/definition.rotationHours;
   }
 
-  function shouldUseTexture(name,radiusPx){
-    return !!DEFINITIONS[name] && Number.isFinite(radiusPx) &&
+  function shouldUseTexture(body,radiusPx){
+    return !!definitionFor(body) && Number.isFinite(radiusPx) &&
       radiusPx>=MIN_RADIUS_PX;
   }
 
-  function poleVector(name){
-    const definition=DEFINITIONS[name];
+  function poleVector(body){
+    const definition=definitionFor(body);
     if(!definition) return null;
-    const ring=ringSystem.PLANETARY_RINGS[name];
+    const ring=ringSystem.PLANETARY_RINGS[textureKey(body)];
     if(ring) return ringSystem.normalVector(ring);
     const tilt=(definition.tiltDeg||0)*Math.PI/180;
     return {x:0,y:Math.sin(tilt),z:Math.cos(tilt)};
@@ -115,17 +144,17 @@
     return up ? {right,up,towardObserver:toward} : null;
   }
 
-  function orientationMatrix(name,tDays,basis){
-    const definition=DEFINITIONS[name];
+  function orientationMatrix(body,tDays,basis){
+    const definition=definitionFor(body);
     if(!definition || !basis) return null;
-    const pole=poleVector(name);
-    const ring=ringSystem.PLANETARY_RINGS[name];
+    const pole=poleVector(body);
+    const ring=ringSystem.PLANETARY_RINGS[textureKey(body)];
     const equatorX=ring
       ? ringSystem.relativePoint(ring,ringSystem.AU_KM,0)
       : {x:1,y:0,z:0};
     const equatorY=cross(pole,equatorX);
     const phase=(definition.phaseDeg||0)*Math.PI/180+
-      rotationTurns(name,tDays)*TWO_PI;
+      rotationTurns(body,tDays)*TWO_PI;
     const prime={
       x:equatorX.x*Math.cos(phase)+equatorY.x*Math.sin(phase),
       y:equatorX.y*Math.cos(phase)+equatorY.y*Math.sin(phase),
@@ -350,11 +379,12 @@
       }
     }
 
-    function draw(name,targetContext,x,y,radius,renderOptions){
-      if(!shouldUseTexture(name,radius)) return false;
-      const definition=DEFINITIONS[name];
-      let state=states.get(name);
-      if(!state) state=startLoad(name,definition);
+    function draw(body,targetContext,x,y,radius,renderOptions){
+      if(!shouldUseTexture(body,radius)) return false;
+      const definition=definitionFor(body);
+      const key=textureKey(body);
+      let state=states.get(key);
+      if(!state) state=startLoad(key,definition);
       if(state.status!=='ready') return false;
       renderOptions=renderOptions||{};
       const sampleRadius=Math.max(
@@ -407,7 +437,7 @@
       gl.uniform1f(uniforms.cloudMix,cloudTexture?1:0);
       gl.uniform1f(
         uniforms.cloudOffset,
-        cloudOffsetTurns(name,renderOptions.tDays||0)
+        cloudOffsetTurns(body,renderOptions.tDays||0)
       );
       gl.uniformMatrix3fv(uniforms.orientation,false,orientation);
       gl.uniform1f(uniforms.polarScale,definition.polarScale||1);
@@ -428,7 +458,7 @@
 
   return {
     TWO_PI,MIN_RADIUS_PX,MAX_SAMPLE_RADIUS,FRAMEBUFFER_SIZE,
-    DEFINITIONS,textureDefinition,rotationTurns,
+    DEFINITIONS,CURATED_DEFINITIONS,textureDefinition,rotationTurns,
     cloudOffsetTurns,
     shouldUseTexture,poleVector,viewBasis,orientationMatrix,createRenderer
   };

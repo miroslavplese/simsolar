@@ -29,7 +29,7 @@
       description:'A fictional Star Wars-inspired model: two close stars and a desert planet orbiting their barycenter. Masses and orbits are invented for exploration.',
       bodies:[
         {id:'tatoo1',name:'Tatoo I',kind:'star',solarMass:0.9,color:'#ffd36a',radius:627000},
-        {id:'tatoo2',name:'Tatoo II',kind:'star',solarMass:0.7,a:0.12,parentId:'tatoo1',color:'#ffe8a0',radius:560000},
+        {id:'tatoo2',name:'Tatoo II',kind:'star',solarMass:0.7,a:0.12,parentId:'tatoo1',color:'#ffab4a',radius:560000},
         {id:'tatooine-planet',name:'Tatooine',kind:'planet',earthMass:1,a:1.2,e:0.05,i:2,color:'#c49238',radius:6400}
       ]
     },
@@ -37,10 +37,10 @@
       id:'alpha-centauri',name:'Alpha Centauri',
       description:'An illustrative hierarchical triple with Proxima d orbiting Proxima Centauri. Stellar separations are compressed; this is not the measured Alpha Centauri system.',
       bodies:[
-        {id:'alfa-cen-a',name:'Alpha Cen A',kind:'star',solarMass:1.1,color:'#fff4e0',radius:760000},
-        {id:'alfa-cen-b',name:'Alpha Cen B',kind:'star',solarMass:0.9,a:0.23,parentId:'alfa-cen-a',color:'#ffe0a0',radius:600000},
+        {id:'alfa-cen-a',name:'Alpha Cen A',kind:'star',solarMass:1.1,color:'#ffe4a3',radius:760000},
+        {id:'alfa-cen-b',name:'Alpha Cen B',kind:'star',solarMass:0.9,a:0.23,parentId:'alfa-cen-a',color:'#ffc06c',radius:600000},
         {id:'alfa-cen-c',name:'Proxima Cen',kind:'star',solarMass:0.12,a:2.6,phase:180,parentId:'alfa-cen-a',color:'#ff6644',radius:150000},
-        {id:'proxima-d',name:'Proxima d',kind:'planet',earthMass:0.26,a:0.029,e:0.02,i:5,parentId:'alfa-cen-c',color:'#88aacc',radius:3000}
+        {id:'proxima-d',name:'Proxima d',kind:'planet',earthMass:0.26,a:0.029,e:0.02,i:5,parentId:'alfa-cen-c',color:'#b78678',radius:3000}
       ]
     },
     {
@@ -48,30 +48,30 @@
       description:'Seven roughly Earth-sized planets around an ultra-cool dwarf. Rounded masses and orbital sizes illustrate a compact system; the observed resonant phases are not reproduced.',
       bodies:[
         {id:'trappist-star',name:'TRAPPIST-1',kind:'star',solarMass:0.0898,color:'#ff6633',radius:83000},
-        {id:'trappist-b',name:'TRAPPIST-1b',kind:'planet',earthMass:1.374,a:0.01154,e:0.006,i:1.5,color:'#bb8866',radius:7110},
-        {id:'trappist-c',name:'TRAPPIST-1c',kind:'planet',earthMass:1.308,a:0.01580,e:0.005,i:1.5,color:'#cc9977',radius:6990},
-        {id:'trappist-d',name:'TRAPPIST-1d',kind:'planet',earthMass:0.388,a:0.02227,e:0.008,i:1.5,color:'#ddaa88',radius:5020},
-        {id:'trappist-e',name:'TRAPPIST-1e',kind:'planet',earthMass:0.692,a:0.02925,e:0.005,i:1.5,color:'#66aaff',radius:5860},
-        {id:'trappist-f',name:'TRAPPIST-1f',kind:'planet',earthMass:1.039,a:0.03849,e:0.010,i:1.5,color:'#77bbcc',radius:6660},
-        {id:'trappist-g',name:'TRAPPIST-1g',kind:'planet',earthMass:1.321,a:0.04683,e:0.006,i:1.5,color:'#88ccaa',radius:7190},
-        {id:'trappist-h',name:'TRAPPIST-1h',kind:'planet',earthMass:0.326,a:0.06189,e:0.004,i:1.5,color:'#99ddbb',radius:4810}
+        {id:'trappist-b',name:'TRAPPIST-1b',kind:'planet',earthMass:1.374,a:0.01154,e:0.006,i:1.5,color:'#86533d',radius:7110},
+        {id:'trappist-c',name:'TRAPPIST-1c',kind:'planet',earthMass:1.308,a:0.01580,e:0.005,i:1.5,color:'#8c8586',radius:6990},
+        {id:'trappist-d',name:'TRAPPIST-1d',kind:'planet',earthMass:0.388,a:0.02227,e:0.008,i:1.5,color:'#b58a4e',radius:5020},
+        {id:'trappist-e',name:'TRAPPIST-1e',kind:'planet',earthMass:0.692,a:0.02925,e:0.005,i:1.5,color:'#839aa8',radius:5860},
+        {id:'trappist-f',name:'TRAPPIST-1f',kind:'planet',earthMass:1.039,a:0.03849,e:0.010,i:1.5,color:'#58a7ae',radius:6660},
+        {id:'trappist-g',name:'TRAPPIST-1g',kind:'planet',earthMass:1.321,a:0.04683,e:0.006,i:1.5,color:'#c6c7cb',radius:7190},
+        {id:'trappist-h',name:'TRAPPIST-1h',kind:'planet',earthMass:0.326,a:0.06189,e:0.004,i:1.5,color:'#b89183',radius:4810}
       ]
     },
     {
       id:'kepler-16',name:'Kepler-16',
       description:'An approximate model of the first confirmed transiting circumbinary planet. A Saturn-mass planet orbits a stellar pair; orbital orientation and phase are illustrative.',
       bodies:[
-        {id:'kepler-16-a',name:'Kepler-16 A',kind:'star',solarMass:0.6897,color:'#ffe0a0',radius:452000},
-        {id:'kepler-16-b',name:'Kepler-16 B',kind:'star',solarMass:0.20255,a:0.22431,e:0.15944,parentId:'kepler-16-a',color:'#d4a060',radius:157500},
-        {id:'kepler-16-ab',name:'Kepler-16b',kind:'planet',earthMass:105.8,a:0.7048,e:0.0069,i:0.3,color:'#6688aa',radius:53900}
+        {id:'kepler-16-a',name:'Kepler-16 A',kind:'star',solarMass:0.6897,color:'#ffb357',radius:452000},
+        {id:'kepler-16-b',name:'Kepler-16 B',kind:'star',solarMass:0.20255,a:0.22431,e:0.15944,parentId:'kepler-16-a',color:'#ff6445',radius:157500},
+        {id:'kepler-16-ab',name:'Kepler-16b',kind:'planet',earthMass:105.8,a:0.7048,e:0.0069,i:0.3,color:'#a0afba',radius:53900}
       ]
     },
     {
       id:'hd-189733',name:'HD 189733',
       description:'An approximate hot-Jupiter model with a roughly 2.2-day orbit. The distant stellar companion and atmospheric weather are not simulated.',
       bodies:[
-        {id:'hd-189733-a',name:'HD 189733 A',kind:'star',solarMass:0.719,color:'#fff4e0',radius:531000},
-        {id:'hd-189733-b',name:'HD 189733 b',kind:'planet',earthMass:329,a:0.02984,e:0.0041,i:3.5,color:'#3366cc',radius:82400}
+        {id:'hd-189733-a',name:'HD 189733 A',kind:'star',solarMass:0.719,color:'#ffb753',radius:531000},
+        {id:'hd-189733-b',name:'HD 189733 b',kind:'planet',earthMass:329,a:0.02984,e:0.0041,i:3.5,color:'#2877f5',radius:82400}
       ]
     },
     {
@@ -79,26 +79,26 @@
       description:'An idealized circular binary: two equal-mass stars orbit their common barycenter at 5 AU separation.',
       bodies:[
         {id:'binary-a',name:'Star A',kind:'star',solarMass:0.5,color:'#ffd36a',radius:650000},
-        {id:'binary-b',name:'Star B',kind:'star',solarMass:0.5,a:5,parentId:'binary-a',color:'#ffe8a0',radius:650000}
+        {id:'binary-b',name:'Star B',kind:'star',solarMass:0.5,a:5,parentId:'binary-a',color:'#ffd36a',radius:650000}
       ]
     },
     {
       id:'kepler-442',name:'Kepler-442',
       description:'A super-Earth candidate for habitability orbiting a K-type star. The planet mass is estimated; this schematic model does not establish surface conditions or habitability.',
       bodies:[
-        {id:'kepler-442-star',name:'Kepler-442',kind:'star',solarMass:0.61,color:'#ff9944',radius:418000},
-        {id:'kepler-442-b',name:'Kepler-442 b',kind:'planet',earthMass:2.36,a:0.3864,e:0.04,i:3,color:'#55bb88',radius:8540}
+        {id:'kepler-442-star',name:'Kepler-442',kind:'star',solarMass:0.61,color:'#ffb653',radius:418000},
+        {id:'kepler-442-b',name:'Kepler-442 b',kind:'planet',earthMass:2.36,a:0.3864,e:0.04,i:3,color:'#779d86',radius:8540}
       ]
     },
     {
       id:'compact-four',name:'Compact Four',
       description:'Four hypothetical Earth-mass planets within 0.1 AU. Explore fast orbits and mutual gravitational perturbations; this is not an observed resonant system.',
       bodies:[
-        {id:'compact-star',name:'Central Star',kind:'star',solarMass:0.8,color:'#fff8e0',radius:580000},
-        {id:'compact-1',name:'Planet 1',kind:'planet',earthMass:1,a:0.02,e:0.02,i:2,color:'#aaccdd',radius:6000},
-        {id:'compact-2',name:'Planet 2',kind:'planet',earthMass:1,a:0.04,e:0.04,i:3,color:'#88bbcc',radius:6200},
-        {id:'compact-3',name:'Planet 3',kind:'planet',earthMass:1,a:0.06,e:0.03,i:1.5,color:'#66aabb',radius:5800},
-        {id:'compact-4',name:'Planet 4',kind:'planet',earthMass:1,a:0.09,e:0.05,i:4,color:'#5599aa',radius:6400}
+        {id:'compact-star',name:'Central Star',kind:'star',solarMass:0.8,color:'#ff866e',radius:580000},
+        {id:'compact-1',name:'Planet 1',kind:'planet',earthMass:1,a:0.02,e:0.02,i:2,color:'#86533d',radius:6000},
+        {id:'compact-2',name:'Planet 2',kind:'planet',earthMass:1,a:0.04,e:0.04,i:3,color:'#b48b50',radius:6200},
+        {id:'compact-3',name:'Planet 3',kind:'planet',earthMass:1,a:0.06,e:0.03,i:1.5,color:'#72969d',radius:5800},
+        {id:'compact-4',name:'Planet 4',kind:'planet',earthMass:1,a:0.09,e:0.05,i:4,color:'#9cb6cf',radius:6400}
       ]
     }
   ];

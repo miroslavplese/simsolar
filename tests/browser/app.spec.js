@@ -16,6 +16,15 @@ async function open(page,state=scenario(),url=base+'solar-system.html'){
   await page.goto(Scenario.urlWithScenario(url,state));
   await expect(page.locator('#dateInput')).not.toHaveValue('');
 }
+async function expectCuratedArtwork(page){
+  const images=page.locator('.curated-card img');
+  await expect(images).toHaveCount(9);
+  await expect.poll(()=>images.evaluateAll(elements=>elements.every(image=>
+    image.complete && image.naturalWidth===640 && image.naturalHeight===360 &&
+    image.getAttribute('src')===
+      `assets/curated-systems/${image.closest('.curated-card').dataset.id}.webp`
+  ))).toBe(true);
+}
 test.beforeEach(async({page})=>{
   await page.addInitScript(()=>{
     localStorage.setItem('tutorial:simsolar_tutorial_complete','1');
@@ -44,6 +53,8 @@ test('static entry, direct-file launch, and v1/v2/v3 scenario links',async({page
   await open(page,scenario({selected:'Saturn'}),file);
   await expect(page.locator('#cardName')).toHaveText('Saturn');
   await expect(page.locator('#cardNote')).toContainText('NASA/JPL');
+  await page.locator('#curatedBtn').click();
+  await expectCuratedArtwork(page);
 });
 test('mission timeline, selection, layers, and view presets',async({page})=>{
   await open(page);
@@ -372,6 +383,86 @@ test('planetary cloud equators and oblateness follow the ring axis',async({page}
     }
   }
 });
+test('all generated curated textures load, wrap, and render with the correct lighting',async({page})=>{
+  await page.route('**/texture-test.html',route=>route.fulfill({
+    contentType:'text/html',body:'<!doctype html><title>Texture renderer test</title>'
+  }));
+  await page.goto(base+'texture-test.html');
+  await page.addScriptTag({url:base+'src/ring-system.js'});
+  await page.addScriptTag({url:base+'src/body-textures.js'});
+  const bodies=require('../../data/curated-systems.js').SYSTEMS
+    .flatMap(system=>system.bodies||[]);
+  const results=await page.evaluate(async bodies=>{
+    const canvas=document.createElement('canvas');
+    canvas.width=canvas.height=162;
+    const context=canvas.getContext('2d',{willReadFrequently:true});
+    const map=document.createElement('canvas');
+    map.width=1024;
+    map.height=512;
+    const mapContext=map.getContext('2d',{willReadFrequently:true});
+    let ready;
+    const renderer=BodyTextures.createRenderer({onReady:()=>ready()});
+    if(!renderer) throw new Error('WebGL texture renderer unavailable');
+    const results=[];
+    for(const body of bodies){
+      const renamed={...body,name:'Same display name'};
+      const belowThreshold=renderer.draw(renamed,context,81,81,6,{});
+      const lazy=!renderer.states.has(body.id);
+      await new Promise(resolve=>{
+        ready=resolve;
+        renderer.draw(renamed,context,81,81,70,{});
+      });
+      const image=renderer.states.get(body.id).image;
+      mapContext.clearRect(0,0,1024,512);
+      mapContext.drawImage(image,0,0);
+      const pixels=mapContext.getImageData(0,0,1024,512).data;
+      let opaque=true;
+      for(let offset=3;offset<pixels.length;offset+=4){
+        if(pixels[offset]!==255) opaque=false;
+      }
+      let seamDifference=0;
+      for(let y=0;y<512;y++){
+        for(let channel=0;channel<3;channel++){
+          seamDifference+=Math.abs(
+            pixels[y*1024*4+channel]-pixels[(y*1024+1023)*4+channel]
+          );
+        }
+      }
+      const render=light=>{
+        context.clearRect(0,0,162,162);
+        const drawn=renderer.draw(renamed,context,81,81,70,{light});
+        const pixel=Array.from(context.getImageData(81,81,1,1).data);
+        return {drawn,pixel};
+      };
+      results.push({
+        id:body.id,star:body.kind==='star',belowThreshold,lazy,opaque,
+        width:image.naturalWidth,height:image.naturalHeight,
+        seamDifference:seamDifference/(512*3),
+        front:render({x:0,y:0,z:1}),
+        back:render({x:0,y:0,z:-1})
+      });
+    }
+    return results;
+  },bodies);
+  expect(results).toHaveLength(29);
+  for(const result of results){
+    expect(result.belowThreshold,result.id).toBe(false);
+    expect(result.lazy,result.id).toBe(true);
+    expect(result.opaque,result.id).toBe(true);
+    expect([result.width,result.height],result.id).toEqual([1024,512]);
+    expect(result.seamDifference,result.id).toBeLessThan(12);
+    expect(result.front.drawn,result.id).toBe(true);
+    expect(result.back.drawn,result.id).toBe(true);
+    expect(result.front.pixel[3],result.id).toBe(255);
+    if(result.star){
+      expect(result.front.pixel,result.id).toEqual(result.back.pixel);
+    } else {
+      const brightness=pixel=>pixel.slice(0,3).reduce((sum,value)=>sum+value,0);
+      expect(brightness(result.front.pixel),result.id)
+        .toBeGreaterThan(brightness(result.back.pixel)*5);
+    }
+  }
+});
 test('all body dropdowns group families and preserve eligible selections',async({page})=>{
   await open(page);
   for(const id of [
@@ -465,10 +556,7 @@ async function loadCurated(page,id){
 test('curated library loads all examples with valid cards and resets the real Solar preset',async({page})=>{
   await open(page,scenario({selected:'Earth',follow:'Earth'}));
   await page.locator('#curatedBtn').click();
-  await expect(page.locator('.curated-card img')).toHaveCount(9);
-  await expect.poll(()=>page.locator('.curated-card img').evaluateAll(images=>
-    images.every(image=>image.complete && image.naturalWidth===640)
-  )).toBe(true);
+  await expectCuratedArtwork(page);
   const pictures=await page.locator('.curated-card img').evaluateAll(images=>
     images.map(image=>{
       const canvas=document.createElement('canvas');
@@ -595,9 +683,35 @@ test('compact curated planets remain bound through actual application integratio
 });
 
 test('curated observatory, binary references, and body metadata survive sharing',async({page})=>{
+  await page.route('**/src/body-textures.js*',async route=>{
+    const response=await route.fetch();
+    await route.fulfill({response,body:await response.text()+`
+      (function(){
+        const create=BodyTextures.createRenderer;
+        window.__textureDraws={};
+        BodyTextures.createRenderer=function(options){
+          const renderer=create(options);
+          if(!renderer) return renderer;
+          const draw=renderer.draw;
+          renderer.draw=function(body,...args){
+            const drawn=draw(body,...args);
+            if(drawn){
+              const view=document.getElementById('stage')
+                .classList.contains('observatory-active')?'observatory':'system';
+              window.__textureDraws[view+':'+body.id]=true;
+            }
+            return drawn;
+          };
+          return renderer;
+        };
+      })();
+    `});
+  });
   await open(page);
   await loadCurated(page,'tatooine');
   await page.locator('#legend').getByRole('button',{name:'Tatooine',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>window.__textureDraws['system:tatooine-planet']))
+    .toBe(true);
   const period=await page.locator('#cardPeriod').textContent();
   await page.locator('#shareScenarioBtn').click();
   let state=Scenario.scenarioFromUrl(page.url());
@@ -608,17 +722,29 @@ test('curated observatory, binary references, and body metadata survive sharing'
     .toEqual(['tatoo2']);
   await page.reload();
   await expect(page.locator('#cardPeriod')).toHaveText(period);
+  await expect.poll(()=>page.evaluate(()=>window.__textureDraws['system:tatooine-planet']))
+    .toBe(true);
   await page.locator('#observatoryBtn').click();
   await expect(page.locator('#observatoryBody')).toHaveValue('Tatooine');
+  await page.locator('#observatoryLongitude').fill('180');
   await page.locator('#observatoryTelescopeBtn').click();
   await page.locator('#observatoryTelescopeTarget').selectOption('Tatoo II');
+  await expect.poll(()=>page.evaluate(()=>window.__textureDraws['observatory:tatoo2']))
+    .toBe(true);
   await page.locator('#shareScenarioBtn').click();
   state=Scenario.scenarioFromUrl(page.url());
   expect(state.observatory.telescope.target).toBe('Tatoo II');
   await page.reload();
   await expect(page.locator('#stage')).toHaveClass(/observatory-active/);
   await expect(page.locator('#observatoryTelescopeTarget')).toHaveValue('Tatoo II');
-  await page.locator('#observatoryClose').click();
+  await expect.poll(()=>page.evaluate(()=>window.__textureDraws['observatory:tatoo2']))
+    .toBe(true);
+  await open(page,{
+    ...state,selected:'Tatoo II',follow:'Tatoo II',observatory:null,
+    view:{...state.view,zoom:500,panX:0,panY:0}
+  });
+  await expect.poll(()=>page.evaluate(()=>window.__textureDraws['system:tatoo2']))
+    .toBe(true);
   await loadCurated(page,'binary-duet');
   await page.getByRole('button',{name:'Delete Star B',exact:true}).click();
   await page.locator('#shareScenarioBtn').click();

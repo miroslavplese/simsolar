@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const {createHash}=require('node:crypto');
 const Curated=require('../data/curated-systems.js');
 const Gravity=require('../src/nbody-simulation.js');
 const Math3D=require('../src/trajectory-math.js');
@@ -37,11 +38,17 @@ assert.deepEqual(Curated.SYSTEMS.map(system=>system.id),[
   'hd-189733','binary-duet','kepler-442','compact-four'
 ]);
 assert.equal(Curated.findById('missing'),null);
-const artwork=fs.readFileSync(path.join(__dirname,'../assets/curated-systems.svg'),'utf8');
-const views=[...artwork.matchAll(/<view id="([^"]+)" viewBox="([^"]+)"/g)];
-assert.deepEqual(views.map(view=>view[1]),Curated.SYSTEMS.map(system=>system.id));
-assert.equal(new Set(views.map(view=>view[2])).size,Curated.SYSTEMS.length);
-assert.doesNotMatch(artwork,/<script\b|https?:\/\/(?!www\.w3\.org\/2000\/svg)/);
+const artworkDirectory=path.join(__dirname,'../assets/curated-systems');
+assert.deepEqual(fs.readdirSync(artworkDirectory).sort(),
+  Curated.SYSTEMS.map(system=>`${system.id}.webp`).sort());
+const artworkHashes=Curated.SYSTEMS.map(system=>{
+  const image=fs.readFileSync(path.join(artworkDirectory,`${system.id}.webp`));
+  assert.equal(image.toString('ascii',0,4),'RIFF',system.id);
+  assert.equal(image.toString('ascii',8,12),'WEBP',system.id);
+  assert.equal(image.readUInt32LE(4)+8,image.length,system.id);
+  return createHash('sha256').update(image).digest('hex');
+});
+assert.equal(new Set(artworkHashes).size,Curated.SYSTEMS.length);
 assert.equal(Curated.findById('solar-system').mode,'solar');
 assert.throws(()=>Curated.buildEditableSystem(
   Curated.findById('solar-system')

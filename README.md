@@ -137,7 +137,9 @@ The belt is absent from custom/editable systems.
   restoration
 - A curated library of nine systems: Our Solar System, Tatooine, Alpha Centauri,
   TRAPPIST-1, Kepler-16, HD 189733, Binary Duet, Kepler-442, and Compact Four.
-  Each selector card has original locally bundled artwork (not to scale).
+  Each selector card has locally bundled AI-generated raster artwork (not to scale).
+  The non-Solar planets and stars have matching generated surface textures;
+  the Solar preset retains its existing observation-based maps.
   Loading pauses playback, fits the view, and clears system-specific tools.
   The Solar entry restores the original preset; the other entries are editable,
   explicitly illustrative N-body models with barycentric stellar orbit guides.
