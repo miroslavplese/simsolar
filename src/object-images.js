@@ -1,8 +1,9 @@
 (function(root,factory){
-  const api=factory();
+  const api=factory(typeof module==='object' && module.exports
+    ? require('./body-textures.js') : root.BodyTextures);
   if(typeof module==='object' && module.exports) module.exports=api;
   root.ObjectImages=api;
-})(typeof globalThis!=='undefined' ? globalThis : this,function(){
+})(typeof globalThis!=='undefined' ? globalThis : this,function(bodyTextures){
   'use strict';
   function illustration(body){
     const type=body.kind==='custom' ? body.appearance : body.kind;
@@ -26,6 +27,14 @@
   }
   function forBody(body,catalog){
     if(body.kind==='custom' || body.kind==='lagrange') return illustration(body);
+    if(Object.hasOwn(bodyTextures.CURATED_DEFINITIONS,body.id)){
+      return {
+        src:'assets/objects/curated/'+body.id+'.webp',
+        alt:body.name+' - artistic illustration',
+        caption:'Artistic illustration',
+        source:null
+      };
+    }
     const record=catalog[body.name];
     return record || illustration(body);
   }

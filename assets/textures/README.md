@@ -24,6 +24,15 @@ Filenames match stable curated body IDs (for example `tatoo1.webp`,
 `tatooine-planet.webp`, and `trappist-e.webp`). `BodyTextures.CURATED_DEFINITIONS`
 is the allowlist; scenario data cannot select arbitrary texture URLs.
 
+The matching 640 x 360 WebP info-panel portraits in `assets/objects/curated/`
+are rendered from these same maps with the application's sphere renderer,
+including stellar emission and planetary lighting. They carry the caption
+"Artistic illustration" and do not replace any Solar reference photographs.
+After changing generated maps, regenerate the portraits with
+`node tools/render-curated-portraits.js` (requires the existing Playwright
+Chromium installation). Generation reads only bundled assets, with no network
+downloads; displaying the portraits needs neither WebGL nor a server.
+
 ## Solar System Scope maps
 
 The Sun, eight planets, and Moon are adapted from the 2K texture pack at

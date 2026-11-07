@@ -247,6 +247,78 @@ test('editable system selection, deletion, restore, and schematic images',async(
   await expect(page.locator('#legend')).toContainText('Earth');
   await expect(page.locator('#modelOut')).toHaveText('JPL EPHEMERIS');
 });
+test('all curated info panels use matching portraits through sharing and offline reload',async({page,context})=>{
+  const requested=[];
+  page.on('request',request=>{
+    if(request.url().includes('/assets/objects/curated/')) requested.push(request.url());
+  });
+  await open(page);
+  expect(requested).toEqual([]);
+  const systems=require('../../data/curated-systems.js').SYSTEMS
+    .filter(system=>system.mode!=='solar');
+  const portraits=new Set();
+  const expectPortrait=async body=>{
+    await expect(page.locator('#cardName')).toHaveText(body.name);
+    await expect(page.locator('#cardImage')).toHaveAttribute('src',
+      'assets/objects/curated/'+body.id+'.webp');
+    await expect.poll(()=>page.locator('#cardImage').evaluate(image=>
+      [image.naturalWidth,image.naturalHeight])).toEqual([640,360]);
+    await expect(page.locator('#cardImage')).toHaveAttribute('alt',
+      body.name+' - artistic illustration');
+    await expect(page.locator('#cardImageCaption')).toBeVisible();
+    await expect(page.locator('#cardImageCaption')).toHaveText('Artistic illustration');
+    await expect(page.locator('#cardImageLink')).toHaveCount(0);
+  };
+  for(const system of systems){
+    await loadCurated(page,system.id);
+    for(const body of system.bodies){
+      const button=page.locator('#legend').getByRole('button',{name:body.name,exact:true});
+      if(body.parentId && !await button.isVisible()){
+        const parent=system.bodies.find(candidate=>candidate.id===body.parentId);
+        await page.locator('#legend').getByRole('button',{name:parent.name,exact:true}).click();
+      }
+      await button.click();
+      await expectPortrait(body);
+      portraits.add(await page.locator('#cardImage').evaluate(image=>{
+        const canvas=document.createElement('canvas');
+        canvas.width=64; canvas.height=36;
+        canvas.getContext('2d').drawImage(image,0,0,64,36);
+        return canvas.toDataURL();
+      }));
+    }
+  }
+  expect(portraits.size).toBe(29);
+  expect(new Set(requested).size).toBe(29);
+  await page.locator('#shareScenarioBtn').click();
+  const shared=Scenario.scenarioFromUrl(page.url());
+  const lastBody=systems.at(-1).bodies.at(-1);
+  expect(shared.selectedId).toBe(lastBody.id);
+  await page.reload();
+  await expectPortrait(lastBody);
+  const renamed={...lastBody,name:'Renamed world'};
+  shared.system.bodies.find(body=>body.id===lastBody.id).name=renamed.name;
+  shared.selected=renamed.name;
+  if(shared.follow===lastBody.name) shared.follow=renamed.name;
+  await context.setOffline(true);
+  await open(page,shared,pathToFileURL(path.resolve(__dirname,'../../solar-system.html')).href);
+  await expectPortrait(renamed);
+  await context.setOffline(false);
+  await loadCurated(page,'solar-system');
+  const credits=require('../../assets/objects/credits.json');
+  for(const name of ['Earth','Sun']){
+    await page.locator('#legend').getByRole('button',{name,exact:true}).click();
+    await expect(page.locator('#cardImage')).toHaveAttribute('src',credits[name].src);
+    await expect.poll(()=>page.locator('#cardImage').evaluate(image=>image.naturalWidth))
+      .toBeGreaterThan(0);
+    await expect(page.locator('#cardImageCaption')).toBeHidden();
+    await expect(page.locator('#cardImageLink')).toHaveAttribute('href',credits[name].source);
+  }
+  await page.route('**/assets/objects/curated/'+lastBody.id+'.webp',route=>route.abort());
+  await open(page,shared);
+  await expect(page.locator('#cardImageCaption')).toContainText('unavailable');
+  await expect(page.locator('#cardImage')).toHaveAttribute('src',/^data:image\/svg/);
+  await expect(page.locator('#cardImageLink')).toHaveCount(0);
+});
 test('future date preparation yields and keeps controls responsive',async({page})=>{
   await open(page);
   await page.locator('#missionBtn').click();

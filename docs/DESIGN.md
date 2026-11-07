@@ -72,6 +72,16 @@ Reference images link directly to their original Wikimedia source page in a
 new tab. Author, license, and modification notices remain in the link tooltip
 and attribution manifest, without a caption or separate credits section.
 
+The 29 non-Solar curated bodies instead use static WebP portraits in
+`assets/objects/curated/`, rendered from their generated surface materials by
+`tools/render-curated-portraits.js`. `ObjectImages` uses the shared
+`BodyTextures.CURATED_DEFINITIONS` allowlist and stable body IDs before consulting
+the name-based photographic catalog. Renaming and shared scenarios retain the
+correct portrait; arbitrary IDs cannot select asset paths. These images show
+the caption "Artistic illustration" without a photographic source link.
+They retain lazy loading, direct-file support, and explicit failure notices,
+without requiring WebGL in the info panel or altering Solar imagery.
+
 ### Editable systems
 
 Body dropdowns share `src/body-select.js`: native option groups identify
