@@ -29,7 +29,7 @@
     if(body.kind==='custom' || body.kind==='lagrange') return illustration(body);
     if(Object.hasOwn(bodyTextures.CURATED_DEFINITIONS,body.id)){
       return {
-        src:'assets/objects/curated/'+body.id+'.webp',
+        src:'assets/objects/curated/'+body.id+'.webp?v=2',
         alt:body.name+' - artistic illustration',
         caption:'Artistic illustration',
         source:null

@@ -141,6 +141,8 @@ The belt is absent from custom/editable systems.
   The non-Solar planets and stars have matching generated surface textures and
   raster info-panel portraits labeled "Artistic illustration"; the Solar preset
   retains its existing observation-based maps and reference photographs.
+  Info-panel values distinguish arbitrary assumptions, approximate references,
+  estimates, and simulation results, including Alpha Centauri's demo-scale orbits.
   Loading pauses playback, fits the view, and clears system-specific tools.
   The Solar entry restores the original preset; the other entries are editable,
   explicitly illustrative N-body models with barycentric stellar orbit guides.

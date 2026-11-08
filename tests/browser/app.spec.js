@@ -238,6 +238,8 @@ test('editable system selection, deletion, restore, and schematic images',async(
   await expect(page.locator('#modelOut')).toContainText('EDITABLE');
   await expect(page.locator('#cardImage')).toHaveAttribute('src',/^data:image\/svg/);
   await expect(page.locator('#cardImageLink')).toHaveCount(0);
+  await expect(page.locator('.card-provenance:visible')).toHaveCount(0);
+  await expect(page.locator('#cardProvenanceNote')).toBeHidden();
   await page.locator('#shareScenarioBtn').click();
   await page.reload();
   await expect(page.locator('#cardName')).toHaveText(body.name);
@@ -247,20 +249,20 @@ test('editable system selection, deletion, restore, and schematic images',async(
   await expect(page.locator('#legend')).toContainText('Earth');
   await expect(page.locator('#modelOut')).toHaveText('JPL EPHEMERIS');
 });
-test('all curated info panels use matching portraits through sharing and offline reload',async({page,context})=>{
+test('all curated info panels show portraits and provenance through sharing and offline reload',async({page,context})=>{
   const requested=[];
   page.on('request',request=>{
     if(request.url().includes('/assets/objects/curated/')) requested.push(request.url());
   });
   await open(page);
   expect(requested).toEqual([]);
-  const systems=require('../../data/curated-systems.js').SYSTEMS
-    .filter(system=>system.mode!=='solar');
+  const Curated=require('../../data/curated-systems.js');
+  const systems=Curated.SYSTEMS.filter(system=>system.mode!=='solar');
   const portraits=new Set();
   const expectPortrait=async body=>{
     await expect(page.locator('#cardName')).toHaveText(body.name);
     await expect(page.locator('#cardImage')).toHaveAttribute('src',
-      'assets/objects/curated/'+body.id+'.webp');
+      'assets/objects/curated/'+body.id+'.webp?v=2');
     await expect.poll(()=>page.locator('#cardImage').evaluate(image=>
       [image.naturalWidth,image.naturalHeight])).toEqual([640,360]);
     await expect(page.locator('#cardImage')).toHaveAttribute('alt',
@@ -268,6 +270,18 @@ test('all curated info panels use matching portraits through sharing and offline
     await expect(page.locator('#cardImageCaption')).toBeVisible();
     await expect(page.locator('#cardImageCaption')).toHaveText('Artistic illustration');
     await expect(page.locator('#cardImageLink')).toHaveCount(0);
+    await expect(page.locator('#cardImage')).toHaveCSS('background-color','rgb(0, 0, 0)');
+    const provenance=Curated.valueProvenance({
+      ...body,massKg:body.kind==='star'?body.solarMass*1.98847e30:body.earthMass*5.9722e24
+    });
+    const fields={Mass:'mass',Radius:'radius',Dist:'distance',Period:'period',
+      Speed:'speed',Ecc:'eccentricity',Incl:'inclination'};
+    for(const [id,field] of Object.entries(fields)){
+      const origin=provenance[field];
+      await expect(page.locator('#card'+id+'Provenance')).toHaveText(
+        origin[0].toUpperCase()+origin.slice(1));
+    }
+    await expect(page.locator('#cardProvenanceNote')).toHaveText(provenance.note);
   };
   for(const system of systems){
     await loadCurated(page,system.id);
@@ -279,12 +293,28 @@ test('all curated info panels use matching portraits through sharing and offline
       }
       await button.click();
       await expectPortrait(body);
-      portraits.add(await page.locator('#cardImage').evaluate(image=>{
+      const portrait=await page.locator('#cardImage').evaluate(image=>{
         const canvas=document.createElement('canvas');
+        canvas.width=640; canvas.height=360;
+        const context=canvas.getContext('2d',{willReadFrequently:true});
+        context.drawImage(image,0,0);
+        const pixels=context.getImageData(0,0,640,360).data;
+        let blackBackground=true;
+        for(let y=0;y<360;y++){
+          for(let x=0;x<640;x++){
+            // Exclude the stellar glow and WebP filtering around its edge.
+            if((x-320)**2+(y-180)**2<=200**2) continue;
+            const offset=(y*640+x)*4;
+            if(pixels[offset]!==0 || pixels[offset+1]!==0 ||
+              pixels[offset+2]!==0 || pixels[offset+3]!==255) blackBackground=false;
+          }
+        }
         canvas.width=64; canvas.height=36;
         canvas.getContext('2d').drawImage(image,0,0,64,36);
-        return canvas.toDataURL();
-      }));
+        return {preview:canvas.toDataURL(),blackBackground};
+      });
+      expect(portrait.blackBackground,body.name+' has a solid black background').toBe(true);
+      portraits.add(portrait.preview);
     }
   }
   expect(portraits.size).toBe(29);
@@ -312,12 +342,55 @@ test('all curated info panels use matching portraits through sharing and offline
       .toBeGreaterThan(0);
     await expect(page.locator('#cardImageCaption')).toBeHidden();
     await expect(page.locator('#cardImageLink')).toHaveAttribute('href',credits[name].source);
+    await expect(page.locator('.card-provenance:visible')).toHaveCount(0);
+    await expect(page.locator('#cardProvenanceNote')).toBeHidden();
   }
-  await page.route('**/assets/objects/curated/'+lastBody.id+'.webp',route=>route.abort());
+  await page.route('**/assets/objects/curated/'+lastBody.id+'.webp*',route=>route.abort());
   await open(page,shared);
   await expect(page.locator('#cardImageCaption')).toContainText('unavailable');
   await expect(page.locator('#cardImage')).toHaveAttribute('src',/^data:image\/svg/);
   await expect(page.locator('#cardImageLink')).toHaveCount(0);
+});
+test('curated provenance distinguishes edited values and fits smaller viewports',async({page})=>{
+  await open(page);
+  await loadCurated(page,'kepler-442');
+  await page.locator('#legend').getByRole('button',{name:'Kepler-442 b',exact:true}).click();
+  await expect(page.locator('#cardMassProvenance')).toHaveText('Estimated');
+  await expect(page.locator('#cardRadiusProvenance')).toHaveText('Approximate');
+  await expect(page.locator('#cardEccProvenance')).toHaveText('Arbitrary');
+  await expect(page.locator('#cardDistProvenance')).toHaveText('Simulated');
+  await page.locator('#shareScenarioBtn').click();
+  const shared=Scenario.scenarioFromUrl(page.url());
+  const body=shared.system.bodies.find(body=>body.id==='kepler-442-b');
+  body.massKg*=2;
+  body.mu*=2;
+  body.radius*=1.1;
+  body.name='Edited world';
+  shared.selected=body.name;
+  if(shared.follow) shared.follow=body.name;
+  await open(page,shared);
+  await expect(page.locator('#cardName')).toHaveText(body.name);
+  await expect(page.locator('#cardMassProvenance')).toHaveText('Edited');
+  await expect(page.locator('#cardRadiusProvenance')).toHaveText('Edited');
+  await expect(page.locator('#cardInclProvenance')).toHaveText('Arbitrary');
+  await expect(page.locator('#cardProvenanceNote')).toContainText('Preset:');
+  await loadCurated(page,'alpha-centauri');
+  await page.locator('#legend').getByRole('button',{name:'Proxima Cen',exact:true}).click();
+  await page.locator('#legend').getByRole('button',{name:'Proxima d',exact:true}).click();
+  await expect(page.locator('#cardProvenanceNote')).toContainText(
+    'compressed to 0.23 and 2.6 AU');
+  await expect(page.locator('#cardRadiusProvenance')).toHaveText('Arbitrary');
+  for(const viewport of [{width:1440,height:1000},{width:1280,height:720},{width:390,height:844}]){
+    await page.setViewportSize(viewport);
+    await expect.poll(async()=>{
+      const box=await page.locator('#card').boundingBox();
+      return box.y>=0 && box.y+box.height<=viewport.height &&
+        box.x>=0 && box.x+box.width<=viewport.width;
+    }).toBe(true);
+    await page.locator('#cardProvenanceNote').scrollIntoViewIfNeeded();
+    await expect(page.locator('#cardProvenanceNote')).toBeInViewport();
+    expect(await page.locator('#card').evaluate(card=>card.scrollWidth<=card.clientWidth)).toBe(true);
+  }
 });
 test('future date preparation yields and keeps controls responsive',async({page})=>{
   await open(page);

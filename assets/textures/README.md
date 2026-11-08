@@ -26,7 +26,8 @@ is the allowlist; scenario data cannot select arbitrary texture URLs.
 
 The matching 640 x 360 WebP info-panel portraits in `assets/objects/curated/`
 are rendered from these same maps with the application's sphere renderer,
-including stellar emission and planetary lighting. They carry the caption
+including stellar emission and planetary lighting against a solid black
+background matching the Solar info panels. They carry the caption
 "Artistic illustration" and do not replace any Solar reference photographs.
 After changing generated maps, regenerate the portraits with
 `node tools/render-curated-portraits.js` (requires the existing Playwright

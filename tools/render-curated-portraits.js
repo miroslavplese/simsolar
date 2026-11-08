@@ -59,7 +59,7 @@ async function main(){
           ready=()=>{clearTimeout(timeout);resolve();};
           renderer.draw(body,context,320,180,140,{});
         });
-        context.fillStyle='#080e1b';
+        context.fillStyle='#000';
         context.fillRect(0,0,640,360);
         if(body.kind==='star'){
           const glow=context.createRadialGradient(320,180,130,320,180,180);

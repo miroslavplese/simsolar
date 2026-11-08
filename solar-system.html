@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SimSolar — Solar System &amp; Spacecraft Trajectories</title>
-<link rel="stylesheet" href="src/app.css">
+<link rel="stylesheet" href="src/app.css?v=20261107-1">
 </head>
 <body>
 <div id="stage">
@@ -359,13 +359,14 @@ Velocity: not set</div>
       <div id="cardImageContainer"></div>
       <figcaption id="cardImageCaption" hidden></figcaption>
     </figure>
-    <div class="row"><span>Mass</span><span id="cardMass">—</span></div>
-    <div class="row" id="rowRadius"><span>Radius</span><span id="cardRadius">—</span></div>
-    <div class="row" id="rowDist"><span>Distance from Sun</span><span id="cardDist">—</span></div>
-    <div class="row" id="rowPeriod"><span>Orbital period</span><span id="cardPeriod">—</span></div>
-    <div class="row" id="rowSpeed"><span>Speed</span><span id="cardSpeed">—</span></div>
-    <div class="row" id="rowEcc"><span>Eccentricity</span><span id="cardEcc">—</span></div>
-    <div class="row" id="rowIncl"><span>Inclination</span><span id="cardIncl">—</span></div>
+    <div class="row"><span>Mass</span><span class="card-value"><span id="cardMass">—</span><small class="card-provenance" id="cardMassProvenance" hidden></small></span></div>
+    <div class="row" id="rowRadius"><span>Radius</span><span class="card-value"><span id="cardRadius">—</span><small class="card-provenance" id="cardRadiusProvenance" hidden></small></span></div>
+    <div class="row" id="rowDist"><span>Distance from Sun</span><span class="card-value"><span id="cardDist">—</span><small class="card-provenance" id="cardDistProvenance" hidden></small></span></div>
+    <div class="row" id="rowPeriod"><span>Orbital period</span><span class="card-value"><span id="cardPeriod">—</span><small class="card-provenance" id="cardPeriodProvenance" hidden></small></span></div>
+    <div class="row" id="rowSpeed"><span>Speed</span><span class="card-value"><span id="cardSpeed">—</span><small class="card-provenance" id="cardSpeedProvenance" hidden></small></span></div>
+    <div class="row" id="rowEcc"><span>Eccentricity</span><span class="card-value"><span id="cardEcc">—</span><small class="card-provenance" id="cardEccProvenance" hidden></small></span></div>
+    <div class="row" id="rowIncl"><span>Inclination</span><span class="card-value"><span id="cardIncl">—</span><small class="card-provenance" id="cardInclProvenance" hidden></small></span></div>
+    <div class="note" id="cardProvenanceNote" hidden></div>
     <div class="note" id="cardNote"></div>
     <a id="cardWiki" href="#" target="_blank" rel="noopener noreferrer">Wikipedia</a>
     <a id="cardMission" href="#" target="_blank" rel="noopener noreferrer" hidden>Official mission</a>
@@ -434,7 +435,7 @@ Velocity: not set</div>
 <script src="src/body-rendering.js?v=20260826-1"></script>
 <script src="src/ring-system.js"></script>
 <script src="src/body-textures.js?v=20260826-1"></script>
-<script src="src/object-images.js?v=20261107-1"></script>
+<script src="src/object-images.js?v=20261107-2"></script>
 <script src="src/body-placement.js"></script>
 <script src="src/body-lighting.js"></script>
 <script src="src/moon-system.js"></script>
@@ -443,8 +444,8 @@ Velocity: not set</div>
 <script src="src/collision-system.js?v=20260827-1"></script>
 <script src="src/nbody-simulation.js?v=20260820-1"></script>
 <script src="src/hierarchical-moon-simulation.js"></script>
-<script src="data/curated-systems.js"></script>
+<script src="data/curated-systems.js?v=20261107-1"></script>
 <script src="src/curated-systems-ui.js"></script>
-<script src="src/app.js?v=2"></script>
+<script src="src/app.js?v=3"></script>
 </body>
 </html>

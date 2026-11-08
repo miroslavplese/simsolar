@@ -4316,9 +4316,46 @@
     container:document.getElementById('cardImageContainer'),
     caption:document.getElementById('cardImageCaption')
   });
+  const CARD_VALUE_ORIGINS={
+    arbitrary:{
+      label:'Arbitrary',
+      description:'Chosen for the model, or calculated from invented inputs; not measured.'
+    },
+    approximate:{label:'Approximate',description:'Rounded reference parameter, not an exact measurement.'},
+    estimated:{label:'Estimated',description:'Inferred or estimated, not directly measured.'},
+    simulated:{label:'Simulated',description:'Calculated from the simulation, not an observation.'},
+    edited:{label:'Edited',description:'Changed from the curated reference value; no measured provenance is claimed.'}
+  };
+  const cardProvenanceFields=Object.entries({
+    Mass:'mass',Radius:'radius',Dist:'distance',Period:'period',
+    Speed:'speed',Ecc:'eccentricity',Incl:'inclination'
+  }).map(([id,field])=>({
+    element:document.getElementById('card'+id+'Provenance'),field
+  }));
+  const cardProvenanceNote=document.getElementById('cardProvenanceNote');
+  function updateCardProvenance(body){
+    const provenance=CuratedSystems.valueProvenance(body);
+    for(const {element,field} of cardProvenanceFields){
+      const origin=provenance?.[field];
+      element.hidden=!origin;
+      if(origin){
+        const {label,description}=CARD_VALUE_ORIGINS[origin];
+        element.textContent=label;
+        element.title=description;
+        element.dataset.origin=origin;
+      } else {
+        element.textContent='';
+        element.removeAttribute('title');
+        delete element.dataset.origin;
+      }
+    }
+    cardProvenanceNote.hidden=!provenance;
+    cardProvenanceNote.textContent=provenance?.note||'';
+  }
 
   function updateCard(){
     cardImages.show(selected);
+    updateCardProvenance(selected);
     const pos = positionForBody(selected, simDaysSinceJ2000);
     const kindLabel=selected.category ||
       (selected.kind==='sun'?'Star':selected.kind==='planet'?'Planet':

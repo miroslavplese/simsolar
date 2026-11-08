@@ -16,6 +16,12 @@
   const EARTH_MASS_KG=5.9722e24;
   const STATE_KEYS=model.STATE_KEYS;
   const MODEL_NOTE='Illustrative N-body model, not an observed ephemeris.';
+  const REFERENCE_PARAMETERS={
+    mass:'approximate',radius:'approximate',orbit:'simulated',eccentricity:'simulated'
+  };
+  const ARBITRARY_PARAMETERS={
+    mass:'arbitrary',radius:'arbitrary',orbit:'arbitrary',eccentricity:'arbitrary'
+  };
 
   // Rounded example parameters and their limitations are documented in DESIGN.md.
   // Distances are AU, angles degrees, radii km, and epochs days since J2000.
@@ -26,6 +32,8 @@
     },
     {
       id:'tatooine',name:'Tatooine',
+      parameterOrigins:ARBITRARY_PARAMETERS,
+      parameterNote:'Fictional system. Arbitrary labels also cover results calculated from invented inputs.',
       description:'A fictional Star Wars-inspired model: two close stars and a desert planet orbiting their barycenter. Masses and orbits are invented for exploration.',
       bodies:[
         {id:'tatoo1',name:'Tatoo I',kind:'star',solarMass:0.9,color:'#ffd36a',radius:627000},
@@ -35,6 +43,11 @@
     },
     {
       id:'alpha-centauri',name:'Alpha Centauri',
+      parameterOrigins:{
+        ...REFERENCE_PARAMETERS,orbit:'arbitrary',eccentricity:'arbitrary',
+        bodies:{'proxima-d':{mass:'estimated',radius:'arbitrary'}}
+      },
+      parameterNote:'Stellar orbits are compressed to 0.23 and 2.6 AU for the demo, changing the dynamics. Proxima d has an illustrative radius.',
       description:'An illustrative hierarchical triple with Proxima d orbiting Proxima Centauri. Stellar separations are compressed; this is not the measured Alpha Centauri system.',
       bodies:[
         {id:'alfa-cen-a',name:'Alpha Cen A',kind:'star',solarMass:1.1,color:'#ffe4a3',radius:760000},
@@ -45,6 +58,8 @@
     },
     {
       id:'trappist-1',name:'TRAPPIST-1',
+      parameterOrigins:REFERENCE_PARAMETERS,
+      parameterNote:'Inclinations and phases are chosen for the model. Fitted eccentricity vectors and resonant phases are not reproduced.',
       description:'Seven roughly Earth-sized planets around an ultra-cool dwarf. Rounded masses and orbital sizes illustrate a compact system; the observed resonant phases are not reproduced.',
       bodies:[
         {id:'trappist-star',name:'TRAPPIST-1',kind:'star',solarMass:0.0898,color:'#ff6633',radius:83000},
@@ -59,6 +74,8 @@
     },
     {
       id:'kepler-16',name:'Kepler-16',
+      parameterOrigins:REFERENCE_PARAMETERS,
+      parameterNote:'Inclinations and phases are chosen for the model. Simulated orbital values are not observations.',
       description:'An approximate model of the first confirmed transiting circumbinary planet. A Saturn-mass planet orbits a stellar pair; orbital orientation and phase are illustrative.',
       bodies:[
         {id:'kepler-16-a',name:'Kepler-16 A',kind:'star',solarMass:0.6897,color:'#ffb357',radius:452000},
@@ -68,6 +85,8 @@
     },
     {
       id:'hd-189733',name:'HD 189733',
+      parameterOrigins:REFERENCE_PARAMETERS,
+      parameterNote:'Inclinations and phases are chosen for the model. Simulated orbital values are not observations.',
       description:'An approximate hot-Jupiter model with a roughly 2.2-day orbit. The distant stellar companion and atmospheric weather are not simulated.',
       bodies:[
         {id:'hd-189733-a',name:'HD 189733 A',kind:'star',solarMass:0.719,color:'#ffb753',radius:531000},
@@ -76,6 +95,8 @@
     },
     {
       id:'binary-duet',name:'Binary Duet',
+      parameterOrigins:ARBITRARY_PARAMETERS,
+      parameterNote:'Idealized experiment. Arbitrary labels also cover results calculated from invented inputs.',
       description:'An idealized circular binary: two equal-mass stars orbit their common barycenter at 5 AU separation.',
       bodies:[
         {id:'binary-a',name:'Star A',kind:'star',solarMass:0.5,color:'#ffd36a',radius:650000},
@@ -84,6 +105,11 @@
     },
     {
       id:'kepler-442',name:'Kepler-442',
+      parameterOrigins:{
+        ...REFERENCE_PARAMETERS,
+        bodies:{'kepler-442-b':{mass:'estimated',eccentricity:'arbitrary'}}
+      },
+      parameterNote:'The planet mass is estimated, not dynamically measured. Its eccentricity, orbital orientation, and phase are model assumptions.',
       description:'A super-Earth candidate for habitability orbiting a K-type star. The planet mass is estimated; this schematic model does not establish surface conditions or habitability.',
       bodies:[
         {id:'kepler-442-star',name:'Kepler-442',kind:'star',solarMass:0.61,color:'#ffb653',radius:418000},
@@ -92,6 +118,8 @@
     },
     {
       id:'compact-four',name:'Compact Four',
+      parameterOrigins:ARBITRARY_PARAMETERS,
+      parameterNote:'Hypothetical system. Arbitrary labels also cover results calculated from invented inputs.',
       description:'Four hypothetical Earth-mass planets within 0.1 AU. Explore fast orbits and mutual gravitational perturbations; this is not an observed resonant system.',
       bodies:[
         {id:'compact-star',name:'Central Star',kind:'star',solarMass:0.8,color:'#ff866e',radius:580000},
@@ -102,6 +130,27 @@
       ]
     }
   ];
+
+  const BODY_CATALOG=new Map(SYSTEMS.flatMap(system=>
+    (system.bodies||[]).map(body=>[body.id,{body,system}])
+  ));
+  function valueProvenance(body){
+    const entry=BODY_CATALOG.get(body?.id);
+    if(!entry || body.kind!==entry.body.kind) return null;
+    const origins={
+      ...entry.system.parameterOrigins,
+      ...entry.system.parameterOrigins.bodies?.[body.id]
+    };
+    const mass=entry.body.kind==='star'
+      ? entry.body.solarMass*SOLAR_MASS_KG : entry.body.earthMass*EARTH_MASS_KG;
+    return {
+      mass:body.massKg===mass ? origins.mass : 'edited',
+      radius:body.radius===entry.body.radius ? origins.radius : 'edited',
+      distance:origins.orbit,period:origins.orbit,speed:origins.orbit,
+      eccentricity:origins.eccentricity,inclination:'arbitrary',
+      note:'Preset: '+entry.system.parameterNote
+    };
+  }
 
   function orbitalState(body,mu,phase){
     const e=body.e??0, inclination=body.i??0;
@@ -203,7 +252,7 @@
   }
 
   return {
-    SYSTEMS,buildEditableSystem,
+    SYSTEMS,buildEditableSystem,valueProvenance,
     findById:id=>SYSTEMS.find(system=>system.id===id)||null
   };
 });

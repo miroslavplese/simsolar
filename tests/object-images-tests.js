@@ -22,11 +22,11 @@ assert.deepEqual(curatedBodies.map(body=>body.id).sort(),Object.keys(CURATED_DEF
 const portraitHashes=new Set();
 for(const body of curatedBodies){
   const record=images.forBody(body,credits);
-  assert.equal(record.src,'assets/objects/curated/'+body.id+'.webp');
+  assert.equal(record.src,'assets/objects/curated/'+body.id+'.webp?v=2');
   assert.equal(record.caption,'Artistic illustration');
   assert.equal(record.alt,body.name+' - artistic illustration');
   assert.equal(record.source,null,'generated art must not link to an unrelated photograph');
-  const image=fs.readFileSync(path.join(__dirname,'..',record.src));
+  const image=fs.readFileSync(path.join(__dirname,'..',record.src.split('?')[0]));
   assert.ok(image.length>1000,body.id+' has a detailed portrait');
   assert.equal(image.toString('ascii',0,4),'RIFF');
   assert.equal(image.toString('ascii',8,12),'WEBP');

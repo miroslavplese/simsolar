@@ -161,6 +161,21 @@ sources and additional limitations:
 | Alpha Centauri | Deliberately compressed stellar separations of 0.23 and 2.6 AU, circular stellar orbits, and a schematic Proxima d. Its radius and orientation are illustrative; the model is not the measured triple system and does not place Proxima d in a claimed habitable zone. |
 | Tatooine, Binary Duet, Compact Four | Fictional or idealized experiments with explicitly chosen masses and orbits. Compact Four is not an observed resonant system. |
 
+Non-Solar curated info panels label each numeric field with its provenance:
+**Arbitrary** for chosen inputs or results derived from invented/compressed
+setups, **Approximate** for rounded reference parameters, **Estimated** for
+inferred values, and **Simulated** for calculated orbital quantities rather
+than observations. Inclination is relative to the arbitrary display plane.
+TRAPPIST-1's displayed eccentricities are simulated, not the fitted observed
+eccentricity vectors; Kepler-442 b's assumed eccentricity is marked arbitrary.
+Proxima d's illustrative radius and estimated mass are labeled separately.
+Alpha Centauri cards explicitly state the 0.23/2.6 AU demo compression, which
+changes the physical dynamics, not just the camera scale.
+Labels are resolved from the catalog by stable body ID without adding metadata
+to shared scenarios. Changed masses or radii become **Edited**, rather than
+retaining reference provenance. Solar and unrelated custom-body cards do not
+inherit these labels. Display precision is not a claim of measurement accuracy.
+
 `SystemModel.orbitReference` supplies the same parent/group reference to orbit
 guides, Observatory paths, and instantaneous orbital-element cards. Binary
 stellar conics are scaled from the relative orbit to each star's barycentric
