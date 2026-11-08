@@ -1,21 +1,7 @@
-const {test,expect}=require('@playwright/test');
+const {test,expect,scenario,open,loadCurated,base}=require('./harness.js');
 const {pathToFileURL}=require('node:url');
 const path=require('node:path');
 const Scenario=require('../../src/scenario-state.js');
-const base='http://127.0.0.1:4173/';
-function scenario(overrides={}){
-  return {
-    v:3,t:5672,playing:false,speed:0.69897,direction:1,
-    selected:null,follow:null,
-    view:{zoom:0.28,panX:0,panY:0,yaw:0,tilt:0.4},
-    layers:{spacecraft:true,comets:true,lagrange:false,rotating:false},
-    observatory:null,missionPlan:null,system:null,...overrides
-  };
-}
-async function open(page,state=scenario(),url=base+'solar-system.html'){
-  await page.goto(Scenario.urlWithScenario(url,state));
-  await expect(page.locator('#dateInput')).not.toHaveValue('');
-}
 async function expectCuratedArtwork(page){
   const images=page.locator('.curated-card img');
   await expect(images).toHaveCount(9);
@@ -25,23 +11,6 @@ async function expectCuratedArtwork(page){
       `assets/curated-systems/${image.closest('.curated-card').dataset.id}.webp`
   ))).toBe(true);
 }
-test.beforeEach(async({page})=>{
-  await page.addInitScript(()=>{
-    localStorage.setItem('tutorial:simsolar_tutorial_complete','1');
-  });
-});
-test.afterEach(async({page},info)=>{
-  const errors=await page.evaluate(()=>window.__testErrors||[]).catch(()=>[]);
-  expect(errors,info.title+' browser errors').toEqual([]);
-});
-test.beforeEach(async({page})=>{
-  await page.addInitScript(()=>{
-    window.__testErrors=[];
-    window.addEventListener('error',event=>window.__testErrors.push(event.message));
-    window.addEventListener('unhandledrejection',event=>
-      window.__testErrors.push(String(event.reason)));
-  });
-});
 test('static entry, direct-file launch, and v1/v2/v3 scenario links',async({page})=>{
   for(const version of [1,2,3]){
     await open(page,scenario({v:version,selected:'Earth',follow:'Earth'}),base);
@@ -92,6 +61,7 @@ test('observatory, telescope, and scenario round trip',async({page})=>{
   await expect(page.locator('#stage')).not.toHaveClass(/observatory-active/);
 });
 test('mission planning, save/load, and cockpit',async({page})=>{
+  await page.clock.setFixedTime(new Date('2015-07-13T12:00:00Z'));
   await open(page);
   const worker=page.waitForEvent('worker');
   await page.locator('#plannerBtn').click();
@@ -112,6 +82,7 @@ test('mission planning, save/load, and cockpit',async({page})=>{
   await expect(page.locator('#stage')).not.toHaveClass(/spacecraft-view-active/);
 });
 test('direct-file mission search uses the cooperative fallback',async({page})=>{
+  await page.clock.setFixedTime(new Date('2015-07-13T12:00:00Z'));
   await open(page,scenario(),pathToFileURL(path.resolve(__dirname,'../../solar-system.html')).href);
   await page.locator('#plannerBtn').click();
   await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
@@ -250,6 +221,8 @@ test('editable system selection, deletion, restore, and schematic images',async(
   await expect(page.locator('#modelOut')).toHaveText('JPL EPHEMERIS');
 });
 test('all curated info panels show portraits and provenance through sharing and offline reload',async({page,context})=>{
+  // All 29 portraits, reloads, and V8 coverage teardown exceed the default budget.
+  test.setTimeout(120000);
   const requested=[];
   page.on('request',request=>{
     if(request.url().includes('/assets/objects/curated/')) requested.push(request.url());
@@ -692,12 +665,6 @@ test('mobile viewport and tutorial remain usable',async({page})=>{
   await expect(page.locator('#missionPanel')).toBeVisible();
 });
 
-async function loadCurated(page,id){
-  await page.locator('#curatedBtn').click();
-  await page.locator(`.curated-card[data-id="${id}"]`).click();
-  await expect(page.locator('#curatedBtn')).toHaveAttribute('aria-expanded','false');
-}
-
 test('curated library loads all examples with valid cards and resets the real Solar preset',async({page})=>{
   await open(page,scenario({selected:'Earth',follow:'Earth'}));
   await page.locator('#curatedBtn').click();
@@ -757,6 +724,7 @@ test('curated library loads all examples with valid cards and resets the real So
 });
 
 test('curated switch invalidates solved missions and refreshes all catalogs',async({page})=>{
+  await page.clock.setFixedTime(new Date('2015-07-13T12:00:00Z'));
   await open(page);
   await page.locator('#plannerBtn').click();
   await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
@@ -829,7 +797,7 @@ test('compact curated planets remain bound through actual application integratio
 
 test('curated observatory, binary references, and body metadata survive sharing',async({page})=>{
   await page.route('**/src/body-textures.js*',async route=>{
-    const response=await route.fetch();
+    const response=await route.fetch({maxRetries:2});
     await route.fulfill({response,body:await response.text()+`
       (function(){
         const create=BodyTextures.createRenderer;

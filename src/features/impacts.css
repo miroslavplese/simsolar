@@ -1,0 +1,13 @@
+#impactPanel{
+    position:absolute; top:74px; left:580px; width:260px;
+    background:rgba(17,22,42,0.96); border:1px solid #8c5964; border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+#impactPanel .heading{ color:#ff8f9f; font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+#impactStatus{ color:var(--ink-dim); font-size:8.5px; line-height:1.5; white-space:pre-line; }
+#impactPanel .actions{ display:flex; gap:6px; margin-top:9px; }
+#impactPanel .actions button{ flex:1; }
+#impactMergeBtn:disabled{ opacity:.35; cursor:not-allowed; }
+@media (max-width:760px){
+#impactPanel{ left:20px; top:400px; width:230px; }
+}

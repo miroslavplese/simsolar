@@ -1,0 +1,64 @@
+#plannerPanel{
+    position:absolute; top:74px; right:20px; width:min(620px,calc(100vw - 40px));
+    max-height:calc(100vh - 150px); overflow:auto;
+    background:rgba(17,22,42,0.96); border:1px solid #66552f; border-radius:12px;
+    padding:12px; backdrop-filter:blur(12px); font-family:var(--mono);
+  }
+#plannerPanel .heading{ color:var(--accent); font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:9px; }
+.plannerTop{ display:grid; grid-template-columns:1fr auto auto; gap:6px; margin-right:28px; }
+#plannerPanel input, #plannerPanel select{
+    min-width:0; height:29px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); font:9px var(--mono); padding:0 7px;
+    color-scheme:dark;
+  }
+#plannerLibrary{ max-width:185px; }
+.plannerTabs{ display:flex; gap:4px; margin:10px 0; border-bottom:1px solid var(--line); }
+.plannerTabs button{
+    flex:1; padding:7px 4px; border:0; border-bottom:2px solid transparent;
+    background:transparent; color:var(--ink-dim); cursor:pointer; font:8.5px var(--mono);
+  }
+.plannerTabs button.active{ color:var(--accent); border-bottom-color:var(--accent); }
+.plannerPane{ display:none; }
+.plannerPane.active{ display:block; }
+.plannerGrid{ display:grid; grid-template-columns:1fr 1fr; gap:9px 12px; }
+.plannerField{ display:flex; flex-direction:column; gap:4px; color:#7d87ab; font-size:8px; letter-spacing:.06em; text-transform:uppercase; }
+.plannerDateRange{ display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+.plannerActions{ display:flex; gap:6px; justify-content:flex-end; margin-top:10px; }
+.plannerActions .primary{ border-color:#806a35; color:var(--accent); }
+#plannerAssistList{ display:flex; flex-direction:column; gap:6px; }
+.plannerAssist{ display:grid; grid-template-columns:1fr 1.2fr 1.2fr .8fr 28px; gap:5px; }
+.plannerIconButton{ border:1px solid var(--line); border-radius:7px; background:#161c34; color:var(--ink-dim); cursor:pointer; }
+.plannerEmpty{ padding:16px 8px; text-align:center; color:#687295; font-size:9px; line-height:1.5; }
+#plannerRouteList{ display:flex; flex-direction:column; gap:5px; max-height:235px; overflow:auto; }
+.plannerRoute{
+    display:flex; flex-direction:column; gap:4px; width:100%; padding:8px;
+    border:1px solid var(--line); border-radius:8px; background:#10162a;
+    color:var(--ink); text-align:left; cursor:pointer; font:8.5px var(--mono);
+  }
+.plannerRoute.selected{ border-color:var(--accent); background:#1b2138; }
+.plannerRoute b{ color:var(--accent); font-weight:500; }
+.plannerRoute span{ color:var(--ink-dim); }
+#plannerManeuverList{ display:flex; flex-direction:column; gap:5px; }
+.plannerManeuver{
+    display:grid; grid-template-columns:16px 1fr; width:100%; padding:7px;
+    border:1px solid var(--line); border-radius:8px; background:#10162a;
+    color:var(--ink); text-align:left; cursor:pointer; font:9px var(--mono);
+  }
+.plannerManeuver small{ grid-column:2; color:var(--ink-dim); margin-top:3px; line-height:1.4; }
+.plannerNodeDot{ width:8px; height:8px; margin-top:2px; border-radius:50%; background:#72e6c1; box-shadow:0 0 8px #72e6c1; }
+.plannerNodeDot.flyby{ background:var(--accent); box-shadow:0 0 8px var(--accent); }
+.plannerNodeDot.target{ background:#ff8f9f; box-shadow:0 0 8px #ff8f9f; }
+.plannerMetrics{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.plannerMetric{ padding:9px 7px; border:1px solid var(--line); border-radius:8px; background:#10162a; }
+.plannerMetric span{ display:block; color:#687295; font-size:7.5px; letter-spacing:.07em; text-transform:uppercase; }
+.plannerMetric b{ display:block; color:var(--accent); font-size:11px; margin-top:5px; font-weight:500; }
+#plannerStatus{ min-height:14px; margin-top:8px; color:#72e6c1; font-size:8.5px; }
+#plannerStatus.error{ color:#ff8f9f; }
+@media (max-width:760px){
+#plannerPanel{ top:108px; width:calc(100vw - 40px); max-height:calc(100vh - 180px); }
+.plannerTop, .plannerGrid{ grid-template-columns:1fr; }
+#plannerLibrary{ max-width:none; }
+.plannerAssist{ grid-template-columns:1fr 1fr; }
+.plannerAssist .plannerIconButton{ min-height:28px; }
+.plannerMetrics{ grid-template-columns:1fr 1fr; }
+}

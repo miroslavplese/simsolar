@@ -183,7 +183,12 @@ web server is required.
 | Path | Purpose |
 | --- | --- |
 | `solar-system.html` | Static page shell and ordered script loading; still opens directly |
-| `src/app.js`, `src/app.css` | Application coordination, view rendering, input, and styles |
+| `src/app.js` | Composition root: explicit dependencies, initialization, scenario restore, and page lifecycle |
+| `src/app/` | Catalog instances, simulation state, playback, camera, selection, input, system transitions, and animation |
+| `src/rendering/` | Canvas viewport, visibility, stars, surfaces, orbits, rings, overlays, and three scene renderers |
+| `src/features/` | Feature controllers and their styles: library, planner, timeline, sky events, observatory/clouds, cockpit, editing, impacts, sharing, tutorial, and panels |
+| `src/app.css` | Shared tokens, page layout, controls, panel utilities, and mode visibility |
+| `src/features/body-info.js`, `src/features/body-info.css` | Body-card presentation, provenance, reference links, imagery lifecycle, and responsive styling |
 | `src/spacecraft-catalog.js` | Mission metadata, links, and timeline milestones |
 | `src/scenario-controller.js` | Validated scenario restoration and share-link coordination |
 | `src/work-scheduler.js`, `src/playback-clock.js` | Cooperative work budgets and visibility-aware playback timing |
@@ -306,8 +311,9 @@ web server is required.
 - Custom-system patched-conic planning treats the active massive system as a
   central barycentric gravity source; strongly non-central binary-star routes
   require full N-body mission planning.
-- Chromium interaction regression tests cover major workflows. Cross-browser
-  and broad visual/performance coverage remain future work.
+- Chromium interaction tests and Windows raster baselines cover representative
+  workflows. Firefox/WebKit, real-device testing, and broad performance coverage
+  remain future work.
 - The interface has limited keyboard and screen-reader support.
 
 ## Hybrid gravity model
@@ -376,7 +382,77 @@ The browser suite starts its own loopback-only static server. It exercises
 HTTP and direct-file launch, v1/v2/v3 links, mission planning and cockpit
 restoration, observatory/telescope controls, editable systems, mobile controls,
 recent missions, image loading/failure/offline behavior, and future navigation.
-GitHub Actions runs the numerical and Chromium suites and retains failure traces.
+GitHub Actions runs the numerical and Chromium suites with coverage on Linux,
+plus the visual suite on Windows, and retains coverage, lifecycle measurements,
+and failure traces.
+
+### Refactor regression baseline
+
+When changing component boundaries, run the functional suite above and:
+
+```text
+npm run test:coverage
+npm run test:visual
+```
+
+Coverage requires Node 20.19+ (Node 22 is used in CI). `test:coverage` runs the
+Node and functional browser suites, then combines their V8 coverage into
+`coverage/index.html` and `coverage/coverage-summary.json`. Unloaded `src` modules
+and the curated catalog are included in the denominator. Browser worker execution
+is not collected, and route-instrumented copies of scripts are excluded; their
+ordinary Node/browser executions still contribute. Coverage identifies untested
+lines/functions/branches; it is not proof of correct assertions.
+
+`tests/fixtures/refactor-reference.json` freezes numerical outputs, route results,
+legacy link payloads, and source hashes from revision
+`6fe1c4a708e5213890bf4f8051dd1fa07ccd97ae`. Numerical comparisons use an absolute
+tolerance of `1e-12` plus a relative tolerance of `1e-11`; existing conservation
+and physical-invariant tests remain separate. Legacy browser tests load the
+original v1/v2 payloads directly rather than re-encoding them as v3 first.
+The fixture also records a current limitation: full TRAPPIST-1 snapshots exceed
+the 4,096-character link budget and must fail explicitly, not silently lose bodies.
+
+The six visual baselines cover Solar overview, close Saturn/rings, TRAPPIST-1,
+surface Observatory, restored mission cockpit, and mobile curated UI. They use
+Windows, the lockfile's Chromium build, SwiftShader, fixed scenarios/date,
+locale, timezone, and viewport. Linux intentionally skips these platform-specific
+images; the separate Windows CI job enforces them. Comparison permits at most
+100 changed pixels at Playwright's default color threshold. Missing snapshots
+fail rather than being created during an ordinary run.
+
+Additional guards exercise worker termination, stale weather responses,
+out-of-order scenario restoration, collision merging, and native mouse/touch
+cancellation. Default-mission workflow tests pin wall time to their 2015 fixture
+so launch windows do not drift into progressively longer future integrations;
+dedicated tests separately cover future preparation and cancellation.
+Repeated-mode tests warm both systems before eight measured cycles,
+then require one animation loop, no intervals/workers, no extra documents, at
+most 50 extra DOM nodes, five extra listeners, and less than 8 MiB JS-heap growth
+after garbage collection. A paused-scene p95 frame interval below 250 ms is a
+coarse stall guard, not a 60 FPS guarantee. Measurements are saved under
+`test-results` for comparison across runs; this is not exhaustive leak detection.
+
+Do not regenerate references to make a refactor pass. For an intentional behavior
+change, inspect the difference first, commit the production change, then explicitly
+capture and review new references:
+
+```text
+npm run test:reference:update
+npm run test:visual -- --update-snapshots=all
+```
+
+Numerical capture refuses uncommitted production changes. Visual updates must be
+made on Windows with the pinned browser; review every resulting PNG/diff.
+Keep physics/data changes separate from component extractions.
+
+`tests/app-component-tests.js` also checks independent catalog/camera instances,
+simulation adapters against the frozen curated-system samples, cache invalidation,
+projection and zoom anchors, playback bounds, and single-loop animation
+start/stop/resume, including stale callbacks after a restart. Component factories
+register without touching the DOM; all scripts and feature styles must be declared
+in the static page. Browser guards check public-API wiring, persisted-page resume,
+native body placement and inclined insertion, and eclipse/conjunction navigation.
+See `docs/DESIGN.md` for ownership and initialization contracts.
 
 ## Refresh trajectory data
 

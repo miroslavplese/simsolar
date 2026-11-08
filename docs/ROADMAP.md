@@ -184,6 +184,20 @@ introduced.
 - [x] 2026-10-22 - Added browser workflow coverage and CI for direct-file launch,
   legacy scenario links, mission planning/cockpit, observatory/telescope,
   editable systems, mobile controls, image failures, and future navigation.
+- [x] 2026-11-07 - Established pre-refactor numerical/scenario references,
+  Windows visual baselines, combined Node/browser coverage reporting, and
+  transition, cancellation, gesture, collision, and bounded-resource guards.
+- [x] 2026-11-07 - Extracted the body-info panel and its styles behind explicit
+  rendering/visibility/disposal contracts, preserving the regression references,
+  classic-script loading, offline operation, and scenario compatibility.
+- [x] Completed the application decomposition: body library/shared controls,
+  simulation and system transitions, playback/camera/input, rendering layers
+  and scene renderers, feature controllers, scenario/tutorial coordination,
+  and feature styles. `app.js` now only composes and starts the application.
+  Added independent-instance, numerical-adapter, cache, camera, playback, and
+  animation lifecycle contracts without changing the frozen references.
+- [ ] Design an explicit larger-system sharing format; full TRAPPIST-1 snapshots
+  currently exceed the existing 4,096-character link budget.
 - [x] 2026-10-22 - Added bounded playback timing and hidden-tab resume behavior,
   keeping asynchronous and synchronous integration numerically identical.
 - [x] 2026-10-22 - Added JPL trajectories, mission metadata, and timeline events

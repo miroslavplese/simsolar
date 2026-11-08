@@ -1,0 +1,7 @@
+#scenarioStatus{
+    position:absolute; top:108px; left:50%; transform:translateX(-50%);
+    padding:7px 10px; border:1px solid var(--line); border-radius:8px;
+    background:rgba(17,22,42,.96); color:var(--accent); font:9px var(--mono);
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+#scenarioStatus.show{ opacity:1; }

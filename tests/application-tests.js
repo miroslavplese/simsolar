@@ -91,6 +91,42 @@ async function main(){
   assert.equal(applied,state);
   assert.ok(controller.link('file:///solar-system.html').includes('?scenario='));
   await assert.rejects(controller.restore({...state,v:99}),/Invalid/);
+
+  const pending=new Map(),restoredCockpits=[],appliedStates=[];
+  const sequenced=Scenarios.create({
+    apply:s=>appliedStates.push(s),
+    restoreMission:mission=>new Promise((resolve,reject)=>
+      pending.set(mission.id,{resolve,reject})),
+    restoreCockpit:view=>restoredCockpits.push(view)
+  });
+  const withMission=id=>({
+    ...state,
+    missionPlan:{...plan,id,selectedTimes:[0,200],selectedLongWayMask:0},
+    spacecraftView:{yaw:id==='old'?0.1:0.2,pitch:0,fov:Math.PI/3}
+  });
+  for(const order of [['old','new'],['new','old']]){
+    restoredCockpits.length=0;
+    const older=sequenced.restore(withMission('old'));
+    const newer=sequenced.restore(withMission('new'));
+    pending.get(order[0]).resolve(true);
+    await (order[0]==='old'?older:newer);
+    pending.get(order[1]).resolve(true);
+    await (order[1]==='old'?older:newer);
+    assert.deepEqual(restoredCockpits,[withMission('new').spacecraftView],
+      'Only the most recent mission restore may activate the cockpit.');
+  }
+  restoredCockpits.length=0;
+  const obsolete=sequenced.restore(withMission('old'));
+  await sequenced.restore(state);
+  pending.get('old').resolve(true);
+  await obsolete;
+  assert.deepEqual(restoredCockpits,[],
+    'Restoring an unplanned scenario invalidates a pending cockpit restore.');
+  assert.equal(appliedStates.at(-1),state);
+  const failed=sequenced.restore(withMission('failed'));
+  pending.get('failed').reject(new Error('Reference mission failure'));
+  await assert.rejects(failed,/Reference mission failure/);
+  assert.deepEqual(restoredCockpits,[]);
   console.log('Application scheduling, playback, and scenario tests passed.');
 }
 main().catch(error=>{ console.error(error); process.exitCode=1; });

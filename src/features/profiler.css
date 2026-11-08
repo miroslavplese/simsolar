@@ -1,0 +1,14 @@
+#perfPanel{
+    position:absolute; top:62px; left:50%; transform:translateX(-50%);
+    width:min(280px,calc(100vw - 40px)); display:none;
+    background:rgba(17,22,42,0.9); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+#perfPanel.show{ display:block; }
+#perfPanel .heading{ color:var(--accent); font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:7px; }
+#perfPanel table{ width:100%; border-collapse:collapse; font-size:9px; color:var(--ink-dim); }
+#perfPanel th, #perfPanel td{ padding:4px; border-top:1px solid var(--line); text-align:right; font-weight:400; }
+#perfPanel th:first-child, #perfPanel td:first-child{ text-align:left; }
+#perfPanel thead th{ color:#5c6690; text-transform:uppercase; font-size:8px; }
+#perfPanel tr.active td:first-child{ color:var(--accent); }
+#perfNote{ margin-top:6px; color:#5c6690; font-size:8px; line-height:1.4; }

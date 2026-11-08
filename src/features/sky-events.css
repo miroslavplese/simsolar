@@ -1,0 +1,16 @@
+#occultationPanel{
+    position:absolute; top:74px; right:310px; width:270px;
+    background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+#occultationPanel .heading{ color:#72e6c1; font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+#occultationPanel .controlRow{ display:flex; gap:6px; margin-bottom:7px; }
+#occultationObserver, #occultationType{
+    flex:1; min-width:0; height:28px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); font:9.5px var(--mono); padding:0 7px; outline:none;
+  }
+#occultationStatus{ min-height:40px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+#occultationStatus strong{ color:#72e6c1; font-weight:500; }
+@media (max-width:760px){
+#occultationPanel{ top:230px; right:20px; width:230px; max-height:35vh; }
+}

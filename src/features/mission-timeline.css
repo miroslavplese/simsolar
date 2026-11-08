@@ -1,0 +1,25 @@
+#missionPanel{
+    position:absolute; top:74px; right:20px; width:270px;
+    background:rgba(17,22,42,0.9); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+#missionPanel .heading{ color:var(--accent); font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+#missionPanel .controlRow{ display:flex; gap:6px; margin-bottom:7px; }
+#missionPanel select, #missionPanel input{
+    min-width:0; height:28px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); font:9.5px var(--mono); padding:0 7px; outline:none;
+  }
+#missionSelect{ flex:1; }
+#dateInput{ flex:1; color-scheme:dark; }
+#eventList{ max-height:145px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+#eventList .event{
+    border:0; border-radius:5px; background:transparent; color:var(--ink-dim);
+    padding:4px 5px; text-align:left; cursor:pointer; font:9px var(--mono);
+  }
+#eventList .event:hover, #eventList .event.active{ background:rgba(255,255,255,.06); color:var(--ink); }
+#eventList .event span{ color:var(--accent); margin-right:7px; }
+#eventDetail{ min-height:25px; margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+@media (max-width:760px){
+#missionPanel{ width:230px; max-height:35vh; }
+#eventList{ max-height:80px; }
+}

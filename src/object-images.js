@@ -40,11 +40,14 @@
   }
   function create(options){
     let selected=null;
+    let activeImage=null;
     function show(body){
       if(selected===body) return;
+      if(activeImage) activeImage.onerror=null;
       selected=body;
       const record=forBody(body,options.catalog);
       const image=options.document.createElement('img');
+      activeImage=image;
       image.id='cardImage';
       image.alt=record.alt;
       image.loading='lazy';
@@ -69,6 +72,7 @@
       options.caption.textContent=record.caption||'';
       options.caption.hidden=!record.caption;
       image.onerror=()=>{
+        if(activeImage!==image) return;
         image.onerror=null;
         image.src=illustration(body).src;
         image.alt=body.name+' - fallback schematic';
@@ -78,7 +82,15 @@
       };
       image.src=record.src;
     }
-    return {show};
+    function clear(){
+      if(activeImage) activeImage.onerror=null;
+      activeImage=null;
+      selected=null;
+      options.container.replaceChildren();
+      options.caption.textContent='';
+      options.caption.hidden=true;
+    }
+    return {show,clear};
   }
   return {illustration,forBody,create};
 });

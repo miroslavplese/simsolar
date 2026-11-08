@@ -2,6 +2,7 @@ const {defineConfig}=require('@playwright/test');
 
 module.exports=defineConfig({
   testDir:'./tests/browser',
+  testIgnore:'**/visual.spec.js',
   timeout:60000,
   expect:{timeout:15000},
   fullyParallel:false,

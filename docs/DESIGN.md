@@ -12,29 +12,82 @@ The browser application remains statically runnable. Pure numerical and mission
 navigation logic is shared through small UMD modules that also load directly in
 Node for regression testing.
 
-`solar-system.html` is the markup/script-loading shell; its former inline script
-and stylesheet live in `src/app.js` and `src/app.css`. Mission metadata is in
-`src/spacecraft-catalog.js`. Scenario transport/restore sequencing, playback
-timing, cooperative scheduling, worker dispatch, and object-card imagery have
-separate modules. Rendering and view-state adapters remain together in the app
-coordinator; this is an incremental extraction, not a framework rewrite.
+Application decomposition is gated by frozen numerical/scenario references,
+functional browser tests, and fixed Windows/Chromium visual baselines. Test
+instrumentation and coverage tooling remain development-only; no runtime
+test hooks, bundler, or module-loading change is required. See the README's
+refactor regression baseline section for the commands, tolerances, resource
+budgets, platform limits, and explicit reference-update procedure.
+
+`solar-system.html` is the markup/script-loading shell. `src/app.js` is only the
+composition root: it constructs components, wires their dependencies, initializes
+controls, restores the initial scenario, and starts the animation loop. It does
+not implement physics, drawing, gesture handling, or feature workflows.
+
+| Boundary | Ownership |
+| --- | --- |
+| `src/app/catalog.js` | Per-application body objects, stable Solar IDs, parent relationships, and read-only bundled-data references |
+| `src/app/simulation.js` | Editable and Solar numerical state, integrators, snapshots, position/orbit adapters, serialization, and runtime body IDs |
+| `src/app/system-transitions.js` | Detach/load/delete/restore transactions and cross-feature cleanup, cancellation, catalog refresh, and date bounds |
+| `src/app/playback.js`, `animation.js` | Time/playback controls and the single frame loop, including collision and route/time limits |
+| `src/app/camera.js`, `input.js`, `selection.js` | Projection/follow/zoom state, gestures/shortcuts/hit testing, and selected/hovered bodies |
+| `src/rendering/` | Canvas viewport, body visibility, star/surface/orbit/ring/overlay layers, and system/observatory/cockpit scenes |
+| `src/features/` | Library, body card, planner, timeline, sky events, Lagrange controls, body editing, impacts, observatory/clouds, cockpit, scenarios, tutorial, panels, and profiler |
+| `src/app.css`, `src/features/*.css` | Shared page tokens/controls/mode rules and feature-specific styling, including each feature's mobile rules |
+
+Factories expose `create(deps)` through classic-script globals and CommonJS.
+Loading a component file only registers its factory; it does not bind listeners
+or start work. The composition root supplies named dependencies, not a shared
+mutable application-context object. Already-created dependencies are ordinary
+references; lazy getters resolve forward references used by runtime callbacks.
+Constructors must not dereference those forward dependencies. All instances are
+created before any `initialize()` call or control-building command.
+
+Mutable state stays in its owning closure. Exported live accessors are deliberately
+limited to state used by cooperating controllers; writing an accessor alone is
+not a system transition. UI workflows must use the centralized transition
+commands so selection, following, async work, catalogs, and caches remain
+consistent. Numerical snapshot maps and render-path caches stay private:
+transitions call their owners' `clearCaches()`/`clearPaths()` commands.
+Simulation sampling takes an explicit time and does not depend on the document,
+camera, playback controller, or date controls. Render trail construction belongs
+to the orbit layer, not the numerical adapter.
+
+These are page-lifetime controllers, not independently remountable widgets.
+`initialize()` is idempotent; static control builders run once at startup.
+Rebuilt library/event rows own their transient listeners without a permanent
+listener registry retaining discarded rows. Existing feature-specific worker,
+date-navigation, cloud-request, and stale-result cancellation remains in place.
+Animation `start()`/`stop()` owns at most one pending frame, resets elapsed-time
+tracking on resume, and ignores late cancelled callbacks. Page hide stops it and
+cancels pending navigation, planner, cloud, and tutorial-start work; a persisted
+page show resumes the loop. Full in-place application remount/disposal is not
+part of this static-page architecture.
+
+`src/features/body-info.js` owns
+the detail card's DOM references, formatting, provenance labels, reference links,
+image presenter, visibility, and close listener; its responsive styles live in
+`src/features/body-info.css`. `BodyInfo.create` receives the document, image/mass
+catalogs, custom-body presets, integration epoch label, and a close command.
+`update(body, frame)` consumes a read-only body and already-sampled position,
+radius, editable/orbit-display flags, and optional two-body orbit reference.
+It does not own selection, time, follow state, or simulation caches, and it
+does not sample or advance the simulation. The selection, playback, camera,
+and simulation components retain those responsibilities; selection/tutorial
+commands route card visibility through `setVisible`.
+`dispose` removes the close listener and releases image callbacks and references;
+late failures from replaced or cleared images cannot overwrite a newer card.
+Shared panel dragging remains outside the feature.
 
 Browser modules continue to use classic scripts so `file://` remains supported.
 The numerical UMD modules depend on `work-scheduler.js`; load it before the
 planner and integrators. Node remains a development/testing tool only.
 
-1. **Document and styling** - canvas surfaces, controls, legend, and detail card.
-2. **Orbital data** - static planet and spacecraft element records.
-3. **Simulation** - clock state, sampled ephemeris interpolation, Kepler
-   solvers, orbital position, and speed. Shared trajectory calculations live in
-   `src/trajectory-math.js`.
-4. **Rendering** - projection, orbit paths, bodies, labels, and star field.
-5. **Interaction** - pointer hit testing, orbit rotation, pan, pinch/wheel zoom,
-   selection, and playback controls. Mission navigation helpers live in
-   `src/mission-timeline.js`.
-
-This arrangement keeps deployment trivial while allowing the correctness-
-critical calculations to be tested without a browser.
+The existing pure numerical and transport modules remain the reusable calculation
+layer: `trajectory-math.js`, both integrators, `mission-planner.js`,
+`mission-timeline.js`, and `scenario-state.js` are not duplicated by the feature
+adapters. This keeps deployment trivial and allows correctness-critical
+calculations and component contracts to be tested without a browser.
 
 ### Work scheduling and playback
 

@@ -1,0 +1,25 @@
+#bodyPanel{
+    position:absolute; top:62px; left:310px; width:245px; display:none;
+    background:rgba(17,22,42,0.94); border:1px solid var(--line); border-radius:12px;
+    padding:11px; backdrop-filter:blur(10px); font-family:var(--mono);
+  }
+#bodyPanel.show{ display:block; }
+#bodyPanel .heading{ color:var(--accent); font-size:9px; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+#bodyPanel label{ display:block; margin-top:7px; color:var(--ink-dim); font-size:8px; text-transform:uppercase; letter-spacing:.05em; }
+#bodyPanel input, #bodyPanel select{
+    width:100%; height:29px; margin-top:3px; border:1px solid var(--line); border-radius:7px;
+    background:#10162a; color:var(--ink); padding:0 7px; font:9.5px var(--mono); outline:none;
+  }
+#bodyPanel label span{ float:right; color:var(--accent); }
+#bodyPanel input[type=range]{
+    height:14px; padding:0; border:0; background:var(--line);
+  }
+#bodyPanel .actions{ display:flex; gap:6px; margin-top:9px; }
+#bodyPanel .actions button{ flex:1; }
+#bodyPanel button:disabled{ opacity:.35; cursor:not-allowed; }
+#bodyInstructions{ margin-top:8px; min-height:34px; color:var(--ink-dim); font-size:8.5px; line-height:1.45; }
+#bodyReadout{ margin-top:6px; color:#5c6690; font-size:8px; line-height:1.5; white-space:pre-line; }
+#bodyWarning{ margin-top:8px; padding-top:7px; border-top:1px solid var(--line); color:#8f7890; font-size:7.5px; line-height:1.4; }
+@media (max-width:760px){
+#bodyPanel{ left:20px; top:230px; width:230px; }
+}
