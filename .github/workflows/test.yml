@@ -36,3 +36,35 @@ jobs:
         with:
           name: visual-failures
           path: test-results/
+  performance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Select comparison revision
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          if [ -n "$PR_BASE" ]; then
+            BASE="$PR_BASE"
+          elif [ -n "$PUSH_BASE" ] && [ "$PUSH_BASE" != "0000000000000000000000000000000000000000" ]; then
+            BASE="$PUSH_BASE"
+          else
+            BASE="$(git rev-parse HEAD^)"
+          fi
+          git cat-file -e "$BASE^{commit}"
+          echo "SIMSOLAR_PERF_BASE=$BASE" >> "$GITHUB_ENV"
+      - run: npm run test:performance
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-evidence
+          path: test-results/performance/

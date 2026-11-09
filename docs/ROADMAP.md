@@ -34,6 +34,10 @@ validation.
 
 ## Priority 1 - Rendering performance
 
+- [x] 2026-11-08 - Add paired sustained-playback performance comparisons for
+  Solar overview, close-up following with spacecraft/comets, and compact
+  curated systems; retain CI evidence and document contributor/agent validation.
+
 - [x] 2026-08-12 - Cache orbit geometry in world coordinates.
   - Recompute only when orbital elements or sampling quality change.
   - Apply projection during rendering rather than solving the orbit again.

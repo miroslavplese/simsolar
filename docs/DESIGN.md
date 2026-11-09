@@ -15,9 +15,11 @@ Node for regression testing.
 Application decomposition is gated by frozen numerical/scenario references,
 functional browser tests, and fixed Windows/Chromium visual baselines. Test
 instrumentation and coverage tooling remain development-only; no runtime
-test hooks, bundler, or module-loading change is required. See the README's
-refactor regression baseline section for the commands, tolerances, resource
+test hooks, bundler, or module-loading change is required. See
+[DEVELOPMENT.md](DEVELOPMENT.md) for the commands, tolerances, resource
 budgets, platform limits, and explicit reference-update procedure.
+Sustained playback is compared against a reviewed Git revision on the same
+runner; paused screenshots and coarse stall guards are not performance gates.
 
 `solar-system.html` is the markup/script-loading shell. `src/app.js` is only the
 composition root: it constructs components, wires their dependencies, initializes
@@ -756,7 +758,13 @@ when camera yaw, tilt, or viewport dimensions change. Stars therefore remain
 fixed in inertial space while moving correctly under pointer rotation and
 co-rotating reference frames; zoom and pan do not alter the distant background.
 
-Full orbit paths use a second cached canvas. `src/asteroid-belt.js` adds a deterministic,
+Full orbit paths use a second cached canvas. Projected paths retain their
+screen-space simplification across pan-only changes, including the follow
+camera: translating the raw points, simplified points, and hit-test bounds
+does not change the simplification tolerance. Zoom, rotation, or replacement
+of the world-space path rebuilds the projection and simplification.
+
+`src/asteroid-belt.js` adds a deterministic,
 static density illustration of the main belt to that cached canvas, behind
 orbit paths and body markers. Its 5,000 exaggerated points span 2.1 to 3.3 AU
 with a small vertical thickness, sharing the scene's pan, zoom, and 3D camera
