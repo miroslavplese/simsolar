@@ -12,7 +12,7 @@
   const {GM_BY_BODY,MOON_GM_BY_BODY,massKgToMu,bodyState}=window.NBodySimulation;
   const {catalogEntries}=window.SystemModel;
   const {
-    activeSystemBodies,positionForBody,gravitationalParameterForBody,HYBRID_MAX_DAYS,
+    activeSystemBodies,referencePositionForBody:positionForBody,gravitationalParameterForBody,HYBRID_MAX_DAYS,
     hybridBranchAt,moonBranchAt
   }=deps.simulation;
   const {HYBRID_EPOCH_DAYS}=deps.catalog;

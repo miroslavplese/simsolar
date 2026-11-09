@@ -23,7 +23,8 @@
 SimSolar combines NASA/JPL ephemerides, interactive 3D projection, historical
 mission paths, future Newtonian N-body integration, surface observation, and
 mission planning in a dependency-free web app. Explore the real Solar System or
-replace it with an editable system of stars, black holes, planets, and comets.
+load a curated star system, then experiment with editable stars, black holes,
+planets, and comets.
 
 The built-in Solar System overview includes a schematic main asteroid belt
 between Mars and Jupiter. Its exaggerated particles illustrate the belt's
@@ -85,6 +86,21 @@ The belt is absent from custom/editable systems.
       collisions.
     </td>
   </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="assets/curated-systems/tatooine.webp" alt="Artistic illustration of Tatooine's desert planet beneath two stars; not to scale" width="100%">
+    </td>
+    <td width="50%" valign="top">
+      <strong>Curated star systems</strong><br>
+      Load nine ready-to-explore systems, from Tatooine's twin suns and
+      idealized binary experiments to illustrative models of TRAPPIST-1,
+      Kepler-16, and other observed systems. Follow their N-body motion,
+      observe from a planet, or edit the model. Return to the original Solar
+      preset at any time.<br>
+      <em>Tatooine artwork is an artistic impression, not an observation or
+      a to-scale simulation screenshot.</em>
+    </td>
+  </tr>
 </table>
 
 ## Features
@@ -126,6 +142,9 @@ The belt is absent from custom/editable systems.
 
 ### Physics and experimentation
 
+- Worker-backed live global/moon integration, collision refinement, and future
+  date navigation over HTTP(S), with the displayed clock synchronized to
+  completed states and a cooperative direct-file fallback
 - Elliptical and hyperbolic Kepler solvers plus future-only barycentric
   Newtonian N-body gravity initialized from exact JPL state vectors
 - Hierarchical major-moon integration with external tides, mutual moon
@@ -178,6 +197,11 @@ The belt is absent from custom/editable systems.
 Open `solar-system.html` in a modern browser. No build, package installation, or
 web server is required.
 
+To use Web Workers for live simulation and mission-route search, serve the
+repository over HTTP(S). With Node installed, run `node tools/serve.js` and open
+`http://127.0.0.1:4173/solar-system.html`. Direct-file launch instead uses
+cooperative execution on the main thread.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -186,13 +210,14 @@ web server is required.
 | `src/app.js` | Composition root: explicit dependencies, initialization, scenario restore, and page lifecycle |
 | `src/app/` | Catalog instances, simulation state, playback, camera, selection, input, system transitions, and animation |
 | `src/rendering/` | Canvas viewport, visibility, stars, surfaces, orbits, rings, overlays, and three scene renderers |
-| `src/features/` | Feature controllers and their styles: library, planner, timeline, sky events, observatory/clouds, cockpit, editing, impacts, sharing, tutorial, and panels |
+| `src/features/` | Feature controllers and their styles: body list, planner, timeline, sky events, observatory/clouds, cockpit, editing, impacts, sharing, tutorial, panels, and profiler |
 | `src/app.css` | Shared tokens, page layout, controls, panel utilities, and mode visibility |
 | `src/features/body-info.js`, `src/features/body-info.css` | Body-card presentation, provenance, reference links, imagery lifecycle, and responsive styling |
 | `src/spacecraft-catalog.js` | Mission metadata, links, and timeline milestones |
 | `src/scenario-controller.js` | Validated scenario restoration and share-link coordination |
 | `src/work-scheduler.js`, `src/playback-clock.js` | Cooperative work budgets and visibility-aware playback timing |
 | `src/mission-search.js`, `src/mission-worker.js` | Worker-based route search with direct-file cooperative fallback |
+| `src/simulation-engine.js`, `src/simulation-client.js`, `src/simulation-worker.js` | Exact live physics snapshots, off-thread execution, cancellation, and direct-file fallback |
 | `src/object-images.js` | Selection-scoped reference images, attribution, and schematic fallbacks |
 | `data/recent-spacecraft-trajectories.js` | JPL vectors for Webb, Lucy, Psyche, and Europa Clipper |
 | `assets/objects/credits.json`, `data/object-images.js` | Image provenance, licenses, and browser manifest |
@@ -216,7 +241,7 @@ web server is required.
 | `src/observatory-mode.js` | Surface frames, horizontal coordinates, sky projection, and daylight calculations |
 | `src/scenario-state.js` | Validated versioned encoding for shareable URL scenarios |
 | `src/system-model.js` | Editable-system identity, deletion, lighting, catalog, and validation helpers |
-| `data/curated-systems.js`, `src/curated-systems-ui.js` | Curated examples, orbital-state initialization, and library panel |
+| `data/curated-systems.js`, `src/curated-systems-ui.js` | Curated examples, orbital-state initialization, and library panel; loading is coordinated by `src/app/system-transitions.js` |
 | `src/guided-tutorial.js` | First-run persistence and responsive guided walkthrough UI |
 | `src/panel-drag.js` | Pointer-driven movable panel behavior and viewport clamping |
 | `src/body-rendering.js` | Marker-to-physical-radius close-view transitions |
@@ -333,12 +358,18 @@ remain deferred. The browser UI currently caps future navigation at 2100 to
 bound integration time and checkpoint memory.
 
 Mission searches run in a Web Worker when served over HTTP(S), or cooperatively
-when opened directly from disk. Future-state preparation yields at an 8 ms
-wall-clock budget between complete integration steps, without changing numerical
-timesteps. A single expensive step can exceed that budget. Hidden-tab time is not
-replayed on return, and visible playback advances by at most 100 ms of wall time
-per frame. Reduced-motion preferences disable initial autoplay, but explicit
-playback and shared scenarios still work.
+when opened directly from disk. Live global/moon integration, collision
+refinement, and future date-input jumps run in a separate persistent simulation
+Worker over HTTP(S). Rendering uses completed snapshots: the displayed clock,
+bodies, and collision handling stay synchronized, and extreme acceleration
+slows down when computation cannot keep up rather than freezing controls.
+Direct-file launch uses the same engine cooperatively, yielding at an 8 ms
+wall-clock budget between complete integration steps without changing numerical
+timesteps. A single expensive step or collision refinement can exceed that
+fallback budget. Arbitrary-date analysis for planning and sky-event searches
+retains the reference samplers on the main thread. Hidden-tab time is not
+replayed on return. Reduced-motion preferences disable initial autoplay, but
+explicit playback and shared scenarios still work.
 
 Recent mission data ends at the same August 2026 cutover as the original data.
 Webb station-keeping, Psyche ion thrust, and subsequent planned burns are **not**

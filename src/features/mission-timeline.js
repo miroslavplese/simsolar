@@ -164,30 +164,42 @@
         detail.textContent='Preparing future N-body state for '+requestedDate+'…';
         let prepared;
         try{
-          const simulator=deps.simulation.editableSystem
-            ? deps.simulation.editableSystem.simulator
-            : hybridBranchAt(targetDays).simulator;
-          prepared=await simulator.prepareTo(targetDays,{
-            budgetMs:8,
-            cancelled:()=>revision!==deps.clock.dateNavigationRevision,
-            onProgress:progress=>{
-              if(revision===deps.clock.dateNavigationRevision){
-                detail.textContent='Preparing future N-body state for '+requestedDate+
-                  '… '+Math.round(progress*35)+'%';
+          if(deps.simulation.asyncEnabled){
+            prepared=await deps.simulation.prepareFrame(targetDays,{
+              cancelled:()=>revision!==deps.clock.dateNavigationRevision,
+              onProgress:progress=>{
+                if(revision===deps.clock.dateNavigationRevision){
+                  detail.textContent='Preparing future N-body state for '+requestedDate+
+                    '… '+Math.round(progress*100)+'%';
+                }
               }
-            }
-          });
-          if(prepared && !deps.simulation.editableSystem){
-            prepared=await moonBranchAt(targetDays).simulator.prepareTo(targetDays,{
+            });
+          } else {
+            const simulator=deps.simulation.editableSystem
+              ? deps.simulation.editableSystem.simulator
+              : hybridBranchAt(targetDays).simulator;
+            prepared=await simulator.prepareTo(targetDays,{
               budgetMs:8,
               cancelled:()=>revision!==deps.clock.dateNavigationRevision,
               onProgress:progress=>{
                 if(revision===deps.clock.dateNavigationRevision){
                   detail.textContent='Preparing future N-body state for '+requestedDate+
-                    '… '+Math.round(35+progress*65)+'%';
+                    '… '+Math.round(progress*35)+'%';
                 }
               }
             });
+            if(prepared && !deps.simulation.editableSystem){
+              prepared=await moonBranchAt(targetDays).simulator.prepareTo(targetDays,{
+                budgetMs:8,
+                cancelled:()=>revision!==deps.clock.dateNavigationRevision,
+                onProgress:progress=>{
+                  if(revision===deps.clock.dateNavigationRevision){
+                    detail.textContent='Preparing future N-body state for '+requestedDate+
+                      '… '+Math.round(35+progress*65)+'%';
+                  }
+                }
+              });
+            }
           }
         } catch(error){
           if(revision===deps.clock.dateNavigationRevision){

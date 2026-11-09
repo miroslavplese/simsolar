@@ -130,6 +130,11 @@
 
   function deleteSystemBody(body){
     if(!body || !isBodyActive(body)) return;
+    if(deps.simulation.asyncEnabled &&
+      !deps.simulation.isFrameReady(deps.clock.simDaysSinceJ2000)){
+      deps.scenarios.showScenarioStatus('WAIT FOR THE CURRENT SIMULATION STATE BEFORE EDITING',true);
+      return;
+    }
     detachSolarSystem();
     const removed=deletionClosure(deps.simulation.editableSystem.bodies,body.id);
     rebuildEditableAt(

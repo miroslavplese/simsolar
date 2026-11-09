@@ -106,6 +106,12 @@
     resetBodyInsertion();
   }
   function beginBodyPlacement(){
+    if(deps.simulation.asyncEnabled &&
+      !deps.simulation.isFrameReady(deps.clock.simDaysSinceJ2000)){
+      document.getElementById('bodyInstructions').textContent=
+        'Wait for the current simulation state before placing a body.';
+      return;
+    }
     cancelDateNavigation();
     if(!deps.simulation.editableSystem) deps.transitions.detachSolarSystem();
     if(deps.simulation.editableSystem.bodies.length===0){

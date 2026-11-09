@@ -19,6 +19,16 @@
   let speedExp = Math.log10(5);
   let observatorySpeedExp=0;
   let direction = 1;
+  let requestedDays=null;
+  function setTime(value){
+    if(deps.simulation.asyncEnabled && !deps.simulation.isFrameReady(value)){
+      requestedDays=value;
+      deps.simulation.cancelPreparation();
+    } else {
+      requestedDays=null;
+      simDaysSinceJ2000=value;
+    }
+  }
   function speedDaysPerSec(){
     return deps.observatory.observatoryActive
       ? Math.pow(10,observatorySpeedExp)/86400
@@ -72,6 +82,8 @@
 
   function cancelDateNavigation(){
     dateNavigationRevision++;
+    requestedDays=null;
+    deps.simulation.cancelPreparation?.();
     document.getElementById('dateInput').disabled=false;
     deps.impacts.activeImpact=null;
     deps.impacts.ignoredImpactKey=null;
@@ -97,7 +109,7 @@
   }
 
   function stopAtHybridLimit(){
-    simDaysSinceJ2000=HYBRID_MAX_DAYS;
+    setTime(HYBRID_MAX_DAYS);
     playing=false;
     playBtn.textContent='▶';
     document.getElementById('eventDetail').textContent=
@@ -125,33 +137,36 @@
       playBtn.textContent=playing?'⏸':'▶';
     });
     document.getElementById('rewBtn').addEventListener('click', ()=>{
+      const requested=requestedDays??simDaysSinceJ2000;
       cancelDateNavigation();
-      simDaysSinceJ2000=Math.max(
+      setTime(Math.max(
         deps.simulation.editableSystem?.epoch??-Infinity,
-        simDaysSinceJ2000-30
-      );
+        requested-30
+      ));
     });
     document.getElementById('fwdBtn').addEventListener('click', ()=>{
+      const requested=requestedDays??simDaysSinceJ2000;
       cancelDateNavigation();
-      if(!deps.simulation.editableSystem && simDaysSinceJ2000+30>=HYBRID_MAX_DAYS){
+      if(!deps.simulation.editableSystem && requested+30>=HYBRID_MAX_DAYS){
         stopAtHybridLimit();
       } else {
-        simDaysSinceJ2000=Math.min(
+        setTime(Math.min(
           deps.simulation.editableSystem ? EDITABLE_TIME_LIMIT_DAYS : HYBRID_MAX_DAYS,
-          simDaysSinceJ2000+30
-        );
+          requested+30
+        ));
       }
     });
     document.getElementById('todayBtn').addEventListener('click', ()=>{
       cancelDateNavigation();
-      simDaysSinceJ2000=Math.max(
+      setTime(Math.max(
         deps.simulation.editableSystem?.epoch??-Infinity,
         daysSinceJ2000(Date.now())
-      );
+      ));
       updateFollowCamera();
       invalidateProjection();
     });
     speedSlider.addEventListener('input', (e)=>{
+      deps.simulation.cancelPreparation?.();
       if(deps.observatory.observatoryActive){
         observatorySpeedExp=parseFloat(e.target.value);
       } else {
@@ -160,15 +175,22 @@
       updateSpeedLabel();
     });
     updateSpeedLabel();
-    document.addEventListener('visibilitychange',()=>playbackClock.reset());
+    document.addEventListener('visibilitychange',()=>{
+      playbackClock.reset();
+      if(document.hidden) deps.simulation.cancelPreparation?.();
+    });
   }
 
   return {
     initialize,
     get simDaysSinceJ2000(){ return simDaysSinceJ2000; },
-    set simDaysSinceJ2000(value){ simDaysSinceJ2000=value; },
+    set simDaysSinceJ2000(value){ setTime(value); },
+    get requestedDays(){ return requestedDays??simDaysSinceJ2000; },
     get playing(){ return playing; },
-    set playing(value){ playing=value; },
+    set playing(value){
+      if(value!==playing) deps.simulation.cancelPreparation?.();
+      playing=value;
+    },
     playBtn,
     get speedExp(){ return speedExp; },
     set speedExp(value){ speedExp=value; },

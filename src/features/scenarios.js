@@ -85,7 +85,7 @@
     };
   }
 
-  function applyScenarioSnapshot(state){
+  async function applyScenarioSnapshot(state,cancelled=()=>false){
     if(state.v>=3 && state.system){
       restoreEditableSystem(state.system);
     } else {
@@ -98,9 +98,18 @@
     refreshOccultationCatalog();
     refreshObservatoryCatalog();
     clearSimulationCaches();
-    deps.clock.simDaysSinceJ2000=Math.max(
+    const time=Math.max(
       deps.simulation.editableSystem?.epoch??-Infinity,state.t
     );
+    if(deps.simulation.asyncEnabled){
+      const model=deps.simulation.editableSystem;
+      deps.clock.simDaysSinceJ2000=time;
+      const prepared=await deps.simulation.prepareFrame(time,{
+        cancelled:()=>cancelled() || deps.simulation.editableSystem!==model
+      });
+      if(!prepared || cancelled()) return;
+    }
+    deps.clock.simDaysSinceJ2000=time;
     deps.clock.speedExp=state.speed;
     deps.clock.direction=state.direction;
     deps.camera.zoom=state.view.zoom;

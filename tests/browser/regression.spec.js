@@ -214,7 +214,8 @@ test('frozen legacy links restore through HTTP and direct-file launch',async({pa
   }
 });
 
-test('switching systems terminates an active worker and permits a fresh search',async({page})=>{
+test('switching systems terminates an active mission worker and permits a fresh search',async({page})=>{
+  const missionWorkers=()=>page.workers().filter(worker=>worker.url().endsWith('/mission-worker.js'));
   await page.clock.setFixedTime(new Date('2015-07-13T12:00:00Z'));
   await page.route('**/src/mission-worker.js',route=>route.fulfill({
     contentType:'text/javascript',body:'self.onmessage=function(){};'
@@ -223,8 +224,9 @@ test('switching systems terminates an active worker and permits a fresh search',
   await page.locator('#plannerBtn').click();
   await page.locator('.plannerTabs [data-planner-tab="encounters"]').click();
   await page.locator('#plannerSearchBtn').click();
-  await expect.poll(()=>page.workers().length).toBe(1);
+  await expect.poll(()=>missionWorkers().length).toBe(1);
   await loadCurated(page,'binary-duet');
+  await expect.poll(()=>missionWorkers().length).toBe(0);
   await expect.poll(()=>page.workers().length).toBe(0);
   await expect(page.locator('#plannerCockpitBtn')).toBeDisabled();
   await page.unroute('**/src/mission-worker.js');
@@ -379,8 +381,9 @@ test('repeated mode changes keep resources bounded and rendering responsive',asy
   }
   async function measure(){
     await cdp.send('HeapProfiler.collectGarbage');
-    // Let Blink release detached nodes before sampling retained resources.
-    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
+    // Finish a paint before collecting nodes retained by the previous layout.
+    await page.evaluate(()=>new Promise(resolve=>
+      requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     await cdp.send('HeapProfiler.collectGarbage');
     const dom=await cdp.send('Memory.getDOMCounters');
     const {metrics}=await cdp.send('Performance.getMetrics');

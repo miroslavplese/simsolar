@@ -6,7 +6,7 @@
     "c8": "^12.0.0"
   },
   "scripts": {
-    "posttest": "node tests/application-tests.js && node tests/recent-mission-tests.js && node tests/object-images-tests.js && node tests/asteroid-belt-tests.js && node tests/body-select-tests.js && node tests/body-info-tests.js && node tests/reference-tests.js && node tests/app-component-tests.js",
+    "posttest": "node tests/application-tests.js && node tests/recent-mission-tests.js && node tests/object-images-tests.js && node tests/asteroid-belt-tests.js && node tests/body-select-tests.js && node tests/body-info-tests.js && node tests/reference-tests.js && node tests/app-component-tests.js && node tests/simulation-worker-tests.js",
     "test:browser": "playwright test",
     "test:visual": "playwright test --config=playwright.visual.config.js",
     "test:coverage": "node tools/run-coverage.js",

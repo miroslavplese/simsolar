@@ -6,7 +6,7 @@ validation.
 
 ## Current state
 
-- **Phase:** Functional prototype with synchronous hybrid gravity
+- **Phase:** Functional prototype with Worker-backed live hybrid gravity
 - **Deployment:** Standalone static HTML
 - **Dependencies:** None at runtime; Playwright for development-only browser tests
 - **Automated tests:** Numerical, scheduling, mission/image data, and Chromium workflow suites in CI
@@ -59,11 +59,10 @@ second on a mid-range mobile device in the deep-space view.
 
 ## Priority 2 - Maintainability
 
-- [ ] Split CSS, orbital data, simulation math, rendering, and interaction into
-  separate files or ES modules.
-  - 2026-10-22: Extracted page script/styles, spacecraft metadata, playback clock,
-    scenario coordination, work scheduling, worker search, and card images.
-    Rendering and view adapters remain in the application coordinator.
+- [x] 2026-11-08 - Split CSS, orbital data, simulation math, rendering, and
+  interaction into separate classic-script modules without requiring a build.
+  `src/app.js` is the composition root; application state, rendering layers,
+  scene renderers, and feature controllers live in their own directories.
 - [ ] Introduce explicit object schemas and validation for orbital records.
 - [ ] Centralize repeated rotation and orbital-plane transformation logic.
 - [ ] Replace repeated DOM lookups with cached element references.
@@ -101,13 +100,16 @@ introduced.
   - Cache checkpoints so future date jumps do not restart from the epoch.
   - Keep historical navigation on bundled ephemerides.
   - Validate continuity, energy and momentum drift, and deterministic replay.
-- [ ] Move long-running future integration into a Web Worker after the
-  synchronous reference implementation is validated.
-  - 2026-10-22: Cooperative integration preparation now yields using an 8 ms
-    wall-clock budget between unchanged numerical steps. Route search runs in
-    a Worker over HTTP(S), with cooperative direct-file fallback.
-  - Remove or extend the temporary 2100 navigation cap once integration no
-    longer blocks the animation thread.
+- [x] 2026-11-08 - Move live global/moon integration, swept collision refinement,
+  and future date navigation into a persistent Web Worker over HTTP(S).
+  Displayed time advances only with exact completed states. Direct-file launch
+  retains the same engine with cooperative execution; cancellation, system
+  replacement, and visible/recoverable failures preserve UI consistency.
+- [ ] Move arbitrary-date mission-planner and sky-event preparation/sampling
+  off the main thread; those tools still use the reference integrators before
+  running their searches.
+- [ ] Reassess the Solar 2100 navigation cap against total computation and
+  checkpoint-memory budgets; worker execution alone does not remove these limits.
 - [x] 2026-08-13 - Add interactive ecliptic-plane insertion for configurable
   stars, black holes, planets, and comets at the current future date.
 - [x] 2026-08-19 - Add 0–180 degree custom-body orbital inclination by treating
