@@ -21,7 +21,7 @@
     HYBRID_EPOCH_DAYS,planetCutoffData,moonCutoffData,planets,spacecraft,comets,builtInBodies,
     sunReference
   }=deps.catalog;
-  const {daysSinceJ2000}=deps.constants;
+  const {daysSinceJ2000,SUN_RADIUS_KM}=deps.constants;
 
   function stateVectorAtEpoch(points){
     const sampled=sampledStateAt(points,HYBRID_EPOCH_DAYS);
@@ -113,6 +113,72 @@
   const moonExternalCache=new Map();
 
   let editableSnapshotCache={system:null,time:NaN,state:null};
+  let execution=null;
+  let frameSnapshot=null;
+  let frameModel=null;
+
+  function executionModel(){
+    return editableSystem||hybridBaseSimulator;
+  }
+
+  function enableAsync(){
+    if(!execution) execution=window.SimulationClient.create({window});
+  }
+
+  function isFrameReady(time){
+    if(!execution) return true;
+    if(!editableSystem && time<HYBRID_EPOCH_DAYS) return true;
+    if(time===(editableSystem?.epoch??HYBRID_EPOCH_DAYS)) return true;
+    return frameModel===executionModel() && frameSnapshot?.time===time;
+  }
+
+  async function prepareFrame(time,options={}){
+    if(options.cancelled?.()) return null;
+    if(!execution) return {time,impact:null};
+    if(!editableSystem && time<HYBRID_EPOCH_DAYS){
+      execution.dispose();
+      frameSnapshot=null;
+      frameModel=null;
+      return {time,impact:null};
+    }
+    const model=executionModel();
+    const definition={
+      epoch:editableSystem?.epoch??HYBRID_EPOCH_DAYS,
+      initialState:editableSystem?.initialState||hybridInitialState,
+      moonState:editableSystem?null:moonInitial.state,
+      bodies:activeSystemBodies().map(body=>({
+        id:body.id,kind:body.kind,
+        radiusKm:body===sunReference?SUN_RADIUS_KM:body.radius||0
+      }))
+    };
+    if(time===definition.epoch && options.start===undefined){
+      if(frameModel!==model) execution.dispose();
+      const result={
+        time,global:definition.initialState,moons:definition.moonState,
+        impact:null,ignoredKey:options.ignoredKey
+      };
+      frameSnapshot=result;
+      frameModel=model;
+      return result;
+    }
+    const result=await execution.advance(model,definition,{
+      time,start:options.start,ignoredKey:options.ignoredKey
+    },options);
+    if(!result || model!==executionModel() || options.cancelled?.()) return null;
+    frameSnapshot=result;
+    frameModel=model;
+    return result;
+  }
+
+  function cancelPreparation(){
+    execution?.cancel();
+  }
+
+  function dispose(){
+    execution?.dispose();
+    frameSnapshot=null;
+    frameModel=null;
+  }
 
   function activeSystemBodies(){
     return editableSystem ? editableSystem.bodies : builtInBodies;
@@ -128,6 +194,10 @@
 
   function editableSnapshotAt(tDays){
     if(!editableSystem || tDays<editableSystem.epoch) return null;
+    if(frameModel===editableSystem && frameSnapshot?.time===tDays){
+      return frameSnapshot.global;
+    }
+    if(execution && tDays===editableSystem.epoch) return editableSystem.initialState;
     if(
       editableSnapshotCache.system!==editableSystem ||
       editableSnapshotCache.time!==tDays
@@ -196,6 +266,10 @@
   }
 
   function hybridSnapshotAt(tDays){
+    if(frameModel===hybridBaseSimulator && frameSnapshot?.time===tDays){
+      return frameSnapshot.global;
+    }
+    if(execution && tDays===HYBRID_EPOCH_DAYS) return hybridInitialState;
     const branch=hybridBranchAt(tDays);
     const cacheKey=branch.id+':'+tDays;
     if(hybridSnapshotCache.has(cacheKey)) return hybridSnapshotCache.get(cacheKey);
@@ -250,6 +324,10 @@
   }
 
   function moonSnapshotAt(tDays){
+    if(frameModel===hybridBaseSimulator && frameSnapshot?.time===tDays){
+      return frameSnapshot.moons;
+    }
+    if(execution && tDays===HYBRID_EPOCH_DAYS) return moonInitial.state;
     const branch=moonBranchAt(tDays);
     const cacheKey=branch.id+':'+tDays;
     if(moonSnapshotCache.has(cacheKey)) return moonSnapshotCache.get(cacheKey);
@@ -328,6 +406,7 @@
   }
 
   function hybridPositionForBody(obj,tDays){
+    if(editableSystem && execution) return editablePositionForBody(obj,tDays);
     if(
       tDays<HYBRID_EPOCH_DAYS ||
       (obj.introducedAt && tDays<obj.introducedAt) ||
@@ -371,6 +450,14 @@
   }
 
   function positionForBody(obj, tDays){
+    if(execution && !isFrameReady(tDays) &&
+      (editableSystem || tDays>=HYBRID_EPOCH_DAYS)){
+      return null;
+    }
+    return referencePositionForBody(obj,tDays);
+  }
+
+  function referencePositionForBody(obj, tDays){
     if(editableSystem) return editablePositionForBody(obj,tDays);
     if(obj===sunReference){
       return {x:0,y:0,z:0,vx:0,vy:0,vz:0,r:0,speedKmS:0};
@@ -500,6 +587,11 @@
   }
 
   function clearCaches(){
+    if(execution && frameModel!==executionModel()){
+      execution.dispose();
+      frameSnapshot=null;
+      frameModel=null;
+    }
     hybridSnapshotCache.clear();
     moonSnapshotCache.clear();
     moonExternalCache.clear();
@@ -514,6 +606,7 @@
     get editableSystem(){ return editableSystem; },
     set editableSystem(value){ editableSystem=value; },
     positionForBody,
+    referencePositionForBody,
     stateDefinitionForBody,
     hybridPositionForBody,
     continuationOrigin,
@@ -535,6 +628,13 @@
     clearCaches,
     nextBodyId,
     serializedEditableSystem,
-    restoreEditableSystem
+    restoreEditableSystem,
+    enableAsync,
+    isFrameReady,
+    prepareFrame,
+    cancelPreparation,
+    dispose,
+    get asyncEnabled(){ return !!execution; },
+    get executionMode(){ return execution?.mode||'synchronous'; }
   };
 });

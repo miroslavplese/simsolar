@@ -16,7 +16,7 @@
   const {dominantLightBody}=window.SystemModel;
   const {planets,charon,moons,HYBRID_EPOCH_DAYS}=deps.catalog;
   const {
-    isBodyActive,activeBodiesOf,positionForBody,activeSystemBodies,hybridBranchAt,
+    isBodyActive,activeBodiesOf,referencePositionForBody:positionForBody,activeSystemBodies,hybridBranchAt,
     HYBRID_MAX_DAYS
   }=deps.simulation;
   const {observatoryBodyRadiusAu,observatoryDirection}=deps.observatoryRenderer;
@@ -447,7 +447,7 @@
         (direction>0?endDate:startDate)+'.';
       return;
     }
-    goToOccultationEvent(nearest);
+    await goToOccultationEvent(nearest);
   }
 
   function formatOccultationDate(tDays){
@@ -472,8 +472,26 @@
       '<br>'+formatOccultationDate(event.time)+' · '+coverage+'% maximum coverage';
   }
 
-  function goToOccultationEvent(event){
+  async function goToOccultationEvent(event){
     cancelDateNavigation();
+    deps.clock.playing=false;
+    playBtn.textContent='▶';
+    if(deps.simulation.asyncEnabled){
+      const revision=deps.clock.dateNavigationRevision;
+      const model=deps.simulation.editableSystem;
+      try{
+        const prepared=await deps.simulation.prepareFrame(event.time,{
+          cancelled:()=>revision!==deps.clock.dateNavigationRevision ||
+            model!==deps.simulation.editableSystem
+        });
+        if(!prepared) return;
+      } catch(error){
+        console.error(error);
+        document.getElementById('occultationStatus').textContent=
+          'Event navigation failed: '+error.message;
+        return;
+      }
+    }
     activeOccultationEvent=event;
     deps.clock.simDaysSinceJ2000=event.time;
     deps.clock.playing=false;

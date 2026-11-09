@@ -25,7 +25,9 @@
     return body===sunReference ? SUN_RADIUS_KM : body.radius;
   }
   function collisionPairsAt(tDays,positionAt=positionForBody){
-    const candidates=activeSystemBodies().filter(
+    const bodies=activeSystemBodies();
+    if(!bodies.some(body=>body.kind==='custom')) return [];
+    const candidates=bodies.filter(
       body=>collisionRadiusKm(body)>0 && positionAt(body,tDays)
     );
     const pairs=[];

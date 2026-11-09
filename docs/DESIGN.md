@@ -27,12 +27,14 @@ not implement physics, drawing, gesture handling, or feature workflows.
 | Boundary | Ownership |
 | --- | --- |
 | `src/app/catalog.js` | Per-application body objects, stable Solar IDs, parent relationships, and read-only bundled-data references |
-| `src/app/simulation.js` | Editable and Solar numerical state, integrators, snapshots, position/orbit adapters, serialization, and runtime body IDs |
+| `src/app/simulation.js` | Editable/Solar definitions, completed live snapshots, worker-client coordination, reference integrators, position/orbit adapters, serialization, and runtime body IDs |
+| `src/simulation-engine.js`, `simulation-client.js`, `simulation-worker.js` | Live numerical engine, persistent worker/cooperative transport, and serialized worker request dispatch |
 | `src/app/system-transitions.js` | Detach/load/delete/restore transactions and cross-feature cleanup, cancellation, catalog refresh, and date bounds |
 | `src/app/playback.js`, `animation.js` | Time/playback controls and the single frame loop, including collision and route/time limits |
 | `src/app/camera.js`, `input.js`, `selection.js` | Projection/follow/zoom state, gestures/shortcuts/hit testing, and selected/hovered bodies |
 | `src/rendering/` | Canvas viewport, body visibility, star/surface/orbit/ring/overlay layers, and system/observatory/cockpit scenes |
-| `src/features/` | Library, body card, planner, timeline, sky events, Lagrange controls, body editing, impacts, observatory/clouds, cockpit, scenarios, tutorial, panels, and profiler |
+| `src/features/` | Body list, body card, planner, timeline, sky events, Lagrange controls, body editing, impacts, observatory/clouds, cockpit, scenarios, tutorial, panels, and profiler |
+| `data/curated-systems.js`, `src/curated-systems-ui.js` | Curated definitions, orbital initialization, and selector UI; `src/app/system-transitions.js` coordinates loading and cleanup |
 | `src/app.css`, `src/features/*.css` | Shared page tokens/controls/mode rules and feature-specific styling, including each feature's mobile rules |
 
 Factories expose `create(deps)` through classic-script globals and CommonJS.
@@ -61,7 +63,10 @@ date-navigation, cloud-request, and stale-result cancellation remains in place.
 Animation `start()`/`stop()` owns at most one pending frame, resets elapsed-time
 tracking on resume, and ignores late cancelled callbacks. Page hide stops it and
 cancels pending navigation, planner, cloud, and tutorial-start work; a persisted
-page show resumes the loop. Full in-place application remount/disposal is not
+page show resumes the loop and recreates simulation execution as needed.
+Startup waits for the initial scenario's exact state before starting the view;
+startup failures display an error and keep controls available for recovery.
+Full in-place application remount/disposal is not
 part of this static-page architecture.
 
 `src/features/body-info.js` owns
@@ -96,7 +101,66 @@ Synchronous sampling consumes the iterator immediately; asynchronous preparation
 consumes the same steps using an 8 ms wall-clock budget, yielding between steps
 and checking cancellation before continuing. Checkpoints and replay results are
 unchanged. The budget is cooperative, not a hard limit on a single close-encounter
-step. Live rendering still uses synchronous sampling.
+step. Live rendering now reads exact completed snapshots rather than advancing
+the integrators itself.
+
+`simulation-engine.js` owns the live global integrator, hierarchical moon
+integrator, external-tide sampler, and swept custom-body collision refinement.
+`simulation-client.js` runs that engine in a persistent classic
+`simulation-worker.js` Worker over HTTP(S). It transfers initial state once per
+execution instance, recreating that instance when the active model changes or
+execution is disposed; subsequent requests exchange target dates and full
+state snapshots using structured cloning. The small body catalog does not
+require shared memory or cross-origin isolation.
+
+The simulation adapter retains model definitions and reference integrators on
+the main thread, but live evolution belongs to the engine. Known epoch states
+are immediately usable without starting a Worker. Historical Solar dates use
+the existing ephemeris/two-body adapters and release obsolete live execution.
+Editable systems supply one global state; the untouched Solar preset also
+supplies its parent-relative moon hierarchy.
+
+The transport uses request IDs and cancellation generations. An `advance`
+message carries an optional initial definition, target `time`, optional
+playback interval `start`, and the ignored contact-pair key. The Worker loads
+the shared scheduler, math, integrators, collision helpers, and engine with
+`importScripts`, then serializes requests through one promise queue. Replies
+contain optional progress, a result, or an explicit error. Results carry the
+exact time, global/moon states, and any earliest contact identified by stable
+body IDs. The UI maps contact IDs back to active catalog objects before
+reporting or merging them. It never interpolates between snapshots to invent
+an intermediate physical state.
+
+The animation loop admits only one live advance at a time. Bodies, the displayed
+date, impact handling, and telemetry advance together when that request finishes;
+accelerated playback slows down rather than moving the clock ahead of physics.
+Camera interaction and animation callbacks remain available while a Worker is
+busy. Long date-input jumps use the same execution path and report progress.
+Navigation, playback changes, system replacement, and page suspension invalidate
+obsolete results. System replacement and page suspension dispose the Worker; a
+restored page recreates it as needed. Worker failures pause playback and display
+an error, without silently switching to synchronous integration.
+
+`src/app/playback.js` distinguishes requested time from displayed time.
+Navigation accumulates against the requested date, while rendering and body
+cards use only the completed displayed state. During a live advance, the last
+completed snapshot remains available; while a date/system transition is
+pending, scene drawing waits for a consistent model and date. Result admission
+checks the active model, navigation revision, animation loop, playback state,
+direction, and speed. Cancellation invalidates obsolete results even if a
+reply arrives late. Model replacement disposes the previous execution and
+resolves its pending requests as cancelled; a failed Worker is terminated and
+is not silently retried for the same model.
+
+Direct-file launch and browsers without Worker support use the same engine and
+numerical steps with an 8 ms cooperative work budget. This fallback can still
+exceed its budget during a single expensive integration step or collision
+refinement. The synchronous simulation adapter remains the reference and
+arbitrary-date analysis path used by mission planning and sky-event searches;
+those tools explicitly use `referencePositionForBody`. Live `positionForBody`
+queries do not replay physics for an uncached date: they report no available
+state until preparation completes. Moving the analysis queries off-thread is
+separate from live playback.
 
 Route search similarly shares one iterator between synchronous and asynchronous
 consumers. Over HTTP(S), the client gathers the exact sampled waypoint states and
@@ -395,7 +459,10 @@ active custom bodies. Moon targets currently use their heliocentric state
 directly; a parent-centric sphere-of-influence arrival leg is deferred.
 
 The planner prepares global and hierarchical-moon N-body checkpoints before a
-future search, then queries the same heliocentric states used by rendering.
+future search through the main-thread reference adapter, then queries numerical
+states equivalent to the live engine's heliocentric states. This preparation and
+waypoint sampling are not performed by the live simulation Worker; only the
+subsequent Lambert route search is sent to the mission Worker.
 Selected Lambert arcs are sampled for the static orbit layer, while preview
 playback interpolates a spacecraft marker along those physically propagated
 samples. Encounter entries jump the main simulation clock to their waypoint.
@@ -509,11 +576,14 @@ centers and moon states remain continuous at the cutoff. Custom massive-body
 insertion creates matching global and moon hierarchy branches, allowing the new
 body's tidal gravity to affect moons without double-counting their mass.
 
-Long future jumps extend checkpoints with wall-clock-budgeted cooperative work
-and yield to the browser so progress remains visible. Navigation is capped at
-2100 to bound total work and checkpoint memory. Route search uses a Worker;
-moving live global/moon integration off-thread remains a separate future step
-because rendering currently requires synchronous state queries.
+Long future jumps extend checkpoints in the Worker, yielding between work
+budgets so cancellation can be received and progress reported. Direct-file
+execution yields on the main thread instead. Solar navigation is capped at
+2100 to bound total work and checkpoint memory; editable systems have their own
+epoch and time bounds. Route search uses its own Worker;
+live global/moon integration and collision refinement use the persistent
+simulation Worker described above. Renderers retain synchronous access to
+completed snapshots without triggering live integration.
 
 Gravitational parameters are stored in km³/s² from NASA/JPL Solar System
 Dynamics values and converted once to AU³/day². DE440 system parameters are
@@ -628,18 +698,20 @@ global and moon branches.
 Relativistic corrections, fragmentation, maneuvers, comet outgassing, and
 singularity regularization remain outside this implementation. Adaptive
 substepping improves fast Newtonian flybys but does not make extreme
-black-hole encounters physically relativistic. The synchronous reference
-integrator is intentionally validated before moving equivalent work to a Web
-Worker.
+black-hole encounters physically relativistic. The live Worker uses the same
+validated integrators as the synchronous reference path; execution placement
+does not change the numerical method or physical assumptions.
 
 ## Rendering lifecycle
 
 The animation loop:
 
-1. Advances simulated time when playback is active.
-2. Selects ephemeris interpolation or checkpointed N-body integration based on
-   the current date.
-3. Computes positions for all visible bodies.
+1. Requests at most one live advance or pending date preparation, without
+   advancing the displayed clock ahead of the result.
+2. Admits completed states only if their model and playback/navigation context
+   are still current, then commits their exact date and any impact.
+3. Resolves visible-body positions from historical ephemerides, a known epoch
+   state, or the completed live snapshot, never by replaying live integration.
 4. Reuses cached world-space and projected orbit geometry.
 5. Redraws the static orbit layer only when the camera, visibility, or
    highlighting changes.
@@ -770,6 +842,8 @@ Record material design decisions here so later changes retain their rationale.
 
 | Date | Decision | Rationale |
 | --- | --- | --- |
+| 2026-11-08 | Keep classic-script component factories with explicit dependencies and privately owned state. | The composition root stays small while preserving no-build/direct-file launch and independent component contracts. |
+| 2026-11-08 | Run live integration and contact refinement in a persistent simulation Worker; commit time only with exact snapshots. | Separates physics from the UI thread without changing numerical steps or letting displayed time run ahead of body states. Direct-file execution remains cooperative, and arbitrary-date analytical sampling stays a separate concern. |
 | 2026-08-12 | Keep the application dependency-free and statically runnable. | Minimizes setup and deployment cost. |
 | 2026-08-12 | Treat spacecraft paths as documented approximations. | Current records are not full time-varying ephemerides. |
 | 2026-08-12 | Optimize before adding more rendered objects. | Orbit reconstruction and hit testing scale with body and segment count. |

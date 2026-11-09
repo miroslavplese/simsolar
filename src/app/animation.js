@@ -15,6 +15,80 @@
 
   let activeLoop=null;
   let frameId=null;
+  let preparation=null;
+  let failedRevision=null;
+  let failedModel=null;
+
+  function advanceAsync(dt,run){
+    if(preparation || document.hidden) return;
+    const clock=deps.clock;
+    const previous=clock.simDaysSinceJ2000;
+    const requested=clock.requestedDays;
+    const revision=clock.dateNavigationRevision;
+    const model=deps.simulation.editableSystem;
+    if(failedRevision===revision && failedModel===model) return;
+    const playing=clock.playing;
+    const direction=deps.observatory.observatoryActive?1:clock.direction;
+    const speed=speedDaysPerSec();
+    const seeking=requested!==previous || !deps.simulation.isFrameReady(previous);
+    if(!seeking && !playing) return;
+    let target=seeking?requested:previous+direction*speed*dt;
+    const route=(deps.planner.plannerPreviewActive || deps.cockpit.spacecraftViewActive)
+      ? deps.planner.activePlannerRoute:null;
+    const minimum=model?.epoch??-Infinity;
+    const maximum=model?EDITABLE_TIME_LIMIT_DAYS:HYBRID_MAX_DAYS;
+    if(route){
+      target=Math.max(route.waypoints[0].time,Math.min(route.waypoints.at(-1).time,target));
+    }
+    target=Math.max(minimum,Math.min(maximum,target));
+    const cancelled=()=>activeLoop!==run || document.hidden ||
+      deps.simulation.editableSystem!==model ||
+      clock.dateNavigationRevision!==revision ||
+      clock.simDaysSinceJ2000!==previous || clock.requestedDays!==requested ||
+      clock.playing!==playing ||
+      (deps.observatory.observatoryActive?1:clock.direction)!==direction ||
+      speedDaysPerSec()!==speed;
+    const task=deps.simulation.prepareFrame(target,{
+      start:seeking?undefined:previous,
+      ignoredKey:deps.impacts.ignoredImpactKey,
+      cancelled
+    });
+    preparation=task;
+    task.then(result=>{
+      if(!result || cancelled()) return;
+      if(result.impact){
+        const bodies=deps.simulation.activeSystemBodies();
+        const a=bodies.find(body=>body.id===result.impact.aId);
+        const b=bodies.find(body=>body.id===result.impact.bId);
+        if(!a || !b) throw new Error('Simulation returned an impact for an inactive body.');
+        deps.impacts.handleImpact({...result.impact,a,b});
+      } else {
+        clock.simDaysSinceJ2000=result.time;
+        if(!seeking) deps.impacts.ignoredImpactKey=result.ignoredKey;
+        if(!seeking && (
+          result.time===maximum || direction<0 && result.time===minimum ||
+          route && (direction>0 && result.time===route.waypoints.at(-1).time ||
+            direction<0 && result.time===route.waypoints[0].time)
+        )){
+          clock.playing=false;
+          deps.planner.plannerPreviewActive=false;
+          playBtn.textContent='▶';
+          if(!model && result.time===HYBRID_MAX_DAYS) stopAtHybridLimit();
+        }
+      }
+      if(model || seeking) deps.camera.orbitLayerDirty=true;
+    }).catch(error=>{
+      if(cancelled()) return;
+      failedRevision=revision;
+      failedModel=model;
+      clock.playing=false;
+      playBtn.textContent='▶';
+      console.error(error);
+      deps.onError('Simulation failed: '+error.message);
+    }).finally(()=>{
+      if(preparation===task) preparation=null;
+    });
+  }
 
   function loop(t,run){
     if(activeLoop!==run) return;
@@ -27,7 +101,9 @@
         deps.profiler.lastProfilerUpdate=t;
       }
     }
-    if(deps.clock.playing){
+    if(deps.simulation.asyncEnabled){
+      advanceAsync(dt,run);
+    } else if(deps.clock.playing){
       const previousDays=deps.clock.simDaysSinceJ2000;
       const playbackDirection=deps.observatory.observatoryActive?1:deps.clock.direction;
       const nextDays=deps.clock.simDaysSinceJ2000+
@@ -75,11 +151,14 @@
         deps.camera.orbitLayerDirty=true;
       }
     }
-    if(t-deps.impacts.lastImpactPredictionUpdate>1000){
+    const ready=!deps.simulation.asyncEnabled ||
+      deps.simulation.isFrameReady(deps.clock.simDaysSinceJ2000) &&
+      deps.clock.requestedDays===deps.clock.simDaysSinceJ2000;
+    if(ready && t-deps.impacts.lastImpactPredictionUpdate>1000){
       updateImpactPanel();
       deps.impacts.lastImpactPredictionUpdate=t;
     }
-    draw();
+    if(ready) draw();
     if(activeLoop===run) frameId=window.requestAnimationFrame(run);
   }
 
@@ -93,6 +172,7 @@
 
   function stop(){
     activeLoop=null;
+    deps.simulation.cancelPreparation?.();
     if(frameId!==null) window.cancelAnimationFrame(frameId);
     frameId=null;
     playbackClock.reset();

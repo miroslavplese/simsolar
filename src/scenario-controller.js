@@ -10,7 +10,9 @@
     async function restore(state){
       if(!scenarios.validate(state)) throw new TypeError('Invalid scenario state.');
       const current=++revision;
-      options.apply(state);
+      const applied=options.apply(state,()=>current!==revision);
+      if(applied && typeof applied.then==='function') await applied;
+      if(current!==revision) return;
       if(state.missionPlan){
         const restored=await options.restoreMission(state.missionPlan);
         if(current===revision && restored && state.spacecraftView){

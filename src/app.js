@@ -384,7 +384,8 @@
     planner,
     cockpit,
     simulation,
-    sceneRenderer
+    sceneRenderer,
+    onError:message=>scenarios.showScenarioStatus(message,true)
   });
 
   camera.initialize();
@@ -406,26 +407,45 @@
   planner.buildMissionPlanner();
   occultations.buildOccultationControls();
   observatory.buildObservatoryControls();
-  const initialScenario=ScenarioState.scenarioFromUrl(window.location.href);
-  if(initialScenario){
-    scenarios.scenarioController.restore(initialScenario).catch(error=>
-      scenarios.showScenarioStatus('SCENARIO RESTORE FAILED: '+error.message,true));
+  simulation.enableAsync();
+  let suspended=false;
+  function startView(){
+    if(suspended) return;
+    legend.buildLegend();
+    lagrange.updateLagrangeControls();
+    viewport.resize();
+    animation.start();
+    tutorial.scheduleAutoStart();
   }
-  legend.buildLegend();
-  lagrange.updateLagrangeControls();
-  viewport.resize();
+  async function start(){
+    const initialScenario=ScenarioState.scenarioFromUrl(window.location.href);
+    if(initialScenario){
+      await scenarios.scenarioController.restore(initialScenario);
+    } else {
+      await simulation.prepareFrame(clock.simDaysSinceJ2000);
+    }
+    startView();
+  }
+  start().catch(error=>{
+    clock.playing=false;
+    clock.playBtn.textContent='▶';
+    console.error(error);
+    scenarios.showScenarioStatus('SIMULATION START FAILED: '+error.message,true);
+    startView();
+  });
   window.addEventListener('resize', viewport.resize);
-  animation.start();
-  tutorial.scheduleAutoStart();
   window.addEventListener('pagehide',()=>{
+    suspended=true;
     animation.stop();
     tutorial.cancelAutoStart();
     clock.cancelDateNavigation();
     planner.missionPlannerController?.cancelSearch();
     clouds.clearObservatoryCloudRequest();
+    simulation.dispose();
   });
   window.addEventListener('pageshow',event=>{
     if(event.persisted){
+      suspended=false;
       animation.start();
       tutorial.scheduleAutoStart();
     }
