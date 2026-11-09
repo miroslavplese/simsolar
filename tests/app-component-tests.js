@@ -301,4 +301,68 @@ for(const folder of ['app','features','rendering']){
     }
   }
 }
-console.log('Application component ownership, numerical adapters, camera, clock, and animation contracts passed.');
+{
+  let projections=0,simplifications=0;
+  const view={zoom:500,viewYaw:0.2,viewTilt:0.4,panX:0,panY:0,projectionRevision:0};
+  const viewport={cx:720,cy:500};
+  function project(x,y,z){
+    projections++;
+    const rotated=window.ViewTransform.viewCoordinates(x,y,z,view.viewYaw,view.viewTilt);
+    return {
+      x:viewport.cx+view.panX+rotated.x*view.zoom,
+      y:viewport.cy+view.panY+rotated.y*view.zoom,depth:rotated.depth
+    };
+  }
+  const orbits=require('../src/rendering/orbit-layer.js').create({
+    window:{...window,AsteroidBelt:require('../src/asteroid-belt.js'),
+      TrajectoryMath:{...window.TrajectoryMath,simplifyProjectedPath(...args){
+        simplifications++;
+        return window.TrajectoryMath.simplifyProjectedPath(...args);
+      }}},
+    catalog,constants,simulation,viewport,camera:Object.assign(view,{project}),
+    visibility:{},surfaces:{}
+  });
+  const body={_trajectoryPoints:true,_orbitWorldPoints:Array.from({length:5000},(_,i)=>({
+    x:Math.cos(i/200),y:Math.sin(i/200),z:i/5000
+  }))};
+  const points=orbits.getProjectedOrbitPoints(body);
+  const renderPoints=body._renderPathPts;
+  const indices=renderPoints.map(point=>point.sourceIndex);
+  const bounds={...body._pathBounds};
+  assert.equal(projections,5000);
+  assert.equal(simplifications,1);
+  view.panX=17; view.panY=-9; viewport.cx+=30; viewport.cy+=20;
+  view.projectionRevision++;
+  assert.equal(orbits.getProjectedOrbitPoints(body),points);
+  assert.equal(body._renderPathPts,renderPoints);
+  assert.equal(projections,5000,'pan/follow must not project the world path again');
+  assert.equal(simplifications,1,'pan/follow must not re-simplify the path');
+  assert.deepEqual(renderPoints.map(point=>point.sourceIndex),indices);
+  near(body._pathBounds.minX,bounds.minX+47,'translated hit-test bounds x');
+  near(body._pathBounds.minY,bounds.minY+11,'translated hit-test bounds y');
+  for(const index of [0,2500,4999]){
+    const source=body._orbitWorldPoints[index];
+    compare(points[index],project(source.x,source.y,source.z),'translated point '+index);
+  }
+  for(const point of renderPoints){
+    const source=points[point.sourceIndex];
+    near(point.x,source.x,'render/hit-test x');
+    near(point.y,source.y,'render/hit-test y');
+  }
+  for(const key of ['zoom','viewYaw','viewTilt']){
+    view[key]+=0.1; view.projectionRevision++;
+    const count=projections;
+    assert.notEqual(orbits.getProjectedOrbitPoints(body),points);
+    assert.equal(projections,count+5000,key+' must rebuild the projection');
+  }
+  body._orbitWorldPoints=[{x:0,y:0,z:0},{x:1,y:1,z:1}];
+  view.projectionRevision++;
+  assert.equal(orbits.getProjectedOrbitPoints(body).length,2,'replaced source must rebuild');
+  const conic={_orbitWorldPoints:[{x:0,y:0,z:0},{x:2,y:1,z:0}]};
+  const conicPoints=orbits.getProjectedOrbitPoints(conic);
+  const x=conicPoints[1].x;
+  view.panX+=5; view.projectionRevision++;
+  orbits.getProjectedOrbitPoints(conic);
+  near(conicPoints[1].x,x+5,'unsimplified path must translate only once');
+}
+console.log('Application component ownership, numerical adapters, camera, clock, animation, and orbit-cache contracts passed.');

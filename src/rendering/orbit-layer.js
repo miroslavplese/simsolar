@@ -125,7 +125,37 @@
 
   function getProjectedOrbitPoints(obj){
     if(obj._projectedRevision !== deps.camera.projectionRevision){
-      const pts = getOrbitWorldPoints(obj).map(p=>project(p.x,p.y,p.z));
+      const worldPoints=getOrbitWorldPoints(obj);
+      const view={
+        source:worldPoints,zoom:deps.camera.zoom,
+        yaw:deps.camera.viewYaw,tilt:deps.camera.viewTilt,
+        x:deps.viewport.cx+deps.camera.panX,
+        y:deps.viewport.cy+deps.camera.panY
+      };
+      const previous=obj._projectedView;
+      if(previous && previous.source===view.source &&
+        previous.zoom===view.zoom && previous.yaw===view.yaw &&
+        previous.tilt===view.tilt){
+        // Translation preserves the screen-space simplification error.
+        const dx=view.x-previous.x,dy=view.y-previous.y;
+        for(const point of obj._pathPts){
+          point.x+=dx;
+          point.y+=dy;
+        }
+        if(obj._renderPathPts!==obj._pathPts){
+          for(const point of obj._renderPathPts){
+            point.x+=dx;
+            point.y+=dy;
+          }
+        }
+        const bounds=obj._pathBounds;
+        bounds.minX+=dx; bounds.maxX+=dx;
+        bounds.minY+=dy; bounds.maxY+=dy;
+        obj._projectedView=view;
+        obj._projectedRevision=deps.camera.projectionRevision;
+        return obj._pathPts;
+      }
+      const pts = worldPoints.map(p=>project(p.x,p.y,p.z));
       let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
       for(const p of pts){
         minX=Math.min(minX,p.x); minY=Math.min(minY,p.y);
@@ -136,6 +166,7 @@
         ? simplifyProjectedPath(pts,0.75)
         : pts;
       obj._pathBounds = {minX,minY,maxX,maxY};
+      obj._projectedView=view;
       obj._projectedRevision = deps.camera.projectionRevision;
     }
     return obj._pathPts;
