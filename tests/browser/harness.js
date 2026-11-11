@@ -10,6 +10,8 @@ const test=baseTest.extend({
   browserGuards:[async({page},use,testInfo)=>{
     const errors=[];
     page.on('pageerror',error=>errors.push(String(error)));
+    // Match the default scenario epoch; reset-specific tests override wall time.
+    await page.clock.setFixedTime(new Date('2015-07-13T12:00:00Z'));
     await page.addInitScript(()=>{
       localStorage.setItem('tutorial:simsolar_tutorial_complete','1');
       window.__testErrors=[];

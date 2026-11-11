@@ -225,7 +225,7 @@
         target:'#dock',
         interactive:true,
         title:'Control time and view',
-        text:'Play, pause, jump by 30 days, change simulation speed, zoom, choose Inner/Outer/Deep presets, or return to today. Press T whenever you need to show or hide these controls.',
+        text:'Play, pause, jump by 30 days, change simulation speed, zoom, choose Inner/Outer/Deep presets, or return to today. Press T whenever you need to show or hide these controls.\n\nLoading a curated system or restoring Solar starts fresh at the current time and clears accumulated calculations and trajectories. Shared scenario links keep their saved date.',
         before(){
           setTutorialScene({panels:['dock'],zoom:1.4});
         }
@@ -283,7 +283,7 @@
         target:'#bodyPanel',
         interactive:true,
         title:'Experiment with gravity',
-        text:'Click ✦ to introduce a star, black hole, planet, or comet in the future N-body simulation. Choose a 0–180° inclination, place its orbital node, set velocity, and watch for predicted impacts. Zoom in—or enter Observatory Mode—to see its physical size and appearance.',
+        text:'Click ✦ to introduce a star, black hole, planet, or comet in an editable N-body simulation. Choose a 0–180° inclination, place its orbital node, set velocity, and watch for predicted impacts. Zoom in—or enter Observatory Mode—to see its physical size and appearance.',
         before(){
           setTutorialScene({bodyPanel:true,zoom:1});
         }

@@ -25,6 +25,24 @@ Do not put simulation, drawing, input, or feature workflows back into the
 composition root. Declare new scripts/styles in `solar-system.html` in dependency
 order and bump modified script cache keys when existing keys are versioned.
 
+### System replacement contract
+
+Restore Solar and library loads start fresh at one captured wall-clock instant,
+paused with forward direction selected. Use the shared transition command:
+`simulation.reset()` discards live execution and recreates the reference
+integrators, while `clock.resetTime()` cancels pending navigation and replaces
+the displayed/requested time. Owner cache-clearing commands also release
+computed trails, continuation paths, projections, and feature results.
+Clearing snapshot maps or disposing a Worker alone does not discard reference
+integrator checkpoints. Keep bundled ephemerides and initial-state data intact.
+
+Saved scenarios are different: restore their recorded time and editable epoch,
+not the current wall clock. Cover repeated same-system resets, in-flight work,
+exact sub-day time, and saved-scenario restoration over both HTTP and direct-file
+launch. Browser fixtures pin wall time to the default scenario date; override
+it explicitly when testing resets or future Solar execution. Paired performance
+and visual workloads must use the same epoch before and after the change.
+
 ## Before and during a change
 
 1. Identify the affected ownership boundary and existing helpers.

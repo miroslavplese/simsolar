@@ -526,6 +526,20 @@
     }
   }
 
+  function clearCaches(){
+    for(const body of new Set([
+      ...deps.catalog.builtInBodies,...deps.simulation.activeSystemBodies(),
+      ...hybridTrailCache.keys()
+    ])){
+      for(const key of [
+        '_orbitWorldPoints','_projectedRevision','_projectedView',
+        '_pathPts','_renderPathPts','_pathBounds','_screenOrbit',
+        '_continuationPoints','_continuationStep','_projectedHybridTrail'
+      ]) delete body[key];
+    }
+    hybridTrailCache.clear();
+  }
+
   return {
     ensureHybridTrail,
     getOrbitWorldPoints,
@@ -540,6 +554,6 @@
     moonOrbitGeometries,
     drawClosePlanetOrbits,
     drawMoonOrbitSide,
-    clearCaches(){ hybridTrailCache.clear(); }
+    clearCaches
   };
 });

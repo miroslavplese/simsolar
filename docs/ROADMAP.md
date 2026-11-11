@@ -22,6 +22,9 @@ validation.
 - [x] 2026-08-12 - Add ephemeris interpolation, propagation, launch, flyby, and
   mission-navigation regression tests.
 - [ ] Audit every spacecraft source, epoch, calibration point, and note.
+- [ ] Investigate intermittent lifecycle DOM-count failures after repeated
+  catalog rebuilds; they also reproduce against unchanged runtime sources.
+  Keep the existing budgets and distinguish retained nodes from live DOM growth.
 - [x] 2026-08-12 - Add reproducible NASA/JPL Horizons trajectory generation.
 - [x] 2026-08-12 - Render sampled launch-to-present spacecraft paths and
   planetary flyby markers.
@@ -178,6 +181,11 @@ introduced.
 
 ## Completed
 
+- [x] 2026-11-10 - Make Restore Solar and curated-library loads start fresh at
+  the current date/time, paused with forward direction selected. Cancel stale
+  work, recreate numerical integrators, and clear computed trajectories/caches;
+  saved scenarios retain their recorded dates and epochs. Cover HTTP/direct-file
+  resets, pending work, same-system replacement, and preserved bundled data.
 - [x] 2026-11-06 - Added a curated library of nine systems with real Solar-preset
   restoration and eight explicitly illustrative editable examples.
 - [x] 2026-11-06 - Added eccentric orbital initialization, hierarchical stellar

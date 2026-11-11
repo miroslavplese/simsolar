@@ -118,6 +118,18 @@
 
   const playbackClock=PlaybackClock.create();
 
+  function resetTime(time){
+    cancelDateNavigation();
+    // A replacement system has no previous frame or pending date to retain.
+    simDaysSinceJ2000=time;
+    playing=false;
+    direction=1;
+    playBtn.textContent='▶';
+    playbackClock.reset();
+    updateSpeedLabel();
+    updateDateUI();
+  }
+
   let initialized=false;
   function initialize(){
     if(initialized) return;
@@ -195,6 +207,7 @@
     get speedExp(){ return speedExp; },
     set speedExp(value){ speedExp=value; },
     updateSpeedLabel,
+    resetTime,
     cancelDateNavigation,
     updateDateUI,
     get dateNavigationRevision(){ return dateNavigationRevision; },

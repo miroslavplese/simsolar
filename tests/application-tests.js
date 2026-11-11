@@ -123,6 +123,27 @@ async function main(){
   assert.deepEqual(restoredCockpits,[],
     'Restoring an unplanned scenario invalidates a pending cockpit restore.');
   assert.equal(appliedStates.at(-1),state);
+  const cancelledRestore=sequenced.restore(withMission('old'));
+  sequenced.cancel();
+  pending.get('old').resolve(true);
+  await cancelledRestore;
+  assert.deepEqual(restoredCockpits,[],
+    'Replacing the system invalidates a pending scenario cockpit restore.');
+  let finishApply,applyCancelled,missionRestores=0;
+  const applying=Scenarios.create({
+    apply(s,isCancelled){
+      applyCancelled=isCancelled;
+      return new Promise(resolve=>{ finishApply=resolve; });
+    },
+    restoreMission(){ missionRestores++; }
+  });
+  const pendingApply=applying.restore(withMission('old'));
+  applying.cancel();
+  assert.equal(applyCancelled(),true);
+  finishApply();
+  await pendingApply;
+  assert.equal(missionRestores,0,
+    'A cancelled scenario cannot start a route search after its physics completes.');
   const failed=sequenced.restore(withMission('failed'));
   pending.get('failed').reject(new Error('Reference mission failure'));
   await assert.rejects(failed,/Reference mission failure/);

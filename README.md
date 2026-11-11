@@ -162,7 +162,10 @@ The belt is absent from custom/editable systems.
   retains its existing observation-based maps and reference photographs.
   Info-panel values distinguish arbitrary assumptions, approximate references,
   estimates, and simulation results, including Alpha Centauri's demo-scale orbits.
-  Loading pauses playback, fits the view, and clears system-specific tools.
+  Loading resets the clock to the current time, pauses playback, fits the view,
+  and clears system-specific tools and accumulated calculations/trajectories.
+  Restore Solar also starts fresh at the current time; saved scenario links
+  retain their recorded dates.
   The Solar entry restores the original preset; the other entries are editable,
   explicitly illustrative N-body models with barycentric stellar orbit guides.
 - Physical-scale custom-body rendering in both system and Observatory views,
@@ -351,12 +354,14 @@ systems are represented globally
 by their system barycenters. A nested 0.05-day moon integrator combines exact
 parent-moon Kepler drift with external tidal, mutual-moon, and parent-recoil
 kicks. Spacecraft and comets remain massless test particles. Checkpoints provide
-deterministic future navigation, and custom massive bodies perturb both global
-and moon-system branches. Long jumps are prepared in bounded chunks so the
+deterministic future navigation. Editing detaches the sampled Solar state into
+one editable barycentric system, where custom massive bodies perturb its other
+massive bodies and particles. Long jumps are prepared in bounded chunks so the
 browser can repaint progress between them. Adaptive substeps resolve
 Newtonian custom-body flybys, but relativistic compact-object encounters
-remain deferred. The browser UI currently caps future navigation at 2100 to
-bound integration time and checkpoint memory.
+remain deferred. The browser UI caps untouched Solar navigation at 2100 to
+bound integration time and checkpoint memory; editable systems use their own
+epoch and time bounds.
 
 Mission searches run in a Web Worker when served over HTTP(S), or cooperatively
 when opened directly from disk. Live global/moon integration, collision

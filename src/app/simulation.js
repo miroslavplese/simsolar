@@ -87,7 +87,7 @@
   const hybridInitialState=createBarycentricState(
     HYBRID_EPOCH_DAYS,massiveDefinitions,particleDefinitions
   );
-  const hybridBaseSimulator=createSimulator(hybridInitialState,{
+  let hybridBaseSimulator=createSimulator(hybridInitialState,{
     stepDays:0.25,particleStepDays:0.03125,checkpointDays:8
   });
   let hybridBranchSequence=0;
@@ -598,6 +598,25 @@
     editableSnapshotCache={system:null,time:NaN,state:null};
   }
 
+  function reset(){
+    dispose();
+    editableSystem=null;
+    customBodies.length=0;
+    hybridBaseSimulator=createSimulator(hybridInitialState,{
+      stepDays:0.25,particleStepDays:0.03125,checkpointDays:8
+    });
+    hybridBranches.splice(0,hybridBranches.length,{
+      id:++hybridBranchSequence,epoch:HYBRID_EPOCH_DAYS,
+      simulator:hybridBaseSimulator
+    });
+    moonBranches.splice(0,moonBranches.length,{
+      id:++moonBranchSequence,epoch:HYBRID_EPOCH_DAYS,
+      simulator:createMoonSimulator(moonInitial.state,moonExternalStateAt)
+    });
+    for(const body of builtInBodies) delete body._continuationOrigin;
+    clearCaches();
+  }
+
   function nextBodyId(){
     return 'custom-'+Date.now().toString(36)+'-'+(++runtimeBodySequence);
   }
@@ -626,6 +645,7 @@
     editableOrbitReference,
     rebuildEditableAt,
     clearCaches,
+    reset,
     nextBodyId,
     serializedEditableSystem,
     restoreEditableSystem,

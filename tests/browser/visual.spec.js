@@ -43,6 +43,7 @@ test('visual: physical Saturn texture, rings, and follow camera',async({page})=>
 });
 
 test('visual: compact curated scene and provenance',async({page})=>{
+  await page.clock.setFixedTime(new Date('2015-07-13T12:00:00Z'));
   await open(page);
   await loadCurated(page,'trappist-1');
   await page.locator('#legend').getByRole('button',{name:'TRAPPIST-1e',exact:true}).click();

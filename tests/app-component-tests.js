@@ -116,6 +116,30 @@ assert.equal('hybridSnapshotCache' in simulation,false);
 assert.equal('editableSnapshotCache' in simulation,false);
 assert.equal('runtimeBodySequence' in simulation,false);
 
+{
+  const time=catalog.HYBRID_EPOCH_DAYS+2;
+  const earth=catalog.planets.find(body=>body.name==='Earth');
+  const before=simulation.referencePositionForBody(earth,time);
+  const global=simulation.hybridBranchAt(time);
+  const moons=simulation.moonBranchAt(time);
+  const origin=simulation.continuationOrigin(catalog.spacecraft[0]);
+  simulation.reset();
+  assert.notEqual(simulation.hybridBranchAt(time).simulator,global.simulator,
+    'Solar replacement must discard reference-integrator checkpoints');
+  assert.notEqual(simulation.moonBranchAt(time).simulator,moons.simulator,
+    'Solar replacement must discard moon-integrator checkpoints');
+  assert.notEqual(simulation.continuationOrigin(catalog.spacecraft[0]),origin);
+  compare(simulation.referencePositionForBody(earth,time),before,'fresh Solar state');
+  const editable=Curated.buildEditableSystem(Curated.SYSTEMS[1],5672);
+  editable.bodies.at(-1).kind='custom';
+  simulation.restoreEditableSystem(editable);
+  assert.ok(simulation.customBodies.length);
+  simulation.reset();
+  assert.equal(simulation.editableSystem,null);
+  assert.equal(simulation.customBodies.length,0);
+  assert.equal(simulation.activeSystemBodies(),catalog.builtInBodies);
+}
+
 class Element{
   constructor(){
     this.listeners=new Map();
@@ -209,6 +233,32 @@ observatory.observatoryActive=true;
 clock.observatorySpeedExp=1;
 assert.equal(clock.speedDaysPerSec(),10/86400);
 observatory.observatoryActive=false;
+
+{
+  let cancellations=0;
+  const pendingClock=Clock.create({
+    document,window,constants,catalog,camera,observatory,
+    simulation:{
+      asyncEnabled:true,HYBRID_MAX_DAYS:simulation.HYBRID_MAX_DAYS,
+      isFrameReady:()=>false,cancelPreparation(){ cancellations++; }
+    },
+    impacts:{updateImpactPanel(){}}
+  });
+  pendingClock.simDaysSinceJ2000=20000;
+  pendingClock.direction=-1;
+  pendingClock.playing=true;
+  const previousRevision=pendingClock.dateNavigationRevision;
+  const time=constants.daysSinceJ2000(Date.parse('2018-01-02T03:04:05.678Z'));
+  pendingClock.resetTime(time);
+  assert.equal(pendingClock.simDaysSinceJ2000,time);
+  assert.equal(pendingClock.requestedDays,time,'replacement discards the queued navigation');
+  assert.equal(pendingClock.dateNavigationRevision,previousRevision+1);
+  assert.equal(pendingClock.playing,false);
+  assert.equal(pendingClock.direction,1);
+  assert.equal(elements.get('dateInput').value,'2018-01-02');
+  assert.equal(elements.get('timeOut').textContent,'03:04:05 UTC');
+  assert.ok(cancellations>0);
+}
 
 const frames=new Map();
 let sequence=0,draws=0,resets=0,onDraw=null;
@@ -364,5 +414,27 @@ for(const folder of ['app','features','rendering']){
   view.panX+=5; view.projectionRevision++;
   orbits.getProjectedOrbitPoints(conic);
   near(conicPoints[1].x,x+5,'unsimplified path must translate only once');
+  simulation.reset();
+  const craft=catalog.spacecraft[0];
+  const world=orbits.getOrbitWorldPoints(craft);
+  const projected=orbits.getProjectedOrbitPoints(craft);
+  const trail=orbits.ensureHybridTrail(craft,catalog.HYBRID_EPOCH_DAYS+1,
+    {x:1,y:2,z:3});
+  orbits.projectedHybridTrail(craft,trail);
+  const continuation=orbits.ensureContinuation(craft,catalog.HYBRID_EPOCH_DAYS+40);
+  const trajectory=craft._trajectoryPoints;
+  orbits.clearCaches();
+  for(const key of [
+    '_orbitWorldPoints','_projectedRevision','_projectedView','_pathPts',
+    '_renderPathPts','_pathBounds','_continuationPoints','_continuationStep',
+    '_projectedHybridTrail'
+  ]) assert.equal(key in craft,false,key+' must be released');
+  assert.equal(craft._trajectoryPoints,trajectory,'bundled ephemerides are preserved');
+  assert.notEqual(orbits.getOrbitWorldPoints(craft),world);
+  assert.notEqual(orbits.getProjectedOrbitPoints(craft),projected);
+  const freshTrail=orbits.ensureHybridTrail(craft,catalog.HYBRID_EPOCH_DAYS);
+  assert.notEqual(freshTrail,trail);
+  assert.equal(freshTrail.length,1,'no accumulated trail survives replacement');
+  assert.notEqual(orbits.ensureContinuation(craft,catalog.HYBRID_EPOCH_DAYS),continuation);
 }
 console.log('Application component ownership, numerical adapters, camera, clock, animation, and orbit-cache contracts passed.');

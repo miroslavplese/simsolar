@@ -659,6 +659,12 @@ test('mobile viewport and tutorial remain usable',async({page})=>{
   await open(page);
   await page.locator('#tutorialBtn').click();
   await expect(page.locator('.tutorial-tooltip')).toBeVisible();
+  await page.locator('.tutorial-next').click();
+  await page.locator('.tutorial-next').click();
+  await expect(page.locator('.tutorial-tooltip')).toContainText(
+    'restoring Solar starts fresh at the current time');
+  await expect(page.locator('.tutorial-tooltip')).toContainText(
+    'Shared scenario links keep their saved date');
   await page.locator('.tutorial-skip').click();
   await expect(page.locator('.tutorial-tooltip')).toBeHidden();
   await page.locator('#missionBtn').click();
@@ -666,6 +672,7 @@ test('mobile viewport and tutorial remain usable',async({page})=>{
 });
 
 test('curated library loads all examples with valid cards and resets the real Solar preset',async({page})=>{
+  await page.clock.setFixedTime(new Date('2018-01-02T03:04:05.678Z'));
   await open(page,scenario({selected:'Earth',follow:'Earth'}));
   await page.locator('#curatedBtn').click();
   await expectCuratedArtwork(page);
@@ -680,7 +687,8 @@ test('curated library loads all examples with valid cards and resets the real So
   );
   expect(new Set(pictures).size).toBe(9);
   await page.locator('#curatedClose').click();
-  const date=await page.locator('#dateInput').inputValue();
+  const date='2018-01-02';
+  await expect(page.locator('#dateInput')).not.toHaveValue(date);
   const definitions=await page.evaluate(()=>CuratedSystems.SYSTEMS
     .filter(system=>system.mode!=='solar')
     .map(system=>({id:system.id,count:system.bodies.length,

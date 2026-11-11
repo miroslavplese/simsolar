@@ -81,6 +81,7 @@ for(const workload of [
 ]){
   test('performance: '+workload.name,async({page,browser},info)=>{
     const samples={baseline:[],candidate:[]};
+    await page.clock.setFixedTime(new Date(Date.UTC(2000,0,1,12)+9808*86400000));
     await page.addInitScript(instrument);
     for(let round=0;round<3;round++){
       // Alternate order to reduce systematic warm-up/thermal bias.

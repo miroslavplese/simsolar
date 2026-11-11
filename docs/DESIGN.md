@@ -53,6 +53,9 @@ not a system transition. UI workflows must use the centralized transition
 commands so selection, following, async work, catalogs, and caches remain
 consistent. Numerical snapshot maps and render-path caches stay private:
 transitions call their owners' `clearCaches()`/`clearPaths()` commands.
+Fresh preset/library loads additionally call `simulation.reset()` to discard
+live execution and recreate the reference integrators; cache invalidation alone
+does not release the integrators' checkpoint histories.
 Simulation sampling takes an explicit time and does not depend on the document,
 camera, playback controller, or date controls. Render trail construction belongs
 to the orbit layer, not the numerical adapter.
@@ -154,6 +157,11 @@ reply arrives late. Model replacement disposes the previous execution and
 resolves its pending requests as cancelled; a failed Worker is terminated and
 is not silently retried for the same model.
 
+Fresh preset/library loads use `clock.resetTime()` rather than ordinary date
+navigation: the old model and requested date are discarded, and the displayed
+clock immediately becomes the captured current time. Drawing still waits for
+the replacement model's exact state. This does not change saved-scenario dates.
+
 Direct-file launch and browsers without Worker support use the same engine and
 numerical steps with an 8 ms cooperative work budget. This fallback can still
 exceed its budget during a single expensive integration step or collision
@@ -254,9 +262,18 @@ The Solar entry restores the existing immutable preset with its complete
 catalog and historical/future behavior; it never synthesizes Earth-mass copies
 of the Solar planets.
 
-Other entries create a paused editable system at the current simulation date,
-in days since J2000. Elliptical elements are converted to position and velocity
-using the shared Kepler solver; eccentricity is not discarded. Synthetic mean
+Restore Solar and every library load reset the clock to the current wall-clock
+instant and pause forward playback. They cancel pending navigation, scenario
+restoration, searches, and live execution; discard numerical checkpoints,
+snapshots, computed trajectories, and projected paths; and rebuild reference
+integrators from the bundled Solar initial state. Bundled ephemerides are
+preserved. Solar live evolution is prepared afresh before drawing.
+
+Other entries create a paused editable system with that same current instant
+as its epoch, in days since J2000, rather than inheriting the previous
+simulation's date or accumulated state. Saved scenario links still restore
+their recorded time and epoch. Elliptical elements are converted to position
+and velocity using the shared Kepler solver; eccentricity is not discarded. Synthetic mean
 anomalies are spread by the golden angle unless an explicit phase is supplied.
 Stars are initialized as nested two-body groups: each outer star orbits the
 inner group's barycenter and imparts recoil to the entire inner group.
@@ -320,6 +337,9 @@ and time/view-dock visibility. The view is fitted and playback is paused.
 Regression coverage checks all library entries, bounded energy drift and compact
 orbits over 100 days, both binary guides, shared references/surfaces, Solar
 restoration, stale-work cancellation, body cards, and repeated panel/profiler use.
+Reset contracts also cover repeated same-system loads, fresh Solar/moon
+integrators, worker replacement, released numerical/render histories, exact
+current time, and saved-scenario dates over HTTP and direct-file launch.
 
 ## Coordinate and time model
 
@@ -574,9 +594,10 @@ The global body's GM is the DE440 planetary-system GM. The hierarchy subtracts
 the current JPL GMs of explicitly modeled moons to obtain a residual parent GM;
 that residual includes the physical planet and omitted satellites. Parent
 offsets are reconstructed from the local system barycenter, so rendered planet
-centers and moon states remain continuous at the cutoff. Custom massive-body
-insertion creates matching global and moon hierarchy branches, allowing the new
-body's tidal gravity to affect moons without double-counting their mass.
+centers and moon states remain continuous at the cutoff. This hierarchy belongs
+to the untouched Solar preset. Editing detaches sampled planet/moon states into
+one editable barycentric system; custom bodies interact with that system's
+massive bodies rather than creating parallel global/moon hierarchy branches.
 
 Long future jumps extend checkpoints in the Worker, yielding between work
 budgets so cancellation can be received and progress reported. Direct-file
@@ -672,13 +693,13 @@ to produce the requested orbital inclination while preserving speed and radial
 velocity. Live AU coordinates, 3D direction, inclination, and km/s are shown
 before insertion.
 
-Insertion creates a new deterministic simulation branch at the current date.
-The new body's heliocentric 3D position and velocity are converted to the active
-barycentric state, its mass becomes a Newtonian gravitational parameter, and
-later checkpoints and trail caches are invalidated. Rewinding before the
-insertion date selects the prior branch; inserting after a rewind discards
-branches introduced later. The first version intentionally limits placement
-and velocity to the ecliptic plane.
+Insertion rebuilds the editable simulation at the displayed date using its
+completed state, adds the drafted position/velocity and gravitational parameter,
+and recenters the barycentric state. Replacing the model invalidates old
+execution, checkpoints, and trail caches. Navigation cannot rewind before the
+new editable epoch; earlier edit branches are not retained. The position is
+constrained to an ecliptic-plane node, but the inclination control rotates the
+drafted velocity out of that plane.
 
 Custom bodies use the same estimated physical radii for collision geometry,
 close-view rendering, and apparent angular size in Observatory Mode. At system
@@ -694,8 +715,8 @@ use type-specific mass estimates (stellar mass-radius scaling, Schwarzschild
 radius, constant Earth density, or comet density). The impact monitor also
 provides a constant-velocity warning up to 365 days ahead. Contact pauses at the
 first crossing. Natural-body contacts remain report-only; custom-custom
-contacts may create a volume-conserving, momentum-conserving remnant on matching
-global and moon branches.
+contacts may create a volume-conserving, momentum-conserving remnant and rebuild
+the editable system at the contact time.
 
 Relativistic corrections, fragmentation, maneuvers, comet outgassing, and
 singularity regularization remain outside this implementation. Adaptive
@@ -850,6 +871,7 @@ Record material design decisions here so later changes retain their rationale.
 
 | Date | Decision | Rationale |
 | --- | --- | --- |
+| 2026-11-10 | Treat Restore Solar and library loads as fresh current-time simulations, separate from saved-scenario restoration. | Recreate numerical integrators and execution, cancel stale work, and clear derived trajectories without losing bundled ephemerides or changing saved dates/epochs. |
 | 2026-11-08 | Keep classic-script component factories with explicit dependencies and privately owned state. | The composition root stays small while preserving no-build/direct-file launch and independent component contracts. |
 | 2026-11-08 | Run live integration and contact refinement in a persistent simulation Worker; commit time only with exact snapshots. | Separates physics from the UI thread without changing numerical steps or letting displayed time run ahead of body states. Direct-file execution remains cooperative, and arbitrary-date analytical sampling stays a separate concern. |
 | 2026-08-12 | Keep the application dependency-free and statically runnable. | Minimizes setup and deployment cost. |

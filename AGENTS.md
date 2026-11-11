@@ -8,6 +8,9 @@ component ownership and scientific assumptions.
 - Preserve static HTTP and direct-file launch; do not introduce a required build.
 - Keep feature logic out of `src/app.js`, the composition root.
 - Keep live integration out of renderers; use completed simulation snapshots.
+- Preserve fresh current-time resets for Restore Solar/library loads, while
+  saved scenarios retain their recorded time and epoch. See the system
+  replacement contract in `docs/DEVELOPMENT.md`.
 - Validate the actual workload affected, including enabled optional layers,
   close-up following, future dates, and system replacement where relevant.
 - Do not weaken checks or regenerate references just to make a change pass.

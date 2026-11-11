@@ -9,13 +9,12 @@
   const {MissionPlannerUI,CuratedSystemsUI,CuratedSystems}=window;
   const {cloneState,createBarycentricState,createSimulator}=window.NBodySimulation;
   const {deletionClosure,dominantLightBody}=window.SystemModel;
-  const {J2000,ZOOM_MIN,BASE_ZOOM_MAX,AU_PX,DEFAULT_TILT}=deps.constants;
+  const {J2000,daysSinceJ2000,ZOOM_MIN,BASE_ZOOM_MAX,AU_PX,DEFAULT_TILT}=deps.constants;
   const {builtInBodies}=deps.catalog;
   const {
-    positionForBody,stateDefinitionForBody,activeSystemBodies,isBodyActive,rebuildEditableAt,
-    customBodies,HYBRID_MAX_DAYS
+    positionForBody,stateDefinitionForBody,activeSystemBodies,isBodyActive,rebuildEditableAt
   }=deps.simulation;
-  const {playBtn,cancelDateNavigation,playbackClock,updateSpeedLabel,updateDateUI}=deps.clock;
+  const {playBtn,resetTime}=deps.clock;
   const {setSelectedBody}=deps.selection;
   const {setFollowTarget,selectViewPreset,invalidateProjection}=deps.camera;
   const {setObservatoryMode,refreshObservatoryTelescopeTargets,refreshObservatoryCatalog}=deps.observatory;
@@ -144,15 +143,19 @@
     cleanAfterSystemChange(removed);
   }
 
-  function restoreSolarSystem(){
+  function resetSystem(system,time){
     const removed=new Set(activeSystemBodies().map(body=>body.id));
-    deps.simulation.editableSystem=null;
-    customBodies.length=0;
-    updateSystemDateBounds();
-    deps.clock.simDaysSinceJ2000=Math.min(deps.clock.simDaysSinceJ2000,HYBRID_MAX_DAYS);
-    deps.clock.playing=false;
-    playBtn.textContent='▶';
+    deps.scenarios.scenarioController.cancel();
+    deps.planner.missionPlannerController?.cancelSearch();
+    deps.simulation.reset();
+    if(system) restoreEditableSystem(system);
+    else updateSystemDateBounds();
+    resetTime(time);
     cleanAfterSystemChange(removed);
+  }
+
+  function restoreSolarSystem(){
+    resetSystem(null,daysSinceJ2000(Date.now()));
     deps.scenarios.showScenarioStatus('SOLAR SYSTEM RESTORED');
   }
 
@@ -178,18 +181,16 @@
       btn.setAttribute('aria-expanded',String(vis));
     });
     CuratedSystemsUI.setOnLoad((sysDef)=>{
+      const time=daysSinceJ2000(Date.now());
       let system;
       try{
         system=sysDef.mode==='solar' ? null :
-          CuratedSystems.buildEditableSystem(sysDef,deps.clock.simDaysSinceJ2000);
+          CuratedSystems.buildEditableSystem(sysDef,time);
       } catch(error){
         console.error(error);
         deps.scenarios.showScenarioStatus('Unable to load system: '+error.message,true);
         return;
       }
-      const removed=new Set(activeSystemBodies().map(body=>body.id));
-      cancelDateNavigation();
-      deps.planner.missionPlannerController?.cancelSearch();
       setOccultationPanelVisible(false);
       if(deps.cockpit.spacecraftViewActive) setSpacecraftView(false);
       if(deps.observatory.observatoryActive) setObservatoryMode(false);
@@ -198,17 +199,7 @@
       setSelectedBody(null,false);
       setFollowTarget(null);
       deps.selection.hovered=null;
-      if(system){
-        restoreEditableSystem(system);
-        cleanAfterSystemChange(removed);
-      } else {
-        restoreSolarSystem();
-      }
-      deps.clock.playing=false;
-      deps.clock.direction=1;
-      playBtn.textContent='▶';
-      playbackClock.reset();
-      updateSpeedLabel();
+      resetSystem(system,time);
       const extent=system?.extentAU||sysDef.extentAU;
       deps.camera.zoom=Math.max(ZOOM_MIN,Math.min(
         BASE_ZOOM_MAX,Math.min(deps.viewport.W,deps.viewport.H)*0.4/(extent*AU_PX)
@@ -217,7 +208,6 @@
       deps.camera.viewYaw=0; deps.camera.viewTilt=DEFAULT_TILT;
       selectViewPreset('Current');
       invalidateProjection();
-      updateDateUI();
       for(const id of [
         'aboutPanel','missionPanel','plannerPanel',
         'occultationPanel','impactPanel'

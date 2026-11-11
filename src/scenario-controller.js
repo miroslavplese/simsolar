@@ -28,7 +28,10 @@
       }
       return scenarios.urlWithScenario(href,state);
     }
-    return {restore,link};
+    function cancel(){
+      revision++;
+    }
+    return {restore,link,cancel};
   }
   return {create};
 });
